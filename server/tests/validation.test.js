@@ -1,0 +1,10 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {startSchema,manualSchema,lookupSchema,safeCsv} from '../src/utils/validation.js';
+const good={studentName:'Aarav Kumar',dob:'2013-02-12',studentClass:'7',currentSchool:'Sample School',guardianName:'Anita Kumar',guardianPhone:'9876543210',email:'',address:'Village Road',city:'Kanhra',district:'Charkhi Dadri',state:'Haryana',pincode:'127306',purpose:'',consent:true};
+test('accepts valid real student data',()=>assert.equal(startSchema.parse(good).studentName,'Aarav Kumar'));
+test('rejects incorrect guardian phone',()=>assert.equal(startSchema.safeParse({...good,guardianPhone:'123'}).success,false));
+test('requires guardian consent',()=>assert.equal(startSchema.safeParse({...good,consent:false}).success,false));
+test('requires real UTR and accepted terms',()=>{assert.equal(manualSchema.safeParse({utr:'1234567890',termsAccepted:'true'}).success,true);assert.equal(manualSchema.safeParse({utr:'123',termsAccepted:'true'}).success,false);assert.equal(manualSchema.safeParse({utr:'1234567890',termsAccepted:'false'}).success,false);});
+test('accepts confirmed registration or private application reference',()=>{assert.equal(lookupSchema.safeParse({registrationNumber:'SHREE26-000001',phone:'9876543210'}).success,true);assert.equal(lookupSchema.safeParse({registrationNumber:'APP-1A2B3C4D5E',phone:'9876543210'}).success,true);});
+test('protects spreadsheet exports from formula injection',()=>assert.equal(safeCsv('=SUM(A1:A2)'),`"'=SUM(A1:A2)"`));
