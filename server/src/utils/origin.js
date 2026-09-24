@@ -29,6 +29,7 @@ export function isAllowedOrigin(origin, allowedOrigins = []) {
 
   return allowed.some((item) => {
     return (
+      item.protocol === requestUrl.protocol &&
       normalizeHost(item.hostname) === normalizeHost(requestUrl.hostname) &&
       item.port === requestUrl.port
     );

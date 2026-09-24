@@ -5,3 +5,7 @@ dist/
 *.log
 .DS_Store
 server/private-uploads/
+
+# Generated PDFs may contain private student data.
+output/
+tmp/

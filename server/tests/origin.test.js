@@ -27,3 +27,7 @@ test("rejects untrusted origins", () => {
     false,
   );
 });
+
+test('does not allow downgrading the configured production origin', () => {
+  assert.equal(isAllowedOrigin('http://olympiad.example', ['https://olympiad.example']), false);
+});

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -18,6 +18,7 @@ import {
   downloadBlob,
   img,
 } from "./api.js";
+import { cleanRegistrationInput, registrationFieldError, fieldMaxLength } from "./registrationValidation.js";
 const initial = {
   studentName: "",
   dob: "",
@@ -29,7 +30,7 @@ const initial = {
   address: "",
   city: "",
   district: "",
-  state: "Haryana",
+  state: "HARYANA",
   pincode: "",
   purpose: "",
   consent: false,
@@ -49,6 +50,7 @@ const fields = [
   ["pincode", "PIN code *", "tel"],
   ["purpose", "Purpose of participation (optional)"],
 ];
+const capitalFields = new Set(fields.filter(([, , type]) => !type).map(([key]) => key));
 const phases = [
   "Student details",
   "OTP verification",
@@ -57,17 +59,17 @@ const phases = [
 ];
 function ErrorBox({ message }) {
   return message ? (
-    <div className="error">
+    <div className="error" role="alert">
       <AlertCircle size={18} />
       {message}
     </div>
   ) : null;
 }
-export function Register({ settings, loading }) {
+export function Register({ settings, loading, settingsError, reloadSettings }) {
   const [form, setForm] = useState(initial),
     [step, setStep] = useState(0),
     [otp, setOtp] = useState(""),
-    [devOtp, setDevOtp] = useState(""),
+    [resendAt, setResendAt] = useState(0),
     [registration, setRegistration] = useState(null),
     [receipt, setReceipt] = useState(null),
     [photo, setPhoto] = useState(null),
@@ -76,12 +78,27 @@ export function Register({ settings, loading }) {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [message, setMessage] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
+  const running = useRef(false);
+  const applicationKey = useRef(crypto.randomUUID());
+  const [editingMobile, setEditingMobile] = useState(false);
+  const [mobileInput, setMobileInput] = useState("");
+  const [resendSeconds, setResendSeconds] = useState(0);
+  useEffect(() => {
+    const updateCountdown = () =>
+      setResendSeconds(Math.max(0, Math.ceil((resendAt - Date.now()) / 1000)));
+    updateCountdown();
+    if (!resendAt) return undefined;
+    const timer = window.setInterval(updateCountdown, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendAt]);
   useEffect(() => {
     if (getToken())
       api
         .get("/registrations/me", { headers: draftHeaders() })
         .then(({ data }) => {
           setRegistration(data.registration);
+          setResendAt(data.resendAvailableAt ? Date.parse(data.resendAvailableAt) : 0);
           setStep(
             data.registration.status === "DRAFT"
               ? 1
@@ -92,9 +109,14 @@ export function Register({ settings, loading }) {
                 : 3,
           );
         })
-        .catch(() => setToken(""));
+         .catch((e) => {
+          if ([401, 404, 410].includes(e.status)) setToken("");
+          else setError("Could not restore your application. Please reload and retry; your session has been retained.");
+        });
   }, []);
   async function execute(fn) {
+    if (running.current) return;
+    running.current = true;
     setBusy(true);
     setError("");
     setMessage("");
@@ -102,24 +124,38 @@ export function Register({ settings, loading }) {
       await fn();
     } catch (e) {
       setError(e.message);
+      if (e.status === 401 || e.status === 410) {
+        setToken(''); setRegistration(null); setStep(0);
+        applicationKey.current = crypto.randomUUID();
+        setEditingMobile(false); setOtp(''); setResendAt(0);
+      } else if ([403, 409].includes(e.status) && getToken()) {
+        const latest = await api.get('/registrations/me', { headers: draftHeaders() }).catch(() => null);
+        if (latest?.data.registration.status === 'DRAFT') { setRegistration(latest.data.registration); setStep(1); setOtp(''); }
+      }
     } finally {
+      running.current = false;
       setBusy(false);
     }
   }
-  const update = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+  const update = (key, value) => setForm((f) => ({
+    ...f, [key]: capitalFields.has(key) ? value.toUpperCase() : value,
+  }));
   function reset() {
+    applicationKey.current = crypto.randomUUID();
     setToken("");
     setStep(0);
     setForm(initial);
+    setFieldErrors({});
     setRegistration(null);
     setOtp("");
-    setDevOtp("");
+    setResendAt(0);
+    setPhoto(null); setReceipt(null); setUtr(""); setAccepted(false); setEditingMobile(false);
     setError("");
     setMessage("");
   }
   const save = () =>
     execute(async () => {
-      const r = await api.post("/registrations/start", form);
+      const r = await api.post("/registrations/start", form, { headers: { "Idempotency-Key": applicationKey.current } });
       setToken(r.data.token);
       setRegistration(r.data.registration);
       setStep(1);
@@ -129,7 +165,7 @@ export function Register({ settings, loading }) {
         { headers: draftHeaders() },
       );
       setMessage(sent.data.message);
-      setDevOtp(sent.data.devOtp || "");
+      setResendAt(Date.now() + (sent.data.cooldownSeconds || 45) * 1000);
     });
   const send = () =>
     execute(async () => {
@@ -139,7 +175,7 @@ export function Register({ settings, loading }) {
         { headers: draftHeaders() },
       );
       setMessage(r.data.message);
-      setDevOtp(r.data.devOtp || "");
+      setResendAt(Date.now() + (r.data.cooldownSeconds || 45) * 1000);
     });
   const verify = () =>
     execute(async () => {
@@ -152,6 +188,15 @@ export function Register({ settings, loading }) {
       setStep(2);
       setMessage(r.data.message);
     });
+  const editMobile = () => {
+    setMobileInput(registration?.guardianPhone || form.guardianPhone);
+    setEditingMobile(true);
+  };
+  const saveMobile = () => execute(async () => {
+    const { data } = await api.patch('/registrations/mobile', { guardianPhone: mobileInput }, { headers: draftHeaders() });
+    setRegistration(data.registration); setEditingMobile(false); setOtp(''); setResendAt(0); setStep(1);
+    setForm(f => ({ ...f, guardianPhone: mobileInput })); setMessage(data.message);
+  });
   const uploadPhoto = () =>
     execute(async () => {
       if (!photo) throw new Error("Choose a photo first.");
@@ -241,6 +286,18 @@ export function Register({ settings, loading }) {
         checkout.open();
       });
     });
+  const downloadReceipt = () =>
+    execute(async () => {
+      const headers = draftHeaders();
+      const { data } = await api.get("/registrations/me", { headers });
+      const latest = data.registration;
+      setRegistration(latest);
+      const confirmed = latest.status === "CONFIRMED";
+      const r = await api.get(confirmed ? "/registrations/admit-card" : "/registrations/application-receipt", {
+        headers, responseType: "blob",
+      });
+      downloadBlob(r.data, confirmed ? `${latest.registrationNumber}-admit-card.pdf` : "Shree Ram Exam of Excellence 2026.pdf");
+    });
   const download = () =>
     execute(async () => {
       const r = await api.get("/registrations/admit-card", {
@@ -275,9 +332,10 @@ export function Register({ settings, loading }) {
               </div>
             ))}
           </div>
-          <ErrorBox message={error} />
+          <ErrorBox message={settingsError || error} />
+          {settingsError && <button type="button" className="btn light" disabled={loading} onClick={reloadSettings}>{loading ? 'Connecting...' : 'Retry connection'}</button>}
           {message && (
-            <div className="success">
+            <div className="success" role="status" aria-live="polite">
               <CheckCircle2 size={18} />
               {message}
             </div>
@@ -321,16 +379,28 @@ export function Register({ settings, loading }) {
                     ) : (
                       <input
                         type={type}
+                        autoCapitalize={capitalFields.has(key) ? "characters" : "off"}
                         required={!["email", "purpose"].includes(key)}
-                        maxLength={
-                          key === "address"
-                            ? 300
-                            : key === "purpose"
-                              ? 500
-                              : 120
-                        }
+                        maxLength={fieldMaxLength(key)}
+                        inputMode={['guardianPhone', 'pincode'].includes(key) ? 'numeric' : undefined}
+                        min={key === 'dob' ? '1995-01-01' : undefined}
+                        max={key === 'dob' ? new Date().toLocaleDateString('en-CA') : undefined}
+                        aria-invalid={!!fieldErrors[key]}
+                        aria-describedby={fieldErrors[key] ? `${key}-error` : undefined}
                         value={form[key]}
-                        onChange={(e) => update(key, e.target.value)}
+                        onChange={(e) => {
+                          const value = cleanRegistrationInput(key, e.target.value);
+                          update(key, value);
+                          const issue = registrationFieldError(key, value);
+                          e.target.setCustomValidity(issue);
+                          setFieldErrors(previous => ({...previous, [key]: previous[key] ? issue : ''}));
+                        }}
+                        onBlur={(e) => {
+                          const issue = registrationFieldError(key, e.target.value);
+                          e.target.setCustomValidity(issue);
+                          setFieldErrors(previous => ({...previous, [key]: issue}));
+                        }}
+                        onInvalid={(e) => setFieldErrors(previous => ({...previous, [key]: registrationFieldError(key, e.target.value) || e.target.validationMessage}))}
                         placeholder={label.replace(" *", "")}
                         pattern={
                           key === "guardianPhone"
@@ -341,6 +411,7 @@ export function Register({ settings, loading }) {
                         }
                       />
                     )}
+                    {fieldErrors[key] && <small id={`${key}-error`} role="alert" style={{color: "#b42318"}}>{fieldErrors[key]}</small>}
                   </label>
                 ))}
               </div>
@@ -357,13 +428,13 @@ export function Register({ settings, loading }) {
                 </span>
               </label>
               <button
-                disabled={busy || loading || !settings.registrationOpen}
+                disabled={busy || loading || !!settingsError || !settings.registrationOpen}
                 className="btn primary wide"
               >
                 {busy ? "Saving..." : "Continue to mobile verification"}{" "}
                 <ArrowRight size={18} />
               </button>
-              {!settings.registrationOpen && (
+              {!loading && !settingsError && !settings.registrationOpen && (
                 <p className="hint">
                   Registration is currently closed. Please contact the school
                   for the opening date.
@@ -371,25 +442,34 @@ export function Register({ settings, loading }) {
               )}
             </form>
           )}
-          {step === 1 && (
+          {editingMobile && (
+            <form className="step-panel" onSubmit={e => { e.preventDefault(); saveMobile(); }}>
+              <label><span>Parent/guardian mobile number (+91)</span>
+                <input autoFocus type="tel" inputMode="numeric" autoComplete="tel-national" required pattern="[6-9][0-9]{9}" maxLength={10}
+                  value={mobileInput} onChange={e => setMobileInput(e.target.value.replace(/\D/g, ''))} />
+              </label>
+              <button className="btn primary" disabled={busy}>Save and verify mobile</button>
+              <button type="button" className="btn light" disabled={busy} onClick={() => setEditingMobile(false)}>Cancel</button>
+            </form>
+          )}
+          {step === 1 && !editingMobile && (
             <div className="step-panel">
               <div className="circle-icon">
                 <ShieldCheck size={34} />
               </div>
               <h2>Verify guardian mobile</h2>
               <p>
-                A six-digit OTP is sent to the phone number submitted in the
-                application. The OTP expires after five minutes.
+                Request a six-digit code for +91 {registration?.guardianPhone}.
+                SMS arrival is not guaranteed. Codes expire according to the SMS service;
+                request a new code if yours has expired.
               </p>
-              {devOtp && (
-                <div className="dev-code">
-                  LOCAL DEVELOPMENT ONLY: test OTP <b>{devOtp}</b>. This is
-                  disabled in production.
-                </div>
-              )}
               <label>
                 <span>Enter six-digit OTP</span>
                 <input
+                  autoFocus
+                  autoComplete="one-time-code"
+                  aria-label="Six-digit verification code"
+                  onKeyDown={e => { if (e.key === 'Enter' && otp.length === 6 && !busy) verify(); }}
                   inputMode="numeric"
                   maxLength="6"
                   pattern="[0-9]{6}"
@@ -407,18 +487,32 @@ export function Register({ settings, loading }) {
                 {busy ? "Checking..." : "Verify and continue"}{" "}
                 <ArrowRight size={17} />
               </button>
-              <button className="btn light wide" disabled={busy} onClick={send}>
-                Resend OTP
+              <button
+                className="btn light wide"
+                disabled={busy || resendSeconds > 0}
+                onClick={send}
+              >
+                {resendSeconds > 0
+                  ? `Resend OTP in ${resendSeconds}s`
+                  : resendAt ? "Resend OTP" : "Send OTP"}
+              </button>
+              <button
+                className="btn light wide"
+                disabled={busy}
+                onClick={editMobile}
+              >
+                Edit mobile number
               </button>
             </div>
           )}
-          {step === 2 && (
+          {step === 2 && !editingMobile && (
             <div className="step-panel">
               <div className="form-head">
                 <IndianRupee />
                 <div>
                   <h2>Registration payment</h2>
-                  <p>Verified parent mobile · fee ₹{settings.fee}</p>
+                  <p>Mobile number verified · fee ₹{settings.fee}</p>
+                  {registration?.status === 'OTP_VERIFIED' && <button className="link-button" disabled={busy} onClick={editMobile}>Edit mobile number</button>}
                 </div>
               </div>
               <div className="photo-upload">
@@ -506,13 +600,14 @@ export function Register({ settings, loading }) {
                     provider. Payment is confirmed only after provider-side
                     verification.
                   </div>
-                  <div className="feature-image payment-illustration">
-                    <img
-                      src={img("payment.webp")}
-                      alt="Online payment illustration"
-                    />
-                  </div>
+
                 </>
+              )}
+              {Number(settings.fee) === 149 && (
+                <figure className="payment-promo">
+                  <img src={img("srps-payment.png")} alt="Student and guardian exploring online school payments" width="1536" height="1024" loading="lazy" />
+                  <figcaption>Use the payment details provided above. Keep your payment reference ready; confirmation follows school verification.</figcaption>
+                </figure>
               )}
               <div className="policy">
                 <h3>Terms, privacy and refund</h3>
@@ -594,6 +689,11 @@ export function Register({ settings, loading }) {
                   <strong>{registration?.status?.replaceAll("_", " ")}</strong>
                 </div>
               </div>
+              {registration?.status !== "CONFIRMED" && (
+                <button className="btn outlined-dark wide" disabled={busy} onClick={downloadReceipt}>
+                  Download application receipt PDF <Download size={18} />
+                </button>
+              )}
               {registration?.status === "CONFIRMED" ? (
                 <button
                   className="btn primary wide"
@@ -619,7 +719,7 @@ export function Register({ settings, loading }) {
         </div>
         <aside className="wizard-side">
           <img
-            src={img("registration.webp")}
+            src={img("srps-registration.png")}
             alt="Student registration visual"
           />
           <div className="side-card">

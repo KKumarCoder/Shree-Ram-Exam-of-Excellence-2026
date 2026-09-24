@@ -1,0 +1,17 @@
+import React,{useEffect,useState} from 'react';
+import {Link} from 'react-router-dom';
+import {ArrowUpRight,ArrowRight,Pause,Play} from 'lucide-react';
+import './animated-hero.css';
+const scenes=[['subject-mathematics.png','Think big.','Students exploring mathematical ideas'],['subject-science.png','Stay curious.','Students exploring science together'],['subject-english.png','Express yourself.','Students discovering stories and ideas'],['subject-awareness.png','Shine brighter.','Students imagining new possibilities']];
+export function AnimatedHero({settings}){
+ const [tick,setTick]=useState(0),[paused,setPaused]=useState(false),[reduced,setReduced]=useState(true),[focused,setFocused]=useState(false);
+ useEffect(()=>{const media=matchMedia('(prefers-reduced-motion: reduce)');const sync=()=>setReduced(media.matches);sync();media.addEventListener('change',sync);return()=>media.removeEventListener('change',sync);},[]);
+ useEffect(()=>{if(paused||reduced||focused)return;const id=setInterval(()=>{if(!document.hidden)setTick(t=>(t+1)%(70*scenes.length));},80);return()=>clearInterval(id);},[paused,reduced,focused]);
+ const active=Math.floor(tick/70),phase=tick%70;
+ const phrase=scenes[active][1];
+ const typed=reduced?phrase:phrase.slice(0,Math.min(phrase.length,Math.floor(phase/1.5)+1));
+ return <section className={`animated-hero ${paused||reduced||focused?'hero-still':''}`} aria-labelledby="animated-hero-title" onFocusCapture={()=>setFocused(true)} onBlurCapture={e=>{if(!e.currentTarget.contains(e.relatedTarget))setFocused(false);}}>
+ <div className="shell animated-hero-grid"><div className="animated-hero-copy"><span className="animated-hero-eyebrow">SHREE RAM PUBLIC SCHOOL · CLASSES 1–12</span><h1 id="animated-hero-title"><span>Every bright mind<br/>starts somewhere.</span><span className="hero-typed" aria-hidden="true">{typed}<i/></span><span className="hero-sr-only">Think big. Stay curious. Express yourself. Shine brighter.</span></h1><div className="hero-event-label">SHREE <b>2026</b> OLYMPIAD</div><p>A little curiosity. A bold ambition. Discover your potential at the Shree Ram Exam of Excellence.</p><div className="animated-hero-actions"><Link className="shree-button" to="/register">{settings.registrationOpen?'Register now':'Registration details'}<ArrowUpRight size={20}/></Link><Link to="/status">Check status <ArrowRight size={17}/></Link></div><div className="hero-mini-facts"><span>LEARN</span><i/> <span>COMPETE</span><i/><span>GROW</span></div></div>
+ <div className="animated-hero-art"><div className="hero-art-halo" aria-hidden="true"/><div className="hero-photo-stack">{scenes.map(([image,,alt],i)=><img key={image} src={`/images/${image}`} alt={alt} aria-hidden={active!==i} className={active===i?'is-current':''} width="1672" height="941" fetchpriority={i===0?'high':'auto'}/>)}<div className="hero-photo-shade"/><span className="hero-photo-note">YOUR NEXT CHAPTER<br/><strong>STARTS HERE.</strong></span></div><span className="hero-floating-tag">✦ A world of possibilities</span><div className="hero-scene-controls">{scenes.map(([,label],i)=><button key={label} aria-label={`Show student scene ${i+1}: ${label}`} aria-pressed={active===i} onClick={()=>{setTick(i*70);setPaused(true);}}><span/></button>)}<button className="hero-motion-toggle" onClick={()=>setPaused(p=>!p)} aria-label={paused?'Play hero animation':'Pause hero animation'} disabled={reduced}>{paused||reduced?<Play size={15}/>:<Pause size={15}/>}</button></div></div></div>
+ </section>;
+}

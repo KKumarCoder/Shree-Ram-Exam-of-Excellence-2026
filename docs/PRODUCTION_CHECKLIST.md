@@ -5,7 +5,7 @@
 - [ ] School finalizes student privacy notice, guardian consent, terms, refunds, data retention and grievance contact. Seek applicable legal advice.
 - [ ] Real MongoDB Atlas connection with restricted IP/user permissions and backups.
 - [ ] Strong independent `JWT_SECRET` and `OTP_PEPPER`, not placeholders, and isolated production `.env`.
-- [ ] Real authorized SMS/WhatsApp OTP vendor: map its endpoint, authentication, payload, sender, template and success response in `notifications.js`.
+- [ ] Configure the existing Shree Ram Public School Twilio Verify Service; verify six-digit codes, actual expiry, trial recipients, India delivery and Fraud Guard. Follow [Twilio activation and deployment](TWILIO_OTP.md).
 - [ ] For India: confirm sender/template/DLT and any provider compliance requirements before SMS delivery.
 - [ ] For manual payments: verify correct account owner and amount in merchant records before accepting a receipt. A QR/UTR screenshot is NOT payment proof.
 - [ ] For Razorpay: live merchant onboarding, API keys, live order capture and correct `payment.captured` webhook HMAC secret. Test a genuine provider transaction in a controlled environment.

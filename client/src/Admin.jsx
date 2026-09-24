@@ -54,6 +54,7 @@ export function Admin() {
       await fn();
     } catch (e) {
       setError(e.message);
+      if (e.status === 401) setMe(null);
     } finally {
       setBusy(false);
     }

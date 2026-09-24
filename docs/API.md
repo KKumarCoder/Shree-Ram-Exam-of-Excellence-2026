@@ -8,7 +8,7 @@ Base URL: `/api`. Public forms send JSON unless explicitly marked multipart. Aut
 | GET | `/settings` | Public event, fee, exam, payment and policy settings |
 | GET | `/payment-qr` | Actual UPI QR for the configured merchant (NOT verified payment confirmation) |
 | POST | `/registrations/start` | Validate + create private draft, return draft token/applicationRef |
-| POST | `/registrations/otp/send` | Send real provider OTP, or explicit development-only OTP |
+| POST | `/registrations/otp/send` | Request Twilio Verify SMS (pending does not guarantee delivery) |
 | POST | `/registrations/otp/verify` | Verify 6-digit challenge; lock to guardian phone |
 | GET | `/registrations/me` | Restore draft / check state |
 | POST | `/registrations/photo` | Optional private student JPEG/PNG multipart field `photo` |
@@ -38,3 +38,12 @@ Base URL: `/api`. Public forms send JSON unless explicitly marked multipart. Aut
 | GET | `/admin/export.csv` | CSV export of confirmed registrations |
 
 Admin endpoints enforce roles on the backend. Upload bytes are held in private server storage, not public web directories. No sample UTR, OTP, or fake provider success may ever be used in production.
+
+OTP resend uses `POST /registrations/otp/resend`; edit a pre-payment mobile with `PATCH /registrations/mobile`. Both require the draft bearer token. See [Twilio OTP API, configuration and testing](TWILIO_OTP.md).
+
+### Application receipt PDF
+
+- `GET /api/registrations/application-receipt`: draft bearer token for the current application's submission screen.
+- `GET /api/application-receipt`: student bearer token obtained through guardian OTP on the status page.
+
+Both return a private, non-cacheable PDF for the authenticated application after submission; unsubmitted drafts receive 403. The acknowledgement includes the school logo, uploaded candidate photograph, application reference, candidate details, current application status and a QR link to `/status`. It does not establish cleared payment or replace the admit card. Students retain the application reference and use their registered guardian mobile OTP to download the admit card after confirmation. Configure `PUBLIC_BASE_URL` to the deployed portal so the printed link and QR resolve correctly.

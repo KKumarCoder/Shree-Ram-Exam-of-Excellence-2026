@@ -1,6 +1,12 @@
 import axios from 'axios';
 export const api=axios.create({baseURL:import.meta.env.VITE_API_BASE_URL||'/api',withCredentials:true,timeout:20000});
-api.interceptors.response.use(x=>x,err=>Promise.reject(new Error(err.response?.data?.error||err.message||'Request failed')));
+api.interceptors.response.use(x=>x, async err => {
+  let data = err.response?.data;
+  if (data instanceof Blob) {
+    try { data = JSON.parse(await data.text()); } catch { data = null; }
+  }
+  throw Object.assign(new Error(data?.error || err.message || 'Request failed'), { status: err.response?.status });
+});
 export const getToken=()=>sessionStorage.getItem('shree_draft')||'';
 export const setToken=t=>t?sessionStorage.setItem('shree_draft',t):sessionStorage.removeItem('shree_draft');
 export const draftHeaders=()=>({Authorization:`Bearer ${getToken()}`});

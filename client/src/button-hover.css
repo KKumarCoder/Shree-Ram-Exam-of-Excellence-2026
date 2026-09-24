@@ -1,0 +1,19 @@
+/* Shared interaction treatment, including links styled as buttons.
+   Important overrides keep component gradients/animations from masking hover. */
+:is(button, [role="button"], input[type="button"], input[type="submit"], input[type="reset"], .btn, .shree-button, .nav-register, .journey-action, .campaign-register, .school-footer-visit, .school-footer-social-links a):not(:disabled):not([aria-disabled="true"]):hover {
+  background: #c91f2d !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border-color: #c91f2d !important;
+  animation: none !important;
+  filter: none !important;
+}
+:is(button, [role="button"], .btn, .shree-button, .nav-register, .journey-action, .campaign-register, .school-footer-visit, .school-footer-social-links a):not(:disabled):not([aria-disabled="true"]):hover :is(span, strong, small, b, i, svg) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+input[type="file"]:not(:disabled)::file-selector-button:hover {
+  background: #c91f2d !important;
+  color: #fff !important;
+  border-color: #c91f2d !important;
+}

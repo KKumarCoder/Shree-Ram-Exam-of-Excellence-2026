@@ -8,7 +8,7 @@ Proposed portal: https://olympiad.srpskanhra.com/
 
 - React + Vite student portal with ten optimized, supplied Olympiad visuals and the original school crest.
 - Real MongoDB-backed application with school-specific `APP-...` reference and post-verification `SHREE26-000001` registration number.
-- Guardian mobile OTP, 5-minute expiry, resend cooldown, attempt limit, environment-controlled real SMS vendor adapter. **Development OTP is explicitly local-only.**
+- Guardian mobile OTP through Twilio Verify, shared MongoDB rate limits/cooldowns, attempt limits, expiring one-time authorization and no development bypass. See [OTP setup and release guide](docs/TWILIO_OTP.md).
 - Two payment workflows: official UPI QR + receipt + bank-reviewed manual approval, or Razorpay hosted checkout + signature + provider captured-status + HMAC webhook.
 - On confirmed payment: registration number, email/SMS notification if configured, private PDF admit card with genuine server-generated QR, optional uploaded student photo.
 - Student status search with a new OTP, admin dashboard, CSV export, payment approval/rejection, seat assignment, QR check-in and event settings.
@@ -20,7 +20,7 @@ Proposed portal: https://olympiad.srpskanhra.com/
 
 1. Install Node.js, npm and connect MongoDB Atlas; create database credentials.
 2. In `server`, copy `.env.example` to `.env`. Fill in `MONGODB_URI`, `FRONTEND_URL`, `JWT_SECRET` (32+ random chars) and `OTP_PEPPER` (different random string).
-3. `OTP_DELIVERY=dev` is for **development only**. In production set `OTP_DELIVERY=sms` and configure real vendor URL/token, modifying the provider payload to match your vendor's official API.
+3. Set `SMS_PROVIDER=twilio`, `OTP_DELIVERY_MODE=sms` and the three Twilio credentials for the existing Shree Ram Public School Verify Service. Follow [the configuration guide](docs/TWILIO_OTP.md); there is no fake OTP mode.
 4. Set `ADMIN_EMAIL` and a strong `ADMIN_PASSWORD` (12+ characters) in `server/.env`.
 5. From project root:
 
@@ -56,7 +56,7 @@ Select Razorpay in admin after configuring live keys/webhook. Guardian completes
 
 ### Student photography
 
-In the payment step, optional JPEG/PNG up to 2 MB can be uploaded; it is stored privately and printed on the server-generated PDF. If no photo is uploaded, the PDF prints a photo placeholder.
+In the payment step, required JPEG/PNG up to 2 MB can be uploaded; it is stored privately and printed on the server-generated PDF. If no photo is uploaded, the PDF prints a photo placeholder.
 
 ## Production on Hostinger VPS
 
@@ -76,7 +76,7 @@ The example config only opens the new *subdomain*. Do not overwrite the existing
 - `server/private-uploads` contains sensitive receipts and photos. Back it up and restrict access; do not place it under `client/public` or expose with Nginx.
 - For a multi-instance production deployment, migrate private files to private S3-compatible storage before scaling.
 - To replace an image, use its existing filename under `client/public/images/`; the 10 images are WEBP to improve loading speed.
-- The SMS provider JSON payload is intentionally generic and MUST be adapted to your vendor's exact API contract. A successful HTTP response alone might not mean delivery; vendor delivery receipts require additional integration.
+- OTP uses the official Twilio Verify SDK. Optional post-payment confirmation SMS still uses the existing generic vendor adapter; configure that separately. Accepted SMS requests do not establish delivery.
 - The default scholarships and promotional awards require school approval. Avoid asserting eligibility or issuing refunds based solely on graphics.
 - See `docs/API.md` and `docs/PRODUCTION_CHECKLIST.md` for implementation details and launch blockers.
 

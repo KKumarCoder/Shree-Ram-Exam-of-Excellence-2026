@@ -1,0 +1,7 @@
+import React from 'react';
+import {Link} from 'react-router-dom';
+import {ArrowRight, ArrowUpRight, ShieldCheck, GraduationCap} from 'lucide-react';
+export function CampaignHero({settings}){return <section className="campaign-hero" aria-labelledby="olympiad-title"><div className="shell campaign-grid">
+<div className="campaign-copy"><span className="campaign-label">SHREE RAM PUBLIC SCHOOL · CLASSES 1–12</span><h1 id="olympiad-title">Bright minds.<br/>Big dreams.<br/><em>Your moment.</em></h1><div className="campaign-event">SHREE <span>2026</span> OLYMPIAD</div><p>Shree Ram Exam of Excellence — a chance to discover your strengths, challenge yourself and take your next step with confidence.</p><div className="campaign-actions"><Link to="/register" className="campaign-register">{settings.registrationOpen?'Register for the Olympiad':'View registration details'}<ArrowUpRight size={20}/></Link><Link to="/status" className="campaign-status">Check status <ArrowRight size={18}/></Link></div><div className="campaign-note"><ShieldCheck size={17}/>Guardian mobile OTP · Admit card after payment approval</div></div>
+<div className="campaign-visual"><img src="/images/subject-awareness.png" alt="School-uniformed students exploring books, science and the world" width="1672" height="941" fetchpriority="high"/><div className="campaign-visual-label"><GraduationCap size={28}/><span>DISCOVER. LEARN. GROW.<strong>A brighter tomorrow starts with you.</strong></span></div><span className="campaign-star" aria-hidden="true">✦</span></div>
+</div></section>;}

@@ -1,4 +1,5 @@
 import express from "express";
+import { withOtpLock } from "../services/otpSecurity.js";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import fs from "node:fs";
@@ -80,7 +81,7 @@ r.get("/dashboard", async (req, res) => {
   });
 });
 r.get("/registrations", async (req, res) => {
-  const page = Math.max(1, Math.min(9999, Number(req.query.page) || 1)),
+  const page = Math.max(1, Math.min(9999, Math.floor(Number(req.query.page)) || 1)),
     limit = 25;
   const q = {};
   if (req.query.status) q.status = String(req.query.status);
@@ -91,6 +92,7 @@ r.get("/registrations", async (req, res) => {
       .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     q.$or = [
       { studentName: { $regex: search, $options: "i" } },
+      { applicationRef: { $regex: search, $options: "i" } },
       { registrationNumber: { $regex: search, $options: "i" } },
       { guardianPhone: { $regex: search, $options: "i" } },
     ];
@@ -154,17 +156,27 @@ r.get("/payments/:id/receipt", verifier, async (req, res) => {
   res.set("Content-Disposition", "attachment");
   res.sendFile(p.receiptPath);
 });
+// Both review decisions share one lease so approval and rejection cannot race.
+r.use(['/payments/:id/approve', '/payments/:id/reject'], verifier, (req, res, next) => {
+  withOtpLock(`payment-review:${req.params.id}`, () => new Promise(resolve => {
+    res.once('finish', resolve); res.once('close', resolve); next();
+  })).catch(next);
+});
 r.post("/payments/:id/approve", verifier, async (req, res) => {
   const p = await Payment.findOne({
     _id: req.params.id,
     mode: "manual",
-    status: "UNDER_REVIEW",
+    status: { $in: ["UNDER_REVIEW", "PAID"] },
   });
   if (!p)
     return res
       .status(409)
       .json({ error: "Payment already reviewed or not found." });
   const registration = await Registration.findById(p.registrationId);
+  if (p.status === "PAID" && registration && String(registration.paymentId) === String(p._id)) {
+    const recovered = await confirmRegistration(p.registrationId, String(req.admin._id));
+    return res.json({ message: "Payment approved and admit card issued.", registration: safeRegistration(recovered) });
+  }
   if (
     registration?.status !== "PAYMENT_UNDER_VERIFICATION" ||
     String(registration.paymentId) !== String(p._id)
@@ -288,10 +300,11 @@ r.patch("/settings", writable, async (req, res) => {
     })
     .strict();
   const data = parse(schema, req.body);
-  if (data.registrationOpen === true) {
-    const current = await publicSettings();
-    const mode = data.paymentMode || current.paymentMode;
-    if (mode === "manual" && !(data.upiId || current.upiId))
+  const current = await publicSettings();
+  const effective = { ...current.toObject(), ...data };
+  if (effective.registrationOpen) {
+    const mode = effective.paymentMode;
+    if (mode === "manual" && (!effective.upiId?.trim() || !effective.payeeName?.trim()))
       return res
         .status(400)
         .json({
