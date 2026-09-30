@@ -1,10 +1,18 @@
-import React, {useEffect, useState} from "react";
+import {eligibleClassLabel} from './publicDisplay.js';
+import React, {useEffect, useRef, useState} from "react";
 import { Link } from "react-router-dom";
 import { GraduationCap, ArrowUpRight, ArrowRight } from "lucide-react";
+import {eventBrand} from "./portalData.js";
 export function OriginalHero({ settings }) {
+  const brand = eventBrand(settings);
   const [portrait, setPortrait] = useState(0);
   const [ready, setReady] = useState(false);
+  const secondPortrait = useRef(null);
   useEffect(() => {
+    if (secondPortrait.current?.complete && secondPortrait.current.naturalWidth > 0) setReady(true);
+  }, []);
+  useEffect(() => {
+    // Reduced motion disables the CSS transition, not the image sequence.
     if (!ready) return;
     const timer = setInterval(() => setPortrait(current => 1 - current), 5000);
     return () => clearInterval(timer);
@@ -25,7 +33,7 @@ export function OriginalHero({ settings }) {
           <p>
             Let yours shine with the
             <br />
-            <strong>SHREE 2026 OLYMPIAD.</strong>
+            <strong>{brand.eventName}.</strong>
           </p>
           <div className="shree-hero-note">
             <GraduationCap />
@@ -47,6 +55,7 @@ export function OriginalHero({ settings }) {
             height="1024"
           />
           <img
+            ref={secondPortrait}
             src="/images/smiling-school-duo-transparent.png"
             className={`hero-portrait school-portrait ${portrait === 1 ? "is-visible" : ""}`}
             alt="Smiling students standing back to back in blue checked school uniforms"
@@ -59,19 +68,19 @@ export function OriginalHero({ settings }) {
           </span>
         </div>
         <div className="shree-event">
-          <span className="shree-class-tag">FOR CLASSES 1–12</span>
+          <span className="shree-class-tag">FOR CLASSES {eligibleClassLabel(settings)}</span>
           <div
             className="shree-event-word letter-brand"
-            aria-label="SHREE 2026"
+            aria-label={`${brand.eventShortName} ${brand.eventYear}`}
           >
             <b className="brand-letters brand-red" aria-hidden="true">
-              {[..."SHREE"].map((letter, i) => (
+              {[...brand.eventShortName].map((letter, i) => (
                 <i key={i} style={{ "--letter-order": i }}>
                   {letter}
                 </i>
               ))}
             </b>
-            <span>2026</span>
+            <span>{brand.eventYear}</span>
           </div>
           <h2 className="letter-brand" aria-label="OLYMPIAD">
             <b className="brand-letters brand-blue" aria-hidden="true">
@@ -83,7 +92,7 @@ export function OriginalHero({ settings }) {
             </b>
           </h2>
           <div className="shree-event-subtitle">
-            Shree Ram Exam of Excellence
+            {brand.eventSubtitle}
           </div>
           <p>
             One opportunity.
@@ -95,6 +104,7 @@ export function OriginalHero({ settings }) {
               : "REGISTRATION DETAILS"}
             <ArrowUpRight size={20} />
           </Link>
+          <Link className="shree-status-link" to="/exam-pattern">Explore exam details <ArrowRight size={16}/></Link>
           <Link className="shree-status-link" to="/status">
             Check status / Admit card <ArrowRight size={16} />
           </Link>

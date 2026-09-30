@@ -1,0 +1,36 @@
+:root{--navy-primary:#102e43;--navy-deep:#071d31;--gold-primary:#ffcc4a;--gold-light:#fff2bd;--gold-dark:#a96d00;--surface-white:#fff;--surface-blue:#edf5fb;--text-primary:#162c43;--text-secondary:#52687d;--border-soft:#d7e2ee;--radius-card:22px;--shadow-soft:0 14px 36px #102e4310}
+.motion-reveal{opacity:0;transform:translateY(26px);transition:opacity .62s ease calc(var(--reveal-order,0)*45ms),transform .62s cubic-bezier(.2,.7,.2,1) calc(var(--reveal-order,0)*45ms)}
+.motion-reveal.is-revealed{opacity:1;transform:none}
+.shree-hero-sweep{transform:translate3d(0,var(--hero-parallax,0),0) rotate(35deg);will-change:transform}
+.shree-hero-copy>*{opacity:0;animation:premium-hero-copy .65s cubic-bezier(.2,.7,.2,1) forwards}.shree-hero-copy>*:nth-child(2){animation-delay:.1s}.shree-hero-copy>*:nth-child(3){animation-delay:.2s}.shree-hero-copy>*:nth-child(4){animation-delay:.3s}
+.shree-students{opacity:0;animation:premium-student-in .8s cubic-bezier(.2,.7,.2,1) .18s forwards}
+.portal-page,.school-page{background:radial-gradient(circle at 92% 8%,#ffcc4a0d,transparent 28%),radial-gradient(circle at 4% 34%,#368ec00b,transparent 24%)}
+.portal-page-heading,.school-page-hero>div:first-child{position:relative}
+.portal-page-heading:before,.school-page-hero>div:first-child:before{content:'';display:block;width:54px;height:4px;border-radius:8px;background:linear-gradient(90deg,var(--gold-primary),#e39b17);margin-bottom:17px}
+.portal-card,.school-prize-cards article,.school-page-values article{border-radius:var(--radius-card);transition:transform .28s ease,border-color .28s ease,box-shadow .28s ease}
+@media(hover:hover){.portal-card:hover,.school-prize-cards article:hover,.school-page-values article:hover{transform:translateY(-5px);border-color:color-mix(in srgb,var(--gold-primary) 60%,var(--border-soft));box-shadow:var(--shadow-soft)}}
+.student-artwork{position:relative;isolation:isolate}.student-artwork:before{content:'';position:absolute;z-index:-1;inset:12% 8%;border-radius:50%;background:radial-gradient(circle,#ffcf4930,transparent 68%)}
+.student-artwork img{filter:drop-shadow(0 20px 24px #0b29401b)}
+.portal-header .nav>a:not(.nav-register){position:relative}.portal-header .nav>a:not(.nav-register):after{content:'';position:absolute;left:11px;right:11px;bottom:5px;height:2px;border-radius:4px;background:var(--gold-primary);transform:scaleX(0);transform-origin:center;transition:transform .25s ease}.portal-header .nav>a.active:after,.portal-header .nav>a:hover:after{transform:scaleX(1)}
+.important-dates-timeline,.exam-checklist{position:relative}.important-dates-timeline:after,.exam-checklist:after{content:'';position:absolute;z-index:0;left:0;top:0;width:2px;height:100%;background:linear-gradient(var(--gold-primary),var(--accent));transform:scaleY(0);transform-origin:top;transition:transform 1.15s cubic-bezier(.2,.7,.2,1)}.important-dates-timeline.is-revealed:after,.exam-checklist.is-revealed:after{transform:scaleY(1)}
+.important-dates-timeline>li,.exam-checklist>li{z-index:1}
+.syllabus-switch{animation:syllabus-switch-in .38s cubic-bezier(.2,.7,.2,1) both}
+.sample-library .resource-card{transition-delay:calc(var(--reveal-order,0)*45ms)}
+.exam-checklist-icon{transition:background .25s,color .25s,border-color .25s,transform .25s}.exam-checklist li:hover .exam-checklist-icon{background:var(--navy-primary);color:#fff;border-color:var(--navy-primary);transform:translateY(-2px)}
+.school-prize-cards article,.shree-award-visual{position:relative}.school-prize-cards article:after,.shree-award-visual:after{content:'✦';position:absolute;right:15px;top:13px;color:var(--gold-primary);opacity:0;transform:scale(.7) rotate(-10deg);transition:opacity .3s,transform .3s}.school-prize-cards article:hover:after,.shree-award-visual:hover:after{opacity:.8;transform:scale(1) rotate(0)}
+.portal-faq details{transition:background .28s,border-color .28s}.portal-faq summary{position:relative;padding-right:42px}.portal-faq summary:after{content:'+';position:absolute;right:8px;top:50%;translate:0 -50%;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--surface-soft);color:var(--accent);font-size:20px;line-height:1;transition:transform .28s,background .28s,color .28s}.portal-faq details[open]{background:var(--surface-soft)}.portal-faq details[open] summary:after{transform:rotate(45deg);background:var(--navy-primary);color:#fff}.portal-faq details[open] p{animation:faq-answer-in .3s ease both}
+.progress{position:relative}.progress:before{content:'';position:absolute;left:15px;right:15px;top:14px;height:2px;background:linear-gradient(90deg,var(--gold-primary),var(--accent));transform:scaleX(.18);transform-origin:left;transition:transform .5s ease}.progress:has(>div:nth-child(2).current):before{transform:scaleX(.42)}.progress:has(>div:nth-child(3).current):before{transform:scaleX(.7)}.progress:has(>div:nth-child(4).current):before,.progress:has(>div:nth-child(4).done):before{transform:scaleX(1)}.progress>div{position:relative;z-index:1}.step-panel,.confirmation{animation:form-step-in .38s cubic-bezier(.2,.7,.2,1) both}
+.success>svg,.circle-icon>svg{animation:success-check-in .48s cubic-bezier(.2,.8,.2,1) both}
+.school-footer>.shell.motion-reveal{transform:translateY(20px)}.school-footer>.shell.motion-reveal.is-revealed{transform:none}
+.btn svg,.shree-button svg,.portal-text-link{transition:transform .25s ease}
+@media(hover:hover){.btn:hover,.shree-button:hover{transform:translateY(-2px)}.btn:hover svg,.shree-button:hover svg,.portal-text-link:hover{transform:translateX(3px)}}
+[data-theme=dark] .portal-page,[data-theme=dark] .school-page{background:radial-gradient(circle at 90% 8%,#eabf5530,transparent 25%),radial-gradient(circle at 4% 35%,#2b84ad24,transparent 25%)}
+[data-theme=dark] .student-artwork img{filter:drop-shadow(0 22px 28px #0007)}
+@keyframes premium-hero-copy{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes premium-student-in{from{opacity:0;transform:translateY(20px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes syllabus-switch-in{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+@keyframes faq-answer-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@keyframes form-step-in{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+@keyframes success-check-in{0%{opacity:0;transform:scale(.55)}70%{transform:scale(1.12)}100%{opacity:1;transform:scale(1)}}
+@media(max-width:767px){.important-dates-timeline:after{left:-16px}.portal-header .nav>a:not(.nav-register):after{left:12px;right:auto;width:38px;transform-origin:left}}
+@media(prefers-reduced-motion:reduce){.motion-reveal{opacity:1;transform:none;transition:none}.student-artwork img,.shree-hero-copy>*,.shree-students,.syllabus-switch,.portal-faq details[open] p,.step-panel,.confirmation,.success>svg,.circle-icon>svg{animation:none!important;opacity:1;transform:none}.shree-hero-sweep{will-change:auto;transform:rotate(35deg)}.important-dates-timeline:after,.exam-checklist:after{transform:scaleY(1);transition:none}}

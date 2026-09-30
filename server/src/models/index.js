@@ -1,7 +1,21 @@
 import mongoose from "mongoose";
+import { branding } from "../../../shared/branding.mjs";
 const { Schema } = mongoose;
 const model = mongoose.model.bind(mongoose);
 const opts = { timestamps: true };
+const mediaSchema = new Schema({
+  publicId: { type: String, required: true },
+  resourceType: { type: String, enum: ['image', 'raw'], required: true },
+  type: { type: String, enum: ['authenticated'], default: 'authenticated' },
+  format: { type: String, required: true },
+  contentType: { type: String, required: true },
+  bytes: { type: Number, required: true },
+}, { _id: false });
+// Journal upload intentions before contacting Cloudinary, including uncertain timeouts.
+export const MediaAsset = model('MediaAsset', new Schema({
+  asset: { type: mediaSchema, required: true },
+  sweepAt: { type: Date, required: true, index: true },
+}, opts));
 export const Admin = model(
   "Admin",
   new Schema(
@@ -38,7 +52,8 @@ export const Registration = model(
       currentSchool: { type: String, required: true },
       guardianName: { type: String, required: true },
       guardianPhone: { type: String, required: true },
-      email: { type: String, default: "" },
+      email: { type: String, default: "", lowercase: true, trim: true },
+      verifiedEmail: { type: String, default: "" },
       address: { type: String, required: true },
       city: { type: String, required: true },
       district: { type: String, required: true },
@@ -49,6 +64,7 @@ export const Registration = model(
       verifiedAt: { type: Date, default: null },
       draftExpiresAt: { type: Date },
       verificationExpiresAt: { type: Date, default: null },
+      verificationDevMode: { type: Boolean, default: false },
       termsVersion: { type: String, default: "2026-v1" },
       termsAcceptedAt: { type: Date, default: null },
       status: {
@@ -72,12 +88,16 @@ export const Registration = model(
         default: "",
       },
       paymentId: { type: Schema.Types.ObjectId, ref: "Payment", default: null },
-      photoPath: { type: String, default: "" },
+      photoPath: { type: String, default: "" }, // Legacy migration only; never read by upload/download routes.
+      photo: { type: mediaSchema, default: null },
       admitToken: { type: String, unique: true, sparse: true },
       seat: { type: String, default: "" },
       room: { type: String, default: "" },
       checkInAt: { type: Date, default: null },
       notificationStatus: { type: String, default: "" },
+      notificationAttempts: { type: Number, default: 0 },
+      notificationNextAttemptAt: { type: Date },
+      notificationLease: { type: String },
     },
     opts,
   ),
@@ -86,15 +106,18 @@ export const Challenge = model(
   "Challenge",
   new Schema(
     {
-      phone: { type: String, required: true },
+      phone: { type: String },
+      recipient: { type: String },
       registrationId: {
         type: Schema.Types.ObjectId,
         ref: "Registration",
         required: true,
       },
       purpose: { type: String, enum: ["register", "lookup"], required: true },
-      provider: { type: String, enum: ["twilio"], required: true },
+      provider: { type: String, enum: ["brevo", "smtp"], required: true },
       providerVerificationReference: { type: String, default: "" },
+      codeHash: { type: String, default: "", select: false },
+      devMode: { type: Boolean, default: false },
       verificationStatus: {
         type: String,
         enum: ["pending", "approved", "denied", "expired", "superseded"],
@@ -113,6 +136,7 @@ export const Challenge = model(
 Challenge.schema.index({ expiresAt: 1 }, { expireAfterSeconds: 3600 });
 Challenge.schema.index({ registrationId: 1, purpose: 1 });
 Challenge.schema.index({ phone: 1, createdAt: -1 });
+Challenge.schema.index({ recipient: 1, createdAt: -1 });
 export const Payment = model(
   "Payment",
   new Schema(
@@ -127,7 +151,8 @@ export const Payment = model(
       amount: { type: Number, required: true },
       currency: { type: String, default: "INR" },
       utr: { type: String, unique: true, sparse: true },
-      receiptPath: { type: String, default: "" },
+      receiptPath: { type: String, default: "" }, // Legacy migration only.
+      receipt: { type: mediaSchema, default: null },
       providerOrderId: { type: String, unique: true, sparse: true },
       providerPaymentId: { type: String, unique: true, sparse: true },
       status: {
@@ -147,7 +172,8 @@ export const Settings = model(
   new Schema(
     {
       _id: { type: String, default: "primary" },
-      eventName: { type: String, default: "SHREE 2026 OLYMPIAD" },
+      eventName: { type: String, default: branding.eventName },
+      portal: { type: Schema.Types.Mixed, default: () => ({}) },
       fee: { type: Number, default: 149 },
       registrationOpen: { type: Boolean, default: false },
       examDate: { type: String, default: "" },
@@ -245,3 +271,11 @@ export const OtpBucket = model('OtpBucket', new Schema({
 export const OtpLock = model('OtpLock', new Schema({
   _id: String, owner: String, expiresAt: { type: Date, required: true, expires: 0 },
 }));
+
+// Stable, indexed ordering for paginated administrator lists.
+Registration.schema.index({ createdAt: -1, _id: -1 });
+Registration.schema.index({ status: 1, createdAt: -1, _id: -1 });
+Payment.schema.index({ mode: 1, status: 1, createdAt: -1, _id: -1 });
+
+Registration.schema.index({ "photo.publicId": 1 });
+Payment.schema.index({ "receipt.publicId": 1 });

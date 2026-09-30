@@ -1,19 +1,19 @@
 /* Shared interaction treatment, including links styled as buttons.
    Important overrides keep component gradients/animations from masking hover. */
-:is(button, [role="button"], input[type="button"], input[type="submit"], input[type="reset"], .btn, .shree-button, .nav-register, .journey-action, .campaign-register, .school-footer-visit, .school-footer-social-links a):not(:disabled):not([aria-disabled="true"]):hover {
-  background: #c91f2d !important;
-  color: #fff !important;
-  -webkit-text-fill-color: #fff !important;
-  border-color: #c91f2d !important;
+:is(button, [role="button"], input[type="button"], input[type="submit"], input[type="reset"], .btn, .shree-button, .nav-register, .journey-action, .campaign-register, .school-footer-visit, .school-footer-social-links a):not(:disabled):not([aria-disabled="true"]):not(.portal-header *):hover {
+  background: #ffd35f !important;
+  color: #092a40 !important;
+  -webkit-text-fill-color: #092a40 !important;
+  border-color: #ffd35f !important;
   animation: none !important;
   filter: none !important;
 }
-:is(button, [role="button"], .btn, .shree-button, .nav-register, .journey-action, .campaign-register, .school-footer-visit, .school-footer-social-links a):not(:disabled):not([aria-disabled="true"]):hover :is(span, strong, small, b, i, svg) {
-  color: #fff !important;
-  -webkit-text-fill-color: #fff !important;
+:is(button, [role="button"], .btn, .shree-button, .nav-register, .journey-action, .campaign-register, .school-footer-visit, .school-footer-social-links a):not(:disabled):not([aria-disabled="true"]):not(.portal-header *):hover :is(span, strong, small, b, i, svg) {
+  color: #092a40 !important;
+  -webkit-text-fill-color: #092a40 !important;
 }
 input[type="file"]:not(:disabled)::file-selector-button:hover {
-  background: #c91f2d !important;
-  color: #fff !important;
-  border-color: #c91f2d !important;
+  background: #ffd35f !important;
+  color: #092a40 !important;
+  border-color: #ffd35f !important;
 }

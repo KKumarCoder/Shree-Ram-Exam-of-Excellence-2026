@@ -1,3 +1,4 @@
+import { configureCloudinary, startMediaWorker } from "./services/media.js";
 import "express-async-errors";
 import "dotenv/config";
 import express from "express";
@@ -6,19 +7,18 @@ import mongoose from "mongoose";
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
-import { persistentLimiter, setting } from "./services/otpSecurity.js";
-import { validateTwilioEnvironment, checkVerifyService } from "./services/twilioOTP.js";
-import { OtpBucket, OtpLock, Challenge, Registration } from "./models/index.js";
+import { persistentLimiter, setting, otpEnabled, otpDevMode } from "./services/otpSecurity.js";
+import { otpHashSecret } from "./services/otpCode.js";
+import { validateEmailEnvironment } from "./services/email.js";
+import { startNotificationWorker } from "./services/notifications.js";
+import { OtpBucket, OtpLock, Challenge, Registration, MediaAsset } from "./models/index.js";
 import publicRoutes, { webhook } from "./routes/public.js";
 import adminRoutes from "./routes/admin.js";
 import { isAllowedOrigin } from "./utils/origin.js";
 const required = [
   "MONGODB_URI",
   "JWT_SECRET",
-  "OTP_PEPPER",
   "FRONTEND_URL",
-  "SMS_PROVIDER",
-  "OTP_DELIVERY_MODE",
 ];
 for (const key of required)
   if (
@@ -29,20 +29,16 @@ for (const key of required)
     console.error(`Missing/too short ${key}. Check server/.env`);
     process.exit(1);
   }
-if (
-  process.env.SMS_PROVIDER !== "twilio" ||
-  process.env.OTP_DELIVERY_MODE !== "sms"
-) {
-  console.error("SMS_PROVIDER=twilio and OTP_DELIVERY_MODE=sms are required.");
-  process.exit(1);
-}
 try {
-  validateTwilioEnvironment();
-  setting('OTP_RESEND_COOLDOWN_SECONDS', 45, 30, 300);
-  setting('OTP_CHALLENGE_TTL_SECONDS', 600);
+  configureCloudinary();
+  otpHashSecret();
+  const development = otpDevMode();
+  if (otpEnabled() && !development) validateEmailEnvironment();
+  setting('OTP_RESEND_COOLDOWN_SECONDS', 60, 30, 300);
+  setting('OTP_CHALLENGE_TTL_SECONDS', 300);
   setting('OTP_AUTHORIZATION_TTL_SECONDS', 1800);
   setting('OTP_MAX_VERIFICATION_ATTEMPTS', 5, 1, 10);
-  setting('OTP_MOBILE_HOURLY_LIMIT', 5);
+  setting('OTP_EMAIL_HOURLY_LIMIT', 5);
   setting('OTP_DRAFT_HOURLY_LIMIT', 5);
   setting('OTP_IP_LIMIT', 30);
   setting('OTP_GLOBAL_HOURLY_LIMIT', 100);
@@ -105,21 +101,19 @@ app.use("/api", limiter, publicRoutes);
 app.use("/api/admin", adminRoutes);
 app.use((req, res) => res.status(404).json({ error: "Not found." }));
 app.use(errorHandler);
-let startupStage = "database connection and indexes";
+const startupStage = "database connection and indexes";
 try {
   await mongoose.connect(process.env.MONGODB_URI, {
     serverSelectionTimeoutMS: 10000,
   });
-  await Promise.all([OtpBucket.init(), OtpLock.init(), Challenge.init(), Registration.init()]);
-  startupStage = "Twilio Verify Service validation";
-  await checkVerifyService();
+  await Promise.all([OtpBucket.init(), OtpLock.init(), Challenge.init(), Registration.init(), MediaAsset.init()]);
+  startNotificationWorker();
+  startMediaWorker();
   const port = Number(process.env.PORT || 5000);
   app.listen(port, () =>
     console.log(`Shree Olympiad API listening on ${port}`),
   );
 } catch (e) {
   console.error(`Startup failed during ${startupStage}. Check backend configuration and service availability.`);
-  // This check emits curated messages only; never log raw SDK/database errors.
-  if (startupStage === "Twilio Verify Service validation") console.error(e.message);
   process.exit(1);
 }

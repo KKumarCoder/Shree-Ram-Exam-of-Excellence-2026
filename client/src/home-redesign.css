@@ -13,11 +13,8 @@
 /* Original campaign artwork: retain the complete composition on every screen. */
 .shree-discovery-art{max-width:1060px;margin:0 auto 32px;border-radius:22px;overflow:hidden;background:#fff4e4;box-shadow:0 18px 50px #10295312;border:1px solid var(--sh-line)}
 .shree-discovery-art img{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:contain}
-.shree-subject-grid article:nth-child(1){background:color-mix(in srgb,#638aff 10%,var(--sh-paper))}
-.shree-subject-grid article:nth-child(2){background:color-mix(in srgb,#35cbb6 12%,var(--sh-paper))}
-.shree-subject-grid article:nth-child(3){background:color-mix(in srgb,#ffb635 14%,var(--sh-paper))}
-.shree-subject-grid article:nth-child(4){background:color-mix(in srgb,#b68bea 13%,var(--sh-paper))}
-.shree-subject-grid article:nth-child(5){background:color-mix(in srgb,#ff856b 12%,var(--sh-paper))}
+.shree-subject-grid article:nth-child(odd){background:color-mix(in srgb,#126384 7%,var(--sh-paper))}
+.shree-subject-grid article:nth-child(even){background:color-mix(in srgb,#d8a52d 9%,var(--sh-paper))}
 @media(max-width:540px){.shree-discovery-art{border-radius:13px;margin-bottom:22px}}
 
 .shree-award-visual{height:auto;aspect-ratio:1;isolation:isolate}
@@ -67,3 +64,31 @@
 .shree-students .hero-portrait.is-visible{opacity:1;transform:translateY(0) scale(1)}
 .shree-students .school-portrait{object-fit:contain;object-position:center bottom}
 @media(prefers-reduced-motion:reduce){.shree-students .hero-portrait{transition:none;transform:none}}
+/* Homepage information sections share the approved school palette and card language. */
+.shree-home .shree-updates .portal-heading h2{color:var(--sh-ink)}
+.shree-home .shree-updates .portal-heading p{font-size:15px;max-width:610px}
+.shree-home .shree-updates .portal-timeline{display:grid;gap:18px;margin:30px 0;list-style:none;padding:0}
+.shree-home .shree-dates .portal-timeline{grid-template-columns:repeat(3,minmax(0,1fr))}
+.shree-home .shree-journey .portal-timeline{grid-template-columns:repeat(4,minmax(0,1fr))}
+.shree-home .shree-updates .portal-timeline li{border:1px solid var(--sh-line);border-radius:14px;background:var(--sh-soft);padding:24px;min-width:0}
+.shree-home .shree-updates .timeline-dot{position:static;display:grid;width:36px;height:36px;margin-bottom:20px;background:var(--sh-paper);border:1px solid var(--sh-line);color:var(--sh-ink);border-radius:10px;font-size:12px}
+.shree-home .shree-updates .stage-active{border-color:#c69b28}
+.shree-home .shree-updates .stage-active .timeline-dot{background:var(--sh-yellow);color:#102953;border-color:var(--sh-yellow)}
+.shree-home .shree-updates .stage-completed .timeline-dot{background:var(--sh-ink);color:var(--sh-paper);border-color:var(--sh-ink)}
+.shree-home .shree-updates .portal-timeline h3{font-size:16px;line-height:1.5;margin:0 0 12px;color:var(--sh-ink)}
+.shree-home .shree-updates .portal-timeline strong{font-size:14px;line-height:1.6;color:var(--sh-ink)}
+.shree-home .shree-updates .portal-timeline p{font-size:13px;margin:0 0 16px}
+.shree-home .shree-updates .portal-badge{background:var(--sh-paper);border-color:var(--sh-line);color:var(--sh-muted);font-size:10px;line-height:1.6;margin:12px 6px 0 0;text-transform:capitalize}
+.shree-home .shree-updates a:not(.btn){display:inline-flex;align-items:center;gap:8px;color:var(--sh-ink);font-size:13px;font-weight:700;text-decoration:none;border-bottom:1px solid var(--sh-yellow);padding-bottom:5px}
+.shree-home .shree-updates a:not(.btn):hover{border-bottom-color:var(--sh-ink)}
+.shree-home .shree-notices .portal-card{display:flex;flex-direction:column;align-items:flex-start;border:1px solid var(--sh-line);border-radius:14px;background:var(--sh-paper);padding:26px;box-shadow:none}
+.shree-home .shree-notices .portal-meta{color:var(--sh-muted);font-size:11px;line-height:1.6}
+.shree-home .shree-notices .portal-card h3{font-size:19px;line-height:1.4;color:var(--sh-ink);margin:18px 0 12px}
+.shree-home .shree-notices .portal-card p{font-size:13px;margin-bottom:22px}
+.shree-home .shree-notices .portal-card a{margin-top:auto}
+.shree-home .shree-notices .portal-state{background:var(--sh-soft);border:1px solid var(--sh-line);border-radius:14px;padding:30px;color:var(--sh-ink)}
+.shree-home .shree-notices .portal-state>svg{color:var(--sh-ink);background:var(--sh-yellow);box-sizing:content-box;padding:12px;border-radius:12px}
+.shree-home .shree-notices .portal-state p{font-size:14px;margin:16px 0}
+.shree-home .shree-notices .portal-actions{gap:18px 28px;margin:24px 0 0}
+@media(max-width:1000px){.shree-home .shree-dates .portal-timeline,.shree-home .shree-journey .portal-timeline{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:540px){.shree-home .shree-dates .portal-timeline,.shree-home .shree-journey .portal-timeline{grid-template-columns:1fr;gap:14px}.shree-home .shree-updates .portal-timeline li{display:grid;grid-template-columns:36px minmax(0,1fr);gap:16px;padding:20px}.shree-home .shree-updates .timeline-dot{margin:0}.shree-home .shree-updates .portal-heading p{font-size:13px}.shree-home .shree-notices .portal-grid{grid-template-columns:1fr}}

@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {startSchema,manualSchema,lookupSchema,safeCsv} from '../src/utils/validation.js';
-const good={studentName:'Aarav Kumar',dob:'2013-02-12',studentClass:'7',currentSchool:'Sample School',guardianName:'Anita Kumar',guardianPhone:'9876543210',email:'',address:'Village Road',city:'Kanhra',district:'Charkhi Dadri',state:'Haryana',pincode:'127306',purpose:'',consent:true};
+const good={studentName:'Aarav Kumar',dob:'2013-02-12',studentClass:'7',currentSchool:'Sample School',guardianName:'Anita Kumar',guardianPhone:'9876543210',email:'student@example.com',address:'Village Road',city:'Kanhra',district:'Charkhi Dadri',state:'Haryana',pincode:'127306',purpose:'',consent:true};
 test('accepts valid real student data',()=>assert.equal(startSchema.parse(good).studentName,'AARAV KUMAR'));
 test('rejects incorrect guardian phone',()=>assert.equal(startSchema.safeParse({...good,guardianPhone:'123'}).success,false));
 test('requires guardian consent',()=>assert.equal(startSchema.safeParse({...good,consent:false}).success,false));
@@ -15,7 +15,8 @@ test('registration text is stored in capitals while email and numeric fields ret
   for (const key of ['studentName','currentSchool','guardianName','address','city','district','state','purpose']) {
     assert.equal(result[key], input[key].toUpperCase());
   }
-  for (const key of ['email','dob','studentClass','guardianPhone','pincode','consent']) assert.equal(result[key], input[key]);
+  for (const key of ['dob','studentClass','guardianPhone','pincode','consent']) assert.equal(result[key], input[key]);
+  assert.equal(result.email, input.email.toLowerCase());
   assert.equal(startSchema.parse({...good, purpose:undefined}).purpose, '');
 });
 
@@ -38,3 +39,5 @@ test('school, city and district require letters and spaces', () => {
     assert.equal(startSchema.parse({...good,[key]:'shree ram'})[key], 'SHREE RAM');
   }
 });
+
+test('email is mandatory for registration', () => { for (const email of ['', undefined, 'invalid']) assert.equal(startSchema.safeParse({...good,email}).success,false); });

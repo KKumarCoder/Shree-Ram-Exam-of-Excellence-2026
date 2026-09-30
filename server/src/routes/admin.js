@@ -1,8 +1,12 @@
+import { listAttendance, exportAttendance, updateAttendance } from "../services/attendance.js";
+import { recordFilters, registrationQuery, listPayments } from "../services/adminRecords.js";
+import { exportAdminRecords } from "../services/adminExport.js";
+import { portalSchema } from "../utils/portalContent.js";
 import express from "express";
 import { withOtpLock } from "../services/otpSecurity.js";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import fs from "node:fs";
+import { downloadMedia } from "../services/media.js";
 import {
   Admin,
   Registration,
@@ -81,25 +85,12 @@ r.get("/dashboard", async (req, res) => {
   });
 });
 r.get("/registrations", async (req, res) => {
-  const page = Math.max(1, Math.min(9999, Math.floor(Number(req.query.page)) || 1)),
-    limit = 25;
-  const q = {};
-  if (req.query.status) q.status = String(req.query.status);
-  if (req.query.studentClass) q.studentClass = String(req.query.studentClass);
-  if (req.query.search) {
-    const search = String(req.query.search)
-      .slice(0, 100)
-      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    q.$or = [
-      { studentName: { $regex: search, $options: "i" } },
-      { applicationRef: { $regex: search, $options: "i" } },
-      { registrationNumber: { $regex: search, $options: "i" } },
-      { guardianPhone: { $regex: search, $options: "i" } },
-    ];
-  }
+  const filters = recordFilters(req.query);
+  const { page, limit } = filters;
+  const q = registrationQuery(filters);
   const [docs, total] = await Promise.all([
     Registration.find(q)
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
       .lean(),
@@ -115,46 +106,26 @@ r.get("/registrations", async (req, res) => {
     total,
     page,
     pages: Math.ceil(total / limit),
+    limit,
   });
 });
-r.get("/attendance", async (req, res) => {
-  const docs = await Registration.find({ status: "CONFIRMED" })
-    .sort({ checkInAt: -1, studentName: 1 })
-    .limit(1000)
-    .lean();
-  res.json({
-    items: docs.map((s) => safeRegistration(s)),
-    total: docs.length,
-    present: docs.filter((s) => s.checkInAt).length,
-  });
-});
+r.get("/attendance", examiner, listAttendance);
+r.get("/attendance/export.:format", examiner, exportAttendance);
+r.patch("/attendance/:id", writable, updateAttendance);
+r.delete("/attendance/:id", writable, updateAttendance);
 r.get("/payments", async (req, res) => {
-  const items = await Payment.find({
-    mode: "manual",
-    status: { $in: ["UNDER_REVIEW", "REJECTED", "PAID"] },
-  })
-    .sort({ createdAt: -1 })
-    .limit(150)
-    .populate(
-      "registrationId",
-      "studentName guardianPhone studentClass registrationNumber status",
-    )
-    .lean();
-  res.json({
-    items: items.map((p) => ({
-      ...p,
-      receiptPath: undefined,
-      hasReceipt: !!p.receiptPath,
-    })),
-  });
+  res.json(await listPayments(recordFilters(req.query, true)));
 });
+r.get("/records/:kind/export.:format", exportAdminRecords);
+
 r.get("/payments/:id/receipt", verifier, async (req, res) => {
   const p = await Payment.findById(req.params.id);
-  if (!p?.receiptPath || !fs.existsSync(p.receiptPath))
-    return res.status(404).json({ error: "Receipt not found." });
-  res.set("Cache-Control", "no-store");
-  res.set("Content-Disposition", "attachment");
-  res.sendFile(p.receiptPath);
+  if (!p?.receipt?.publicId)
+    return res.status(404).json({ error: "Receipt not found or awaiting storage migration." });
+  const buffer = await downloadMedia(p.receipt);
+  res.set("Cache-Control", "private, no-store");
+  res.set("Content-Disposition", `attachment; filename="receipt-${p._id}.${p.receipt.format}"`);
+  res.type(p.receipt.contentType).send(buffer);
 });
 // Both review decisions share one lease so approval and rejection cannot race.
 r.use(['/payments/:id/approve', '/payments/:id/reject'], verifier, (req, res, next) => {
@@ -203,8 +174,14 @@ r.post("/payments/:id/reject", verifier, async (req, res) => {
     .slice(0, 500);
   if (note.length < 5)
     return res.status(400).json({ error: "Enter a reason for rejection." });
+  const existing = await Payment.findOne({ _id: req.params.id, mode: "manual" });
+  const registration = existing && await Registration.findById(existing.registrationId);
+  if (!existing || !registration || String(registration.paymentId) !== String(existing._id) ||
+      !["PAYMENT_UNDER_VERIFICATION", "PAYMENT_REJECTED"].includes(registration.status) ||
+      !["UNDER_REVIEW", "REJECTED"].includes(existing.status))
+    return res.status(409).json({ error: "Payment already reviewed or registration/payment status mismatch." });
   const p = await Payment.findOneAndUpdate(
-    { _id: req.params.id, mode: "manual", status: "UNDER_REVIEW" },
+    { _id: req.params.id, mode: "manual", status: { $in: ["UNDER_REVIEW", "REJECTED"] } },
     {
       $set: { status: "REJECTED", reviewedBy: req.admin._id, reviewNote: note },
     },
@@ -222,7 +199,7 @@ r.post("/payments/:id/reject", verifier, async (req, res) => {
     },
     { $set: { status: "PAYMENT_REJECTED" } },
   );
-  await Audit.create({
+  if (existing.status !== "REJECTED") await Audit.create({
     actor: String(req.admin._id),
     action: "PAYMENT_REJECTED",
     registrationId: p.registrationId,
@@ -239,23 +216,6 @@ r.get("/admit-card/:id", examiner, async (req, res) => {
       .status(403)
       .json({ error: "Only confirmed registrations have admit cards." });
   await admitPdf(res, student, await publicSettings());
-});
-r.post("/registrations/:id/seat", examiner, async (req, res) => {
-  const data = parse(
-    z.object({
-      room: z.string().trim().max(50),
-      seat: z.string().trim().max(50),
-    }),
-    req.body,
-  );
-  const s = await Registration.findOneAndUpdate(
-    { _id: req.params.id, status: "CONFIRMED" },
-    { $set: data },
-    { new: true },
-  );
-  if (!s)
-    return res.status(404).json({ error: "Confirmed registration not found." });
-  res.json({ registration: safeRegistration(s) });
 });
 r.post("/check-in", examiner, async (req, res) => {
   const { token } = parse(
@@ -279,6 +239,14 @@ r.post("/check-in", examiner, async (req, res) => {
   res.json({ registration: safeRegistration(s) });
 });
 r.get("/settings", async (req, res) => res.json(await publicSettings()));
+// Separate from payment settings so publishing content cannot alter payment configuration.
+r.put("/portal", writable, async (req, res) => {
+  const data = parse(z.object({eventName:z.string().trim().min(1).max(160),portal:portalSchema}).strict(), req.body);
+  await publicSettings();
+  const saved = await Settings.findByIdAndUpdate("primary", {$set:data}, {new:true,runValidators:true});
+  await Audit.create({actor:String(req.admin._id),action:"PUBLIC_CONTENT_UPDATED",details:{}});
+  res.json({eventName:saved.eventName,portal:saved.portal});
+});
 r.patch("/settings", writable, async (req, res) => {
   const schema = z
     .object({

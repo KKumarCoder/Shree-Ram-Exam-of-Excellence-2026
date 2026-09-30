@@ -1,9 +1,9 @@
+import { publicPortal } from "../utils/portalContent.js";
+import { supportedClasses } from "../../../shared/branding.mjs";
 import express from "express";
 import crypto from "node:crypto";
-import fs from "node:fs/promises";
-import path from "node:path";
-import multer from "multer";
-import { validPhoto } from "../utils/uploads.js";
+import { memoryUpload, validateUpload } from "../utils/uploads.js";
+import { uploadMedia, deleteMedia } from "../services/media.js";
 import QRCode from "qrcode";
 import { Registration, Payment, Settings, Audit } from "../models/index.js";
 import { issueToken, authenticate } from "../middleware/auth.js";
@@ -19,7 +19,7 @@ import {
 import { sendOtp, verifyOtp } from "../services/notifications.js";
 import { confirmRegistration } from "../services/confirm.js";
 import { admitPdf, applicationReceiptPdf } from "../services/pdf.js";
-import { assertDraft, assertAuthorization, withOtpLock } from "../services/otpSecurity.js";
+import { assertDraft, assertAuthorization, otpDevMode, withOtpLock, limit } from "../services/otpSecurity.js";
 import { Challenge } from "../models/index.js";
 const r = express.Router();
 // Serialize mutations of a draft across processes, including payment initiation.
@@ -31,28 +31,11 @@ r.use('/registrations', async (req, res, next) => {
     })).catch(next);
   });
 });
-const uploads = path.resolve("private-uploads");
-const receiptUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 3 * 1024 * 1024, files: 1 },
-}).single("receipt");
-const detect = (buf, mime) => {
-  if (
-    mime === "image/jpeg" &&
-    buf[0] === 255 &&
-    buf[1] === 216 &&
-    buf[2] === 255
-  )
-    return ".jpg";
-  if (
-    mime === "image/png" &&
-    buf.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
-  )
-    return ".png";
-  if (mime === "application/pdf" && buf.subarray(0, 5).toString() === "%PDF-")
-    return ".pdf";
-  return null;
+const uploadLimit = async (req, res, next) => {
+  try { await limit(`media:${req.viewer.sub}`, 20, 900); next(); } catch (error) { next(error); }
 };
+const photoUpload = memoryUpload('photo', 5, ['image/jpeg', 'image/png']);
+const receiptUpload = memoryUpload('receipt', 3, ['image/jpeg', 'image/png', 'application/pdf']);
 const publicSettings = async () =>
   Settings.findOneAndUpdate(
     { _id: "primary" },
@@ -70,10 +53,12 @@ const safeRegistration = (s) => ({
   registrationNumber: s.registrationNumber || null,
   applicationRef: s.applicationRef,
   status: s.status,
-  photoUploaded: !!s.photoPath,
+  photoUploaded: !!s.photo?.publicId,
   paymentMode: s.paymentMode,
   verified: !!s.verifiedAt,
   guardianPhone: s.guardianPhone,
+  email: s.email,
+  notificationStatus: s.notificationStatus,
   verificationExpiresAt: s.verificationExpiresAt,
   seat: s.seat,
   room: s.room,
@@ -83,9 +68,9 @@ const getOwn = async (req) => {
   const s = await Registration.findById(req.viewer.sub);
   if (!s) throw notFound();
   assertDraft(s);
-  if (s.status === 'OTP_VERIFIED' && (!s.verificationExpiresAt || s.verificationExpiresAt <= new Date())) {
+  if (s.status === 'OTP_VERIFIED' && (!s.verifiedEmail || s.verifiedEmail !== s.email || !s.verificationExpiresAt || s.verificationExpiresAt <= new Date() || (s.verificationDevMode && !otpDevMode()))) {
     const reset = await Registration.findOneAndUpdate({ _id: s._id, status: 'OTP_VERIFIED', verificationExpiresAt: s.verificationExpiresAt || null },
-      { $set: { status: 'DRAFT', verifiedAt: null, verificationExpiresAt: null } }, { new: true });
+      { $set: { status: 'DRAFT', verifiedAt: null, verificationExpiresAt: null, verificationDevMode: false } }, { new: true });
     return reset || Registration.findById(s._id);
   }
   return s;
@@ -94,6 +79,8 @@ r.get("/settings", async (req, res) => {
   const s = await publicSettings();
   res.json({
     eventName: s.eventName,
+    eligibleClasses: supportedClasses,
+    portal: publicPortal(s.portal),
     fee: s.fee,
     registrationOpen: s.registrationOpen,
     examDate: s.examDate,
@@ -176,7 +163,7 @@ r.post("/registrations/otp/verify", authenticate("draft"), async (req, res) => {
     return res.status(400).json({ error: "Already verified." });
   const verified = await verifyOtp(s, "register", otp);
   res.json({
-    message: "Mobile number verified.",
+    message: "Email address verified.",
     registration: safeRegistration(verified),
   });
 });
@@ -185,9 +172,19 @@ r.patch('/registrations/mobile', authenticate('draft'), async (req, res) => {
   const s = await getOwn(req);
   if (!['DRAFT', 'OTP_VERIFIED'].includes(s.status)) return res.status(409).json({ error: 'Mobile cannot change after payment submission.' });
   const updated = await Registration.findOneAndUpdate({ _id: s._id, status: { $in: ['DRAFT', 'OTP_VERIFIED'] } },
-    { $set: { guardianPhone: mobile, status: 'DRAFT', verifiedAt: null, verificationExpiresAt: null } }, { new: true });
+    { $set: { guardianPhone: mobile, status: 'DRAFT', verifiedAt: null, verificationExpiresAt: null, verificationDevMode: false } }, { new: true });
   await Challenge.updateMany({ registrationId: s._id, verificationStatus: 'pending' }, { $set: { verificationStatus: 'superseded' } });
   res.json({ registration: safeRegistration(updated), message: 'Mobile updated. Request a new verification code.' });
+});
+r.patch('/registrations/email', authenticate('draft'), async (req, res) => {
+  const email = parse(startSchema.shape.email, req.body?.email);
+  const s = await getOwn(req);
+  if (!['DRAFT', 'OTP_VERIFIED'].includes(s.status)) return res.status(409).json({ error: 'Email cannot change after payment submission. Contact the school.' });
+  const updated = await Registration.findOneAndUpdate({ _id: s._id, status: { $in: ['DRAFT', 'OTP_VERIFIED'] } },
+    { $set: { email, verifiedEmail: '', status: 'DRAFT', verifiedAt: null, verificationExpiresAt: null, verificationDevMode: false } }, { new: true });
+  if (!updated) return res.status(409).json({error:'Registration changed. Reload and retry.'});
+  await Challenge.updateMany({ registrationId: s._id, verificationStatus: 'pending' }, { $set: { verificationStatus: 'superseded' } });
+  res.json({ registration: safeRegistration(updated), message: 'Email updated. Request a new verification code.' });
 });
 r.get("/registrations/me", authenticate("draft"), async (req, res) => {
   const s = await getOwn(req);
@@ -197,42 +194,38 @@ r.get("/registrations/me", authenticate("draft"), async (req, res) => {
 r.post(
   "/registrations/photo",
   authenticate("draft"),
-  multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 2 * 1024 * 1024, files: 1 },
-  }).single("photo"),
+  uploadLimit,
+  photoUpload,
   async (req, res) => {
     const s = await getOwn(req);
     if (
-      !s.verifiedAt ||
-      !["OTP_VERIFIED", "PAYMENT_PENDING", "PAYMENT_REJECTED"].includes(
+      !["DRAFT", "OTP_VERIFIED", "PAYMENT_PENDING", "PAYMENT_REJECTED"].includes(
         s.status,
       )
     )
       return res
         .status(403)
-        .json({ error: "Verify mobile before uploading a photo." });
-    if (!req.file)
-      return res.status(400).json({ error: "Select a photograph." });
-    const ext = detect(req.file.buffer, req.file.mimetype);
-    if (![".jpg", ".png"].includes(ext) || !validPhoto(req.file.buffer))
-      return res
-        .status(400)
-        .json({ error: "Use a valid JPEG or PNG photograph." });
-    await fs.mkdir(uploads, { recursive: true, mode: 0o700 });
-    const photoPath = path.join(uploads, crypto.randomUUID() + ext);
-    await fs.writeFile(photoPath, req.file.buffer, { flag: "wx", mode: 0o600 });
-    const prior = s.photoPath;
-    s.photoPath = photoPath;
-    try { await s.save(); }
-    catch (error) { await fs.unlink(photoPath).catch(() => {}); throw error; }
-    if (prior) await fs.unlink(prior).catch(() => {});
+        .json({ error: "Photographs cannot be changed at this application stage." });
+    const metadata = await validateUpload(req.file, 'photos');
+    const photo = await uploadMedia(req.file.buffer, metadata);
+    const prior = s.photo;
+    // Compare the record version too: a slow request cannot overwrite newer state.
+    const updated = await Registration.findOneAndUpdate({ _id: s._id, __v: s.__v, status: s.status,
+      'photo.publicId': prior?.publicId || null },
+      { $set: { photo, photoPath: '' }, $inc: { __v: 1 } }, { new: true });
+    if (!updated) {
+      await deleteMedia(photo);
+      return res.status(409).json({ error: 'Registration changed. Reload and retry.' });
+    }
+    // On an ambiguous DB failure the journal reconciles references before deletion.
+    await deleteMedia(prior);
     res.json({ message: "Student photograph uploaded.", photoUploaded: true });
   },
 );
 r.post(
   "/registrations/manual",
   authenticate("draft"),
+  uploadLimit,
   receiptUpload,
   async (req, res) => {
     const data = parse(manualSchema, req.body);
@@ -253,7 +246,7 @@ r.post(
             "Mobile must be verified and registration must be eligible for payment.",
         });
     assertAuthorization(s);
-    if (!s.photoPath)
+    if (!s.photo?.publicId)
       return res
         .status(400)
         .json({
@@ -261,26 +254,16 @@ r.post(
         });
     if (!settings.upiId)
       return res.status(503).json({ error: "School UPI ID not configured." });
-    if (!req.file)
-      return res.status(400).json({ error: "Payment receipt is required." });
-    const ext = detect(req.file.buffer, req.file.mimetype);
-    if (!ext)
-      return res
-        .status(400)
-        .json({ error: "Only valid JPG, PNG or PDF receipts are accepted." });
-    await fs.mkdir(uploads, { recursive: true, mode: 0o700 });
-    const receiptPath = path.join(uploads, crypto.randomUUID() + ext);
-    await fs.writeFile(receiptPath, req.file.buffer, {
-      flag: "wx",
-      mode: 0o600,
-    });
+    const metadata = await validateUpload(req.file, 'receipts');
+    const receipt = await uploadMedia(req.file.buffer, metadata);
+    let pay;
     try {
-      const pay = await Payment.create({
+      pay = await Payment.create({
         registrationId: s._id,
         mode: "manual",
         amount: settings.fee,
         utr: data.utr.toUpperCase(),
-        receiptPath,
+        receipt,
         status: "UNDER_REVIEW",
       });
       const updated = await Registration.findOneAndUpdate(
@@ -297,7 +280,7 @@ r.post(
       );
       if (!updated) {
         await Payment.deleteOne({ _id: pay._id });
-        await fs.unlink(receiptPath).catch(() => {});
+        await deleteMedia(receipt);
         return res
           .status(409)
           .json({ error: "Registration was updated in another session." });
@@ -310,7 +293,13 @@ r.post(
           registration: safeRegistration(updated),
         });
     } catch (e) {
-      await fs.unlink(receiptPath).catch(() => {});
+      // Resolve an uncertain database result before removing its receipt.
+      if (pay) {
+        const linked = await Registration.exists({ _id: s._id, paymentId: pay._id });
+        if (!linked) { await Payment.deleteOne({ _id: pay._id }); await deleteMedia(receipt); }
+      }
+      // If create failed ambiguously, the journal will check actual references.
+
       if (e.code === 11000)
         return res
           .status(409)
@@ -362,7 +351,7 @@ r.post(
     )
       return res.status(409).json({ error: "Verify mobile before payment." });
     assertAuthorization(s);
-    if (!s.photoPath)
+    if (!s.photo?.publicId)
       return res
         .status(400)
         .json({

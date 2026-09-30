@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {cleanRegistrationInput,registrationFieldError} from '../../client/src/registrationValidation.js';
 test('typed and pasted registration input follows field restrictions', () => {
-  assert.equal(cleanRegistrationInput('guardianPhone','98ab765432109'), '9876543210');
+  assert.equal(cleanRegistrationInput('guardianPhone','98ab765432109'), '98765432109');
   assert.equal(cleanRegistrationInput('pincode','12abc7306'), '127306');
   assert.equal(cleanRegistrationInput('studentName','krishna123 kumar!'), 'KRISHNA KUMAR');
   assert.equal(cleanRegistrationInput('email','name @gmail.com'), 'name@gmail.com');
@@ -19,5 +19,12 @@ test('school, city and district filter typed and pasted numbers and symbols', ()
     assert.equal(cleanRegistrationInput(key,'shree123 ram!'), 'SHREE RAM');
     assert.equal(registrationFieldError(key,'SHREE RAM'),'');
     assert.ok(registrationFieldError(key,'SHREE 123'));
+  }
+});
+
+test('registration accepts national and country-code mobile formats without truncating paste', () => {
+  for (const value of ['8199991081', '918199991081', '+918199991081']) {
+    assert.equal(cleanRegistrationInput('guardianPhone', value), value);
+    assert.equal(registrationFieldError('guardianPhone', value), '');
   }
 });

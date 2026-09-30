@@ -1,0 +1,72 @@
+.admin-content { min-width: 0; }
+.admin-content .records-panel { padding: 26px; border: 1px solid var(--edge); box-shadow: 0 8px 30px #14395206; }
+.records-heading { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; margin-bottom: 24px; }
+.records-kicker { display: block; font-size: 10px; font-weight: 800; letter-spacing: .16em; color: var(--accent); margin-bottom: 9px; }
+.admin-content .records-heading h2 { font-size: clamp(1.45rem, 2vw, 2rem); margin: 0 0 8px; letter-spacing: -.035em; }
+.records-heading p { font-size: 13px; margin: 0; max-width: 660px; }
+.records-count { background: var(--surface-soft); border: 1px solid var(--edge); border-radius: 12px; padding: 10px 18px; text-align: center; flex-shrink: 0; }
+.records-count strong { display: block; font-size: 26px; line-height: 1.2; }
+.records-count span { font-size: 10px; color: var(--muted); }
+.review-tabs { display: flex; flex-wrap: wrap; gap: 7px; border-bottom: 1px solid var(--edge); padding-bottom: 18px; margin-bottom: 20px; }
+.review-tabs button { background: transparent; color: var(--muted); border: 1px solid var(--edge); border-radius: 8px; padding: 9px 16px; font-size: 12px; font-weight: 700; }
+.review-tabs button.selected { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.records-filters { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 12px; }
+.records-filters label { display: grid; gap: 6px; flex: 1 1 135px; min-width: 0; }
+.records-filters label > span { font-size: 11px; font-weight: 700; color: var(--muted); }
+.records-filters .records-search { flex: 2 1 260px; }
+.records-filters input, .records-filters select { width: 100%; min-width: 0; min-height: 42px; border: 1px solid var(--edge); border-radius: 8px; padding: 9px 10px; font-size: 12px; background: var(--surface); color: var(--text); }
+.records-search > div { display: flex; align-items: center; border: 1px solid var(--edge); border-radius: 8px; padding-left: 10px; color: var(--muted); }
+.records-search > div input { border: 0; background: transparent; }
+.records-search > div button { border: 0; color: var(--accent); background: var(--surface-soft); border-radius: 6px; padding: 8px; margin-right: 4px; display: flex; }
+.records-panel .btn { border-radius: 8px; font-size: 12px; min-height: 38px; padding: 8px 12px; }
+.records-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 22px 0 14px; }
+.records-toolbar > span { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.records-toolbar > div { display: flex; gap: 7px; }
+.records-table { border: 1px solid var(--edge); border-radius: 12px; }
+.records-table table { min-width: 830px; width: 100%; border-collapse: collapse; }
+.records-table th { background: var(--surface-soft); font-size: 10px; padding: 14px; color: var(--muted); letter-spacing: .055em; white-space: nowrap; }
+.records-table td { padding: 17px 14px; vertical-align: middle; font-size: 12px; border-bottom: 1px solid var(--edge); }
+.records-table tbody tr:last-child td { border-bottom: 0; }
+.records-table tbody tr:hover { background: var(--surface-soft); }
+.records-table td strong { display: block; font-size: 12px; }
+.records-table td small { display: block; color: var(--muted); font-size: 10px; margin-top: 5px; max-width: 240px; overflow-wrap: anywhere; }
+.amount-cell { font-weight: 800; white-space: nowrap; }
+.utr-value { font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
+.review-badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 7px; padding: 5px 8px; background: var(--surface-soft); color: var(--accent); font-size: 10px; font-weight: 700; white-space: nowrap; }
+.review-badge:before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.review-badge.state-paid, .review-badge.state-confirmed { background: #e3f5eb; color: #176342; }
+.review-badge.state-rejected, .review-badge.state-payment_rejected, .review-badge.state-cancelled { background: #fff0f0; color: #ae303d; }
+.review-badge.state-under_review, .review-badge.state-payment_under_verification { background: #fff4d9; color: #8c5b00; }
+.record-actions { display: flex; flex-wrap: wrap; gap: 6px; min-width: 150px; }
+.record-actions button { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--edge); background: var(--surface-soft); color: var(--accent); border-radius: 7px; padding: 8px 9px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.record-actions .approve { background: #e3f5eb; color: #176342; border-color: #b9e5cb; }
+.record-actions .reject { background: #fff0f0; color: #ae303d; border-color: #f2ced3; }
+.record-actions button:disabled { opacity: .5; cursor: not-allowed; }
+.record-actions button:hover:not(:disabled) { filter: brightness(.95); }
+.row-processing { background: var(--surface-soft); }
+.records-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding-top: 20px; color: var(--muted); font-size: 11px; }
+.records-pagination label, .records-pagination nav { display: flex; align-items: center; gap: 8px; }
+.records-pagination select, .records-pagination button { min-height: 34px; padding: 6px 9px; border: 1px solid var(--edge); border-radius: 7px; background: var(--surface); color: var(--text); font-size: 11px; }
+.records-pagination button { display: inline-flex; align-items: center; }
+.records-pagination button:disabled { opacity: .35; cursor: not-allowed; }
+.records-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; margin: 12px 0; background: #fff0f0; color: #ae303d; border-radius: 8px; font-size: 13px; }
+.records-empty { text-align: center; padding: 50px 20px; color: var(--muted); }
+.records-empty svg { margin: 0 auto 12px; }
+.records-empty strong { display: block; }
+.records-empty p { font-size: 12px; }
+.review-dialog { border: 1px solid var(--edge); border-radius: 18px; padding: 28px; max-width: 500px; width: calc(100% - 32px); color: var(--text); background: var(--surface); box-shadow: 0 20px 80px #0004; }
+.review-dialog::backdrop { background: #06263988; backdrop-filter: blur(3px); }
+.review-dialog h2 { font-size: 25px; margin: 0 0 10px; }
+.review-dialog p { font-size: 13px; overflow-wrap: anywhere; }
+.review-dialog label { display: grid; gap: 8px; margin-top: 20px; font-size: 13px; font-weight: 700; }
+.review-dialog textarea { width: 100%; min-height: 120px; border: 1px solid var(--edge); background: var(--surface-soft); color: var(--text); border-radius: 9px; padding: 12px; resize: vertical; }
+.review-dialog small { display: block; font-size: 11px; margin: 7px 0 22px; color: var(--muted); }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.review-dialog .reject-submit { background: #b82d40; color: white; }
+.admin-spin { animation: admin-spin .85s linear infinite; }
+@keyframes admin-spin { to { transform: rotate(360deg); } }
+[data-theme="dark"] .record-actions .approve, [data-theme="dark"] .state-paid, [data-theme="dark"] .state-confirmed { background: #163b2d; color: #8be0b3; border-color: #29674a; }
+[data-theme="dark"] .record-actions .reject, [data-theme="dark"] .state-rejected, [data-theme="dark"] .state-payment_rejected, [data-theme="dark"] .records-error { background: #3b202b; color: #ffa6ae; border-color: #653643; }
+[data-theme="dark"] .state-under_review, [data-theme="dark"] .state-payment_under_verification { background: #3c311c; color: #efcd78; }
+@media (max-width: 700px) { .admin-content .records-panel { padding: 16px; } .records-heading { gap: 10px; } .records-count { padding: 8px 10px; } .records-toolbar { align-items: flex-start; flex-direction: column; } .records-filters label { flex-basis: 140px; } .records-pagination nav { flex-wrap: wrap; } }
+@media (prefers-reduced-motion: reduce) { .admin-spin { animation: none; } }

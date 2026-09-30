@@ -21,7 +21,7 @@ export function RegistrationJourney({settings}) {
         <div className="journey-art" aria-hidden="true"><span className="journey-orbit"/><span className="journey-spark">✦</span><div className="journey-art-card"><Icon size={72} strokeWidth={1.4}/><span>STEP 0{active+1}</span><i/><i/><i/></div><span className="journey-art-badge"><Check size={19}/> {['Your potential starts here','A little care. A confident start.','Keep your reference safe','Your next challenge awaits'][active]}</span></div>
         <div className="journey-detail-copy" key={active}><span className="journey-eyebrow">{step.label}</span><h3>{step.title}</h3><p>{step.copy}</p><ul>{step.items.map(item=><li key={item}><Check size={16}/>{item}</li>)}</ul><Link className="journey-action" to={active===3?'/status':'/register'}>{active===3?'Check status & admit card':settings.registrationOpen?'Start your application':'View registration details'}<ArrowRight size={18}/></Link></div>
       </div>
-      <div className="journey-footnote"><ShieldCheck size={17}/><span>Guardian mobile verification required · Admit card after payment confirmation</span></div>
+      <div className="journey-footnote"><ShieldCheck size={17}/><span>Email verification required · Admit card after payment confirmation</span></div>
     </div>
   </section>;
 }

@@ -1,0 +1,60 @@
+/* Colour, glass and movement are scoped to the three homepage updates. */
+.shree-home .shree-updates{position:relative;isolation:isolate}
+.shree-updates:before{content:'';position:absolute;inset:20px -22px;border-radius:34px;z-index:-1;pointer-events:none;background:radial-gradient(ellipse at 8% 15%,#8ebcff32,transparent 48%),radial-gradient(ellipse at 95% 75%,#be99ff30,transparent 48%),linear-gradient(120deg,#f2f7ff88,#fff8eb88)}
+.shree-notices:before{background:radial-gradient(ellipse at 90% 10%,#ffc95b38,transparent 55%),radial-gradient(ellipse at 10% 95%,#b4a1ff33,transparent 50%)}
+.update-heading-row{display:flex;align-items:center;justify-content:space-between;gap:24px}
+.update-heading-row .portal-heading{flex:1}
+.shree-home .shree-updates .school-page-eyebrow{display:inline-flex;border:1px solid #ad94ed45;border-radius:30px;padding:8px 13px;background:#ede7ff75;color:#7251ac;letter-spacing:1.7px;font-size:10px}
+.update-art{position:relative;width:220px;height:175px;display:grid;place-items:center;flex-shrink:0}
+.update-orbit{position:absolute;width:155px;height:155px;border-radius:50%;border:1px dashed #9385d960;transform:rotate(-20deg)}
+.update-orbit.inner{width:120px;height:120px;border-style:solid;background:#a5b8ff20}
+.update-art-tile{display:grid;place-items:center;width:97px;height:97px;border-radius:25px;color:#6460cc;background:linear-gradient(145deg,#fffdfddd,#c9d9ffb0);border:1px solid white;box-shadow:0 18px 32px #695bc224,inset 0 2px 0 white;transform:rotate(-9deg);animation:update-float 5s ease-in-out infinite}
+.update-art-notices .update-art-tile{color:#b87909;background:linear-gradient(145deg,#fffef3,#ffe1a1b0);transform:rotate(9deg)}
+.update-art-spark{position:absolute;top:18px;right:25px;color:#b58b20;animation:update-float 5s ease-in-out infinite reverse}
+.update-art-caption{position:absolute;bottom:2px;font-size:8px;letter-spacing:1.5px;font-weight:800;color:var(--sh-muted);background:var(--sh-paper);padding:9px 12px;border:1px solid var(--sh-line);border-radius:30px}
+.shree-home .shree-updates .portal-timeline li,.shree-home .shree-notices .portal-card{--tile-color:#4479d4;--tile-tint:#dceaff;position:relative;background:linear-gradient(135deg,color-mix(in srgb,var(--tile-tint) 65%,transparent),color-mix(in srgb,var(--sh-paper) 80%,transparent));border:1px solid color-mix(in srgb,var(--tile-color) 22%,var(--sh-paper));border-radius:20px;box-shadow:0 10px 28px #28396108,inset 0 1px 0 #ffffffb0;backdrop-filter:blur(16px);transition:transform .3s ease,box-shadow .3s ease,border-color .3s ease}
+.shree-home .shree-updates .portal-timeline li:nth-child(4n+2),.shree-home .shree-notices .portal-card:nth-child(3n+2){--tile-color:#8855cc;--tile-tint:#ece0ff}
+.shree-home .shree-updates .portal-timeline li:nth-child(4n+3),.shree-home .shree-notices .portal-card:nth-child(3n+3){--tile-color:#b7751a;--tile-tint:#fff0ce}
+.shree-home .shree-updates .portal-timeline li:nth-child(4n+4){--tile-color:#13867f;--tile-tint:#d4f4ed}
+.shree-home .shree-updates .portal-timeline li:hover,.shree-home .shree-updates .portal-timeline li:focus-within,.shree-home .shree-notices .portal-card:hover{transform:translateY(-5px);border-color:var(--tile-color);box-shadow:0 16px 32px color-mix(in srgb,var(--tile-color) 17%,transparent)}
+.shree-home .shree-updates .timeline-dot{width:42px;height:42px;border-radius:13px;color:white;background:linear-gradient(140deg,color-mix(in srgb,var(--tile-color) 75%,white),var(--tile-color));border:1px solid #ffffff80;box-shadow:0 6px 13px color-mix(in srgb,var(--tile-color) 24%,transparent);transform:rotate(-5deg);transition:transform .3s}
+.shree-home .shree-updates li:hover .timeline-dot{transform:rotate(0) scale(1.07)}
+.shree-home .shree-dates .stage-TBA .portal-badge{display:none}
+.shree-home .shree-updates .stage-active:after{content:'';position:absolute;right:22px;top:24px;width:9px;height:9px;border-radius:50%;background:#168878;box-shadow:0 0 0 5px #16887818}
+.shree-home .shree-notices .portal-state{background:linear-gradient(110deg,#e4edff99,#f1e8ff77,#fff2d877);border-color:#c2b7e44d;backdrop-filter:blur(16px);box-shadow:inset 0 1px 0 #fff;border-radius:22px;padding:34px}
+.shree-home .shree-notices .portal-state>svg{background:linear-gradient(140deg,#9274e9,#657fda);color:white;box-shadow:0 8px 22px #8469cf30}
+.shree-home .shree-notices .portal-badge{background:#fff9;border-color:#c5b5eb70;color:#6648a0}
+.journey-map{display:grid;grid-template-columns:1.5fr 1fr;border:1px solid #bfccec70;border-radius:26px;overflow:hidden;background:#ffffff80;backdrop-filter:blur(18px);box-shadow:0 18px 45px #25385b0b;margin:30px 0}
+.journey-map-graph{padding:28px;min-width:0;background:radial-gradient(circle at 30% 60%,#d5e6ff80,transparent 65%)}
+.map-caption{display:flex;gap:8px;align-items:center;color:var(--sh-muted);font-size:9px;font-weight:800;letter-spacing:1px;flex-wrap:wrap}
+.map-caption>svg{color:#8d65c9}.map-caption>span{margin-left:auto;letter-spacing:0;font-weight:500;font-size:11px}
+.map-stages{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:35px 0 20px;min-height:210px}
+.map-connector{position:absolute;top:22px;left:0;width:100%;height:110px;overflow:visible}
+.map-connector path{fill:none;stroke:#b5bade;stroke-width:2;stroke-dasharray:5 7}
+.map-connector .map-travel{stroke:#8870d0;stroke-width:3;stroke-dasharray:5 50;animation:map-travel 9s linear infinite}
+.map-stage,.map-stage-0{--phase:#477cd5}.map-stage-1{--phase:#895acb}.map-stage-2{--phase:#168d87}.map-stage-3{--phase:#b58122}
+.map-stage{position:relative;display:flex;align-items:center;flex-direction:column;gap:12px;align-self:start;margin-top:25px;padding:0 4px;background:none;border:0;color:var(--sh-ink);font:inherit;cursor:pointer;min-width:0}
+.map-stage:nth-of-type(even){margin-top:0}
+.map-node{width:60px;height:60px;display:grid;place-items:center;background:color-mix(in srgb,var(--phase) 12%,var(--sh-paper));color:var(--phase);border:1px solid color-mix(in srgb,var(--phase) 30%,white);border-radius:20px;box-shadow:0 8px 18px #2239610e;transition:transform .3s,background .3s,color .3s}
+.map-stage.is-selected .map-node,.map-stage:hover .map-node{background:var(--phase);color:white;transform:translateY(-5px);box-shadow:0 0 0 6px color-mix(in srgb,var(--phase) 12%,transparent),0 10px 25px #22396118}
+.map-stage strong{font-size:12px}.map-stage small{font-size:10px;color:var(--sh-muted)}
+.shree-home .map-note{font-size:10px;line-height:1.6;margin-top:10px}
+.map-insight{padding:28px;background:linear-gradient(145deg,color-mix(in srgb,var(--phase) 12%,var(--sh-paper)),color-mix(in srgb,var(--sh-paper) 80%,transparent));border-left:1px solid #bfccec50}
+.map-insight-content{animation:map-enter .35s ease-out}
+.map-insight-icon{display:grid;place-items:center;width:45px;height:45px;border-radius:14px;background:var(--phase);color:white;margin-bottom:18px}
+.map-insight small{font-size:9px;letter-spacing:1.5px;color:var(--sh-muted);font-weight:800}
+.shree-home .map-insight h3{font-size:23px;margin:8px 0 12px;letter-spacing:-.6px}
+.shree-home .map-insight p{font-size:13px;margin-bottom:20px}
+@keyframes map-travel{to{stroke-dashoffset:-220}}
+@keyframes update-float{50%{translate:0 -8px}}
+@keyframes map-enter{from{opacity:.3;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+[data-theme="dark"] .shree-updates:before{background:radial-gradient(ellipse at 10% 30%,#355ba436,transparent 55%),radial-gradient(ellipse at 90% 80%,#8554b532,transparent 55%)}
+[data-theme="dark"] .shree-home .shree-updates .portal-timeline li,[data-theme="dark"] .shree-home .shree-notices .portal-card{background:linear-gradient(135deg,color-mix(in srgb,var(--tile-color) 17%,var(--sh-paper)),#142337bb);border-color:color-mix(in srgb,var(--tile-color) 32%,var(--sh-line));box-shadow:inset 0 1px 0 #ffffff10}
+[data-theme="dark"] .shree-home .shree-updates .school-page-eyebrow{background:#8770cf20;color:#cebbff}
+[data-theme="dark"] .journey-map{background:#14233799;border-color:#3a4e6c}
+[data-theme="dark"] .journey-map-graph{background:radial-gradient(circle at 30% 60%,#3e62a32b,transparent 65%)}
+[data-theme="dark"] .shree-home .shree-notices .portal-state{background:linear-gradient(120deg,#1c304f,#292540);box-shadow:inset 0 1px 0 #ffffff10}
+[data-theme="dark"] .shree-home .shree-notices .portal-badge{background:#6d55a133;color:#d8c9ff}
+@media(max-width:800px){.journey-map{grid-template-columns:1fr}.map-insight{border-left:0;border-top:1px solid #bfccec50}.update-art{width:150px}.update-art-spark{right:0}}
+@media(max-width:540px){.shree-updates:before{inset:16px -8px;border-radius:24px}.update-heading-row{gap:5px}.update-art{width:76px;height:125px;align-self:flex-start}.update-art-tile{width:60px;height:67px;border-radius:18px}.update-art-tile svg{width:34px}.update-orbit{width:76px;height:90px}.update-orbit.inner{width:65px;height:70px}.update-art-caption,.update-art-spark{display:none}.shree-home .shree-updates .school-page-eyebrow{font-size:8px;letter-spacing:1px;padding:7px 9px}.shree-home .shree-updates .portal-timeline li{grid-template-columns:42px minmax(0,1fr)}.journey-map-graph{padding:22px 14px}.map-node{width:45px;height:45px;border-radius:15px}.map-node svg{width:21px}.map-stage strong{font-size:10px}.map-stages{min-height:180px}.map-caption>span{width:100%;margin:3px 0}.map-insight{padding:24px}.shree-home .shree-notices .portal-state{padding:24px}}
+@media(prefers-reduced-motion:reduce){.shree-updates *,.shree-updates *:before,.shree-updates *:after{animation:none!important;transition:none!important}}

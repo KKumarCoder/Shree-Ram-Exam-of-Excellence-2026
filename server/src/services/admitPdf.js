@@ -1,10 +1,11 @@
+import { studentPhoto } from './media.js';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
-import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 const logo = fileURLToPath(new URL('../../../client/public/images/school-logo.png', import.meta.url));
 
 export async function admitPdf(res, student, settings) {
+  const photo = await studentPhoto(student);
   const qr = await QRCode.toBuffer(`${process.env.PUBLIC_BASE_URL || 'https://olympiad.srpskanhra.com'}/api/verify/${student.admitToken}`, { width: 400, margin: 1, errorCorrectionLevel: 'M' });
   const doc = new PDFDocument({ size: 'A5', layout: 'landscape', margin: 0, info: { Title: `SHREE 2026 Admit Card ${student.registrationNumber}` } });
   res.setHeader('Content-Type', 'application/pdf');
@@ -75,8 +76,8 @@ export async function admitPdf(res, student, settings) {
   field('Date of Birth',student.dob,633,371,368,204,'calendar');
   field('Mobile',`******${student.guardianPhone.slice(-4)}`,633,425,368,204,'phone');
   doc.rect(1038,364,153,186).lineWidth(1).strokeColor('#548caf').stroke();
-  if(student.photoPath && fs.existsSync(student.photoPath)){
-    doc.save();try{doc.rect(1043,370,142,174).clip();doc.image(student.photoPath,1043,370,{cover:[142,174],align:'center',valign:'center'});}catch{}finally{doc.restore();}
+  if(photo){
+    doc.save();try{doc.rect(1043,370,142,174).clip();doc.image(photo,1043,370,{cover:[142,174],align:'center',valign:'center'});}catch{}finally{doc.restore();}
   }
   doc.rect(1215,364,154,176).strokeColor('#b6d5e5').stroke();doc.image(qr,1227,376,{width:130,height:130});
   text('SCAN TO VERIFY',1219,514,146,14,true,navy,{align:'center'});

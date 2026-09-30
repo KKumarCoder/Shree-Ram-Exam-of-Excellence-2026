@@ -1,3 +1,4 @@
+import { studentPhoto } from './media.js';
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
 import fs from "node:fs";
@@ -12,6 +13,7 @@ export { admitPdf } from './admitPdf.js';
 
 // Reference-matched landscape receipt; all candidate/payment data stays dynamic.
 export async function applicationReceiptPdf(res, student, payment) {
+  const photo = await studentPhoto(student);
   const statusUrl = new URL('/status', process.env.PUBLIC_BASE_URL || process.env.FRONTEND_URL || 'https://olympiad.srpskanhra.com');
   const qr = await QRCode.toBuffer(statusUrl.href, { margin: 1, width: 420 });
   const doc = new PDFDocument({ size: 'A5', layout: 'landscape', margin: 0, info: { Title: 'Shree Ram Exam of Excellence 2026' } });
@@ -97,8 +99,8 @@ export async function applicationReceiptPdf(res, student, payment) {
     if(i<4){doc.save().dash(1,3);line(137,yy+28,774,yy+28,'#b9d4e2');doc.restore();}
   });
   doc.roundedRect(806,528,211,247,9).lineWidth(1.5).strokeColor('#acd3e8').stroke();
-  if(student.photoPath && fs.existsSync(student.photoPath)) {
-    try { doc.save().rect(820,536,183,235).clip();doc.image(student.photoPath,820,536,{cover:[183,235],align:'center',valign:'center'});doc.restore(); }
+  if(photo) {
+    try { doc.save().rect(820,536,183,235).clip();doc.image(photo,820,536,{cover:[183,235],align:'center',valign:'center'});doc.restore(); }
     catch { doc.restore(); }
   }
   box(1035,527,433,243,'#fff6e3');
@@ -114,11 +116,11 @@ export async function applicationReceiptPdf(res, student, payment) {
   line(264,808,264,938);line(965,811,965,938);
   doc.circle(323,820,22).fill(teal);icon('download',312,808,22,'#ffffff');
   text('DOWNLOAD YOUR ADMIT CARD LATER',362,812,580,18,true);
-  ['Open the status page or scan this QR code.','Enter your application reference and guardian mobile.','Verify the mobile OTP. After payment approval, download your admit card.'].forEach((value,i)=>{
+  ['Open the status page or scan this QR code.','Enter your application reference and guardian mobile.','Verify the email OTP. After payment approval, download your admit card.'].forEach((value,i)=>{
     const yy=855+i*29;doc.circle(316,yy+10,15).fill(teal);text(i+1,307,yy-1,18,20,true,'#ffffff',{align:'center'});text(value,353,yy,598,18);
   });
   box(1007,794,460,96,'#eaf0f4',15);icon('lock',1034,813,47);
-  text('This is an application acknowledgement,\nnot an admit card or proof of cleared payment.\nKeep it safely; never share your OTP.',1105,813,351,16,false,navy,{lineGap:7});
+  text(student.status === 'CONFIRMED' && payment?.status === 'PAID' ? 'Payment approved by the school.\nYour admit card is attached to your email.\nKeep this receipt for your records.' : 'This is an application acknowledgement,\nnot an admit card or proof of cleared payment.\nKeep it safely; never share your OTP.',1105,813,351,16,false,navy,{lineGap:7});
   doc.font('Times-Italic').fontSize(29).fillColor(navy).text('Learn Today  |  Excel Tomorrow',1050,907,{width:397,align:'center'});
   doc.moveTo(1114,951).quadraticCurveTo(1248,932,1388,939).lineWidth(2).strokeColor('#f4b62b').stroke();
   doc.end();

@@ -1,6 +1,5 @@
 import { Registration, Counter, Audit, Payment } from '../models/index.js';
 import { randomToken } from '../middleware/auth.js';
-import { notifyConfirmed } from './notifications.js';
 const conflict = () => Object.assign(new Error('Registration confirmation is processing or unavailable. Retry shortly.'), {status:409});
 export async function confirmRegistration(registrationId, actor) {
   const before = await Registration.findById(registrationId);
@@ -20,10 +19,11 @@ export async function confirmRegistration(registrationId, actor) {
   const claim = {_id:registrationId,status:'CONFIRMING',updatedAt:claimed.updatedAt};
   try {
     const seq=await Counter.findOneAndUpdate({_id:'SHREE26'},{$inc:{seq:1}},{new:true,upsert:true,setDefaultsOnInsert:true});
-    const confirmed=await Registration.findOneAndUpdate(claim,{$set:{registrationNumber:`SHREE26-${String(seq.seq).padStart(6,'0')}`,admitToken:randomToken(),status:'CONFIRMED'}},{new:true});
+    const confirmed=await Registration.findOneAndUpdate(claim,{$set:{registrationNumber:`SHREE26-${String(seq.seq).padStart(6,'0')}`,admitToken:randomToken(),status:'CONFIRMED',notificationStatus:'PENDING',notificationNextAttemptAt:new Date(),notificationAttempts:0}},{new:true});
     if(!confirmed)throw conflict();
     await Audit.create({actor,action:'REGISTRATION_CONFIRMED',registrationId:confirmed._id,details:{registrationNumber:confirmed.registrationNumber}});
-    notifyConfirmed(confirmed).catch(()=>console.error(JSON.stringify({event:'confirmation_notification_failed'})));
+    // The durable notification job is handled by startNotificationWorker.
+    // Never wait for PDF rendering or SMTP in the payment approval request.
     return confirmed;
   } catch(error) {
     const fallback=before?.status==='CONFIRMING' ? (before.paymentMode==='manual'?'PAYMENT_UNDER_VERIFICATION':'PAYMENT_PENDING') : before?.status || 'PAYMENT_PENDING';

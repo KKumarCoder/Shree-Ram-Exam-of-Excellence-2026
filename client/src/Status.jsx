@@ -1,3 +1,4 @@
+import { notify } from "./notifications.js";
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -8,6 +9,7 @@ import {
   Clock3,
 } from "lucide-react";
 import { api, downloadBlob, img } from "./api.js";
+import {ApplicationStatusTimeline} from "./PortalComponents.jsx";
 export function Status() {
   const [ref, setRef] = useState(""),
     [phone, setPhone] = useState(""),
@@ -15,8 +17,7 @@ export function Status() {
     [lookupToken, setLookupToken] = useState(""),
     [access, setAccess] = useState(""),
     [record, setRecord] = useState(null),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [busy, setBusy] = useState(false);
   const running = useRef(false);
   const [resendAt, setResendAt] = useState(0);
   const [seconds, setSeconds] = useState(0);
@@ -30,11 +31,10 @@ export function Status() {
     if (running.current) return;
     running.current = true;
     setBusy(true);
-    setError("");
     try {
       await fn();
     } catch (e) {
-      setError(e.message);
+      notify.error(e.message);
       if (e.status === 401) { setAccess(''); setLookupToken(''); setRecord(null); setCode(''); }
     } finally {
       running.current = false;
@@ -48,6 +48,7 @@ export function Status() {
         phone,
       });
       setLookupToken(r.data.lookupToken);
+      notify.success(r.data.message || "Verification code sent. Check your inbox and spam folder.");
       setCode('');
       setResendAt(Date.parse(r.data.resendAvailableAt) || 0);
     });
@@ -99,12 +100,11 @@ export function Status() {
         <span className="eyebrow">STUDENT SERVICES</span>
         <h1>Check status & download admit card</h1>
         <p>
-          Verify your guardian mobile to access private student information.
+          Verify your registered email to access private student information.
         </p>
       </div>
       <div className="status-grid">
         <div className="status-card">
-          {error && <div className="error">{error}</div>}
           {!lookupToken ? (
             <>
               <div className="form-head">
@@ -149,8 +149,8 @@ export function Status() {
               <div className="form-head">
                 <ShieldCheck />
                 <div>
-                  <h2>Confirm your mobile</h2>
-                  <p>Enter the OTP sent to your registered phone.</p>
+                  <h2>Confirm your email</h2>
+                  <p>Enter the OTP sent to your registered email. Check your inbox and spam folder.</p>
                 </div>
               </div>
               <label>
@@ -173,7 +173,7 @@ export function Status() {
               <button className="btn light wide" disabled={busy || seconds > 0} onClick={request}>
                 {seconds > 0 ? `Resend OTP in ${seconds}s` : 'Resend OTP'}
               </button>
-              <button className="link-button" disabled={busy} onClick={() => { setLookupToken(''); setCode(''); setError(''); }}>
+              <button className="link-button" disabled={busy} onClick={() => { setLookupToken(''); setCode('');  }}>
                 Change application / mobile
               </button>
             </>
@@ -183,7 +183,7 @@ export function Status() {
                 <CheckCircle2 />
                 <div>
                   <h2>Application details</h2>
-                  <p>Your mobile number is verified.</p>
+                  <p>Your email is verified.</p>
                 </div>
               </div>
               <div className="receipt-summary">
@@ -192,7 +192,9 @@ export function Status() {
                   ["Class", record.studentClass],
                   ["Application ref.", record.applicationRef],
                   ["Registration no.", record.registrationNumber || "Pending"],
-                  ["Status", record.status.replaceAll("_", " ")],
+                  ["Application status", record.status.replaceAll("_", " ")],
+                  ["Payment status", ({CONFIRMED:"Confirmed",CONFIRMING:"Confirmed",PAYMENT_UNDER_VERIFICATION:"Under review",PAYMENT_PENDING:"Pending",PAYMENT_REJECTED:"Rejected",CANCELLED:"Contact school"})[record.status] || "Not completed"],
+                  ["Admit card", record.status === "CONFIRMED" ? "Available" : "Pending"],
                   ["Room", record.room || "To be assigned"],
                   ["Seat", record.seat || "To be assigned"],
                 ].map(([label, value]) => (
@@ -202,7 +204,9 @@ export function Status() {
                   </div>
                 ))}
               </div>
-              {!['DRAFT', 'OTP_VERIFIED', 'CONFIRMED'].includes(record.status) && (
+              <ApplicationStatusTimeline record={record}/>
+              {record.status === 'CONFIRMED' && <p className="notice">{record.notificationStatus === 'SENT' ? 'Admit card and receipt sent to your registered email. Check your inbox and spam folder.' : 'Your admit card and receipt are available below. Email delivery is being processed.'}</p>}
+              {!['DRAFT', 'OTP_VERIFIED'].includes(record.status) && (
                 <button className="btn outlined-dark wide" disabled={busy} onClick={downloadReceipt}>
                   <Download size={17} /> Download application receipt PDF
                 </button>
@@ -235,8 +239,8 @@ export function Status() {
           </p>
         </div>
         <div className="status-image">
-          <img src={img("srps-status.png")} alt="Student in school uniform accessing online application documents" />
-        <div className="side-card"><h3>Your application, step by step</h3><p>Keep your application reference and registered guardian mobile ready.</p><p>Verify the mobile OTP to view your details. Download the application receipt while payment is under review; the admit card is available after payment confirmation.</p></div>
+          <img src="/images/shree-2026/exam-day-students.png" alt="Students holding their examination documents" />
+        <div className="side-card"><h3>Your application, step by step</h3><p>Keep your application reference and registered guardian mobile ready.</p><p>Verify the email OTP to view your details. Download the application receipt while payment is under review; the admit card is available after payment confirmation.</p></div>
         </div>
       </div>
       <div className="center-link">

@@ -1,3 +1,4 @@
+import {formatPublicDate, eligibleClassLabel} from './publicDisplay.js';
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -84,13 +85,13 @@ function Facts({ settings }) {
   return (
     <div className="concept-facts">
       <span>
-        <b>Classes 1–12</b>Who can participate
+        <b>Classes {eligibleClassLabel(settings)}</b>Who can participate
       </span>
       <span>
         <b>₹{settings.fee}</b>Registration fee
       </span>
       <span>
-        <b>{settings.examDate || "To be announced"}</b>Examination date
+        <b>{formatPublicDate(settings.examDate)}</b>Examination date
       </span>
     </div>
   );
