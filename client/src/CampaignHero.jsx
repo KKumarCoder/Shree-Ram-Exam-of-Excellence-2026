@@ -23,7 +23,7 @@ export function CampaignHero({ settings }) {
             <em>Your moment.</em>
           </h1>
           <div className="campaign-event">
-            SHREE <span>2026</span> OLYMPIAD
+            SHREE <span>2027</span> OLYMPIAD
           </div>
           <p>
             Shree Ram Exam of Excellence — a chance to discover your strengths,

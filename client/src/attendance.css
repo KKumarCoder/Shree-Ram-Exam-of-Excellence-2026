@@ -1,4 +1,27 @@
 .exam-checkin-panel .form-head {justify-content:center;text-align:center;flex-direction:column;gap:12px}
+.checkin-result-dialog {position:fixed;inset:0;margin:auto;border:1px solid var(--edge);border-radius:20px;padding:0;width:min(430px,calc(100vw - 32px));max-width:calc(100vw - 32px);color:var(--text);background:var(--surface);box-shadow:0 24px 90px #0006}
+.checkin-result-dialog.is-present {color:#fff;background:#176b46;border-color:#36bd82}
+.checkin-result-dialog.is-duplicate {color:#fff;background:#a33140;border-color:#ed6673}
+.checkin-result-dialog::backdrop {background:#061322c9;backdrop-filter:blur(5px)}
+.checkin-result-content {position:relative;display:flex;flex-direction:column;align-items:center;padding:32px 28px 26px;text-align:center}
+.checkin-result-close {position:absolute;top:12px;right:12px;display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--edge);border-radius:50%;background:var(--surface-soft);color:var(--muted)}
+.checkin-result-dialog .checkin-result-close {border-color:#ffffff55;background:#ffffff1c;color:#fff}
+.checkin-result-photo {position:relative;display:grid;place-items:center;width:116px;height:116px;margin-bottom:18px;overflow:hidden;border:3px solid #22ad7f;border-radius:50%;background:var(--surface-soft);color:var(--accent)}
+.checkin-result-dialog.is-duplicate .checkin-result-photo {border-color:#ff9aa2}
+.checkin-result-photo img {width:100%;height:100%;object-fit:cover}
+.checkin-result-photo span {position:absolute;inset:auto 0 0;padding:3px;background:#0b1422bf;color:white;font-size:10px}
+.checkin-result-status {display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;background:#e2f7ed;color:#08784b;font-size:12px;font-weight:900;letter-spacing:.06em}
+.checkin-result-dialog.is-duplicate .checkin-result-status {background:#ffe3e5;color:#8b1f2b}
+.checkin-result-content h2 {margin:14px 0 4px;font-size:23px}
+.checkin-result-name {margin:0;font-size:16px;font-weight:800;color:var(--text)}
+.checkin-result-dialog .checkin-result-name,.checkin-result-dialog h2,.checkin-result-dialog .checkin-result-details strong {color:#fff}
+.checkin-result-details {display:flex;flex-wrap:wrap;justify-content:center;gap:8px 16px;margin-top:12px;color:var(--muted);font-size:13px}
+.checkin-result-details strong {overflow-wrap:anywhere}
+.checkin-result-dialog .checkin-result-details,.checkin-result-dialog .checkin-result-message {color:#f1fff8}
+.checkin-result-message {margin:16px 0 20px;font-size:13px;line-height:1.55}
+.checkin-result-done {min-width:130px}
+.checkin-result-dialog.is-present .checkin-result-done {background:#b9f4d6;color:#10452e}
+.checkin-result-dialog.is-duplicate .checkin-result-done {background:#ffe3e5;color:#8b1f2b}
 .exam-checkin-panel .form-head > svg {color:#168bac;background:var(--surface-soft);border-radius:16px;padding:10px;width:56px;height:56px}
 .exam-checkin-panel .qr-reader {width:min(100%,480px);min-height:240px;margin:24px auto;border:2px dashed #58aac7;border-radius:22px;background:linear-gradient(145deg,var(--surface-soft),var(--surface));box-shadow:inset 0 0 32px #159ab010}
 .exam-checkin-panel .scanner-actions {justify-content:center;gap:16px;margin-bottom:22px}

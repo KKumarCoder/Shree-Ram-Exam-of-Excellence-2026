@@ -9,7 +9,7 @@ import {
   Clock3,
 } from "lucide-react";
 import { api, downloadBlob, img } from "./api.js";
-import {ApplicationStatusTimeline} from "./PortalComponents.jsx";
+import { ApplicationStatusTimeline } from "./PortalComponents.jsx";
 export function Status() {
   const [ref, setRef] = useState(""),
     [phone, setPhone] = useState(""),
@@ -22,7 +22,8 @@ export function Status() {
   const [resendAt, setResendAt] = useState(0);
   const [seconds, setSeconds] = useState(0);
   useEffect(() => {
-    const tick = () => setSeconds(Math.max(0, Math.ceil((resendAt - Date.now()) / 1000)));
+    const tick = () =>
+      setSeconds(Math.max(0, Math.ceil((resendAt - Date.now()) / 1000)));
     tick();
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
@@ -35,7 +36,12 @@ export function Status() {
       await fn();
     } catch (e) {
       notify.error(e.message);
-      if (e.status === 401) { setAccess(''); setLookupToken(''); setRecord(null); setCode(''); }
+      if (e.status === 401) {
+        setAccess("");
+        setLookupToken("");
+        setRecord(null);
+        setCode("");
+      }
     } finally {
       running.current = false;
       setBusy(false);
@@ -48,8 +54,11 @@ export function Status() {
         phone,
       });
       setLookupToken(r.data.lookupToken);
-      notify.success(r.data.message || "Verification code sent. Check your inbox and spam folder.");
-      setCode('');
+      notify.success(
+        r.data.message ||
+          "Verification code sent. Check your inbox and spam folder.",
+      );
+      setCode("");
       setResendAt(Date.parse(r.data.resendAvailableAt) || 0);
     });
   }
@@ -79,10 +88,19 @@ export function Status() {
       const latest = data.registration;
       setRecord(latest);
       const confirmed = latest.status === "CONFIRMED";
-      const r = await api.get(confirmed ? "/admit-card" : "/application-receipt", {
-        headers, responseType: "blob",
-      });
-      downloadBlob(r.data, confirmed ? `${latest.registrationNumber}-admit-card.pdf` : "Shree Ram Exam of Excellence 2026.pdf");
+      const r = await api.get(
+        confirmed ? "/admit-card" : "/application-receipt",
+        {
+          headers,
+          responseType: "blob",
+        },
+      );
+      downloadBlob(
+        r.data,
+        confirmed
+          ? `${latest.registrationNumber}-admit-card.pdf`
+          : "Shree Ram Exam of Excellence 2027.pdf",
+      );
     });
   }
   function download() {
@@ -150,7 +168,10 @@ export function Status() {
                 <ShieldCheck />
                 <div>
                   <h2>Confirm your email</h2>
-                  <p>Enter the OTP sent to your registered email. Check your inbox and spam folder.</p>
+                  <p>
+                    Enter the OTP sent to your registered email. Check your
+                    inbox and spam folder.
+                  </p>
                 </div>
               </div>
               <label>
@@ -170,10 +191,21 @@ export function Status() {
               >
                 Verify & view status
               </button>
-              <button className="btn light wide" disabled={busy || seconds > 0} onClick={request}>
-                {seconds > 0 ? `Resend OTP in ${seconds}s` : 'Resend OTP'}
+              <button
+                className="btn light wide"
+                disabled={busy || seconds > 0}
+                onClick={request}
+              >
+                {seconds > 0 ? `Resend OTP in ${seconds}s` : "Resend OTP"}
               </button>
-              <button className="link-button" disabled={busy} onClick={() => { setLookupToken(''); setCode('');  }}>
+              <button
+                className="link-button"
+                disabled={busy}
+                onClick={() => {
+                  setLookupToken("");
+                  setCode("");
+                }}
+              >
                 Change application / mobile
               </button>
             </>
@@ -193,8 +225,21 @@ export function Status() {
                   ["Application ref.", record.applicationRef],
                   ["Registration no.", record.registrationNumber || "Pending"],
                   ["Application status", record.status.replaceAll("_", " ")],
-                  ["Payment status", ({CONFIRMED:"Confirmed",CONFIRMING:"Confirmed",PAYMENT_UNDER_VERIFICATION:"Under review",PAYMENT_PENDING:"Pending",PAYMENT_REJECTED:"Rejected",CANCELLED:"Contact school"})[record.status] || "Not completed"],
-                  ["Admit card", record.status === "CONFIRMED" ? "Available" : "Pending"],
+                  [
+                    "Payment status",
+                    {
+                      CONFIRMED: "Confirmed",
+                      CONFIRMING: "Confirmed",
+                      PAYMENT_UNDER_VERIFICATION: "Under review",
+                      PAYMENT_PENDING: "Pending",
+                      PAYMENT_REJECTED: "Rejected",
+                      CANCELLED: "Contact school",
+                    }[record.status] || "Not completed",
+                  ],
+                  [
+                    "Admit card",
+                    record.status === "CONFIRMED" ? "Available" : "Pending",
+                  ],
                   ["Room", record.room || "To be assigned"],
                   ["Seat", record.seat || "To be assigned"],
                 ].map(([label, value]) => (
@@ -204,10 +249,20 @@ export function Status() {
                   </div>
                 ))}
               </div>
-              <ApplicationStatusTimeline record={record}/>
-              {record.status === 'CONFIRMED' && <p className="notice">{record.notificationStatus === 'SENT' ? 'Admit card and receipt sent to your registered email. Check your inbox and spam folder.' : 'Your admit card and receipt are available below. Email delivery is being processed.'}</p>}
-              {!['DRAFT', 'OTP_VERIFIED'].includes(record.status) && (
-                <button className="btn outlined-dark wide" disabled={busy} onClick={downloadReceipt}>
+              <ApplicationStatusTimeline record={record} />
+              {record.status === "CONFIRMED" && (
+                <p className="notice">
+                  {record.notificationStatus === "SENT"
+                    ? "Admit card and receipt sent to your registered email. Check your inbox and spam folder."
+                    : "Your admit card and receipt are available below. Email delivery is being processed."}
+                </p>
+              )}
+              {!["DRAFT", "OTP_VERIFIED"].includes(record.status) && (
+                <button
+                  className="btn outlined-dark wide"
+                  disabled={busy}
+                  onClick={downloadReceipt}
+                >
                   <Download size={17} /> Download application receipt PDF
                 </button>
               )}
@@ -222,13 +277,21 @@ export function Status() {
               ) : (
                 <>
                   <div className="notice">
-                    <Clock3 size={16} /> {record.status === 'PAYMENT_REJECTED'
-                      ? 'Payment was rejected. Contact the school office to correct the payment submission.'
-                      : record.status === 'CANCELLED' ? 'This application is cancelled. Contact the school office.'
-                      : 'Admit card is available only after payment approval. Check again after school review.'}
+                    <Clock3 size={16} />{" "}
+                    {record.status === "PAYMENT_REJECTED"
+                      ? "Payment was rejected. Contact the school office to correct the payment submission."
+                      : record.status === "CANCELLED"
+                        ? "This application is cancelled. Contact the school office."
+                        : "Admit card is available only after payment approval. Check again after school review."}
                   </div>
-                  <button className="btn primary wide" disabled={busy} onClick={refreshStatus}>
-                    {busy ? "Checking..." : "Check approval / unlock admit card"}
+                  <button
+                    className="btn primary wide"
+                    disabled={busy}
+                    onClick={refreshStatus}
+                  >
+                    {busy
+                      ? "Checking..."
+                      : "Check approval / unlock admit card"}
                   </button>
                 </>
               )}
@@ -239,8 +302,22 @@ export function Status() {
           </p>
         </div>
         <div className="status-image">
-          <img src="/images/shree-2026/exam-day-students.png" alt="Students holding their examination documents" />
-        <div className="side-card"><h3>Your application, step by step</h3><p>Keep your application reference and registered guardian mobile ready.</p><p>Verify the email OTP to view your details. Download the application receipt while payment is under review; the admit card is available after payment confirmation.</p></div>
+          <img
+            src="/images/shree-2027/exam-day-students.png"
+            alt="Students holding their examination documents"
+          />
+          <div className="side-card">
+            <h3>Your application, step by step</h3>
+            <p>
+              Keep your application reference and registered guardian mobile
+              ready.
+            </p>
+            <p>
+              Verify the email OTP to view your details. Download the
+              application receipt while payment is under review; the admit card
+              is available after payment confirmation.
+            </p>
+          </div>
         </div>
       </div>
       <div className="center-link">

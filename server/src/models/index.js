@@ -3,19 +3,28 @@ import { branding } from "../../../shared/branding.mjs";
 const { Schema } = mongoose;
 const model = mongoose.model.bind(mongoose);
 const opts = { timestamps: true };
-const mediaSchema = new Schema({
-  publicId: { type: String, required: true },
-  resourceType: { type: String, enum: ['image', 'raw'], required: true },
-  type: { type: String, enum: ['authenticated'], default: 'authenticated' },
-  format: { type: String, required: true },
-  contentType: { type: String, required: true },
-  bytes: { type: Number, required: true },
-}, { _id: false });
+const mediaSchema = new Schema(
+  {
+    publicId: { type: String, required: true },
+    resourceType: { type: String, enum: ["image", "raw"], required: true },
+    type: { type: String, enum: ["authenticated"], default: "authenticated" },
+    format: { type: String, required: true },
+    contentType: { type: String, required: true },
+    bytes: { type: Number, required: true },
+  },
+  { _id: false },
+);
 // Journal upload intentions before contacting Cloudinary, including uncertain timeouts.
-export const MediaAsset = model('MediaAsset', new Schema({
-  asset: { type: mediaSchema, required: true },
-  sweepAt: { type: Date, required: true, index: true },
-}, opts));
+export const MediaAsset = model(
+  "MediaAsset",
+  new Schema(
+    {
+      asset: { type: mediaSchema, required: true },
+      sweepAt: { type: Date, required: true, index: true },
+    },
+    opts,
+  ),
+);
 export const Admin = model(
   "Admin",
   new Schema(
@@ -65,7 +74,7 @@ export const Registration = model(
       draftExpiresAt: { type: Date },
       verificationExpiresAt: { type: Date, default: null },
       verificationDevMode: { type: Boolean, default: false },
-      termsVersion: { type: String, default: "2026-v1" },
+      termsVersion: { type: String, default: "2027-v1" },
       termsAcceptedAt: { type: Date, default: null },
       status: {
         type: String,
@@ -265,12 +274,22 @@ export const Notification = model(
   ),
 );
 
-export const OtpBucket = model('OtpBucket', new Schema({
-  _id: String, count: { type: Number, default: 0 }, expiresAt: { type: Date, required: true, expires: 0 },
-}));
-export const OtpLock = model('OtpLock', new Schema({
-  _id: String, owner: String, expiresAt: { type: Date, required: true, expires: 0 },
-}));
+export const OtpBucket = model(
+  "OtpBucket",
+  new Schema({
+    _id: String,
+    count: { type: Number, default: 0 },
+    expiresAt: { type: Date, required: true, expires: 0 },
+  }),
+);
+export const OtpLock = model(
+  "OtpLock",
+  new Schema({
+    _id: String,
+    owner: String,
+    expiresAt: { type: Date, required: true, expires: 0 },
+  }),
+);
 
 // Stable, indexed ordering for paginated administrator lists.
 Registration.schema.index({ createdAt: -1, _id: -1 });

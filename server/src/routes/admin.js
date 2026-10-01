@@ -1,12 +1,20 @@
-import { listAttendance, exportAttendance, updateAttendance } from "../services/attendance.js";
-import { recordFilters, registrationQuery, listPayments } from "../services/adminRecords.js";
+import {
+  listAttendance,
+  exportAttendance,
+  updateAttendance,
+} from "../services/attendance.js";
+import {
+  recordFilters,
+  registrationQuery,
+  listPayments,
+} from "../services/adminRecords.js";
 import { exportAdminRecords } from "../services/adminExport.js";
 import { portalSchema } from "../utils/portalContent.js";
 import express from "express";
 import { withOtpLock } from "../services/otpSecurity.js";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { downloadMedia } from "../services/media.js";
+import { downloadMedia, studentPhoto } from "../services/media.js";
 import {
   Admin,
   Registration,
@@ -121,18 +129,33 @@ r.get("/records/:kind/export.:format", exportAdminRecords);
 r.get("/payments/:id/receipt", verifier, async (req, res) => {
   const p = await Payment.findById(req.params.id);
   if (!p?.receipt?.publicId)
-    return res.status(404).json({ error: "Receipt not found or awaiting storage migration." });
+    return res
+      .status(404)
+      .json({ error: "Receipt not found or awaiting storage migration." });
   const buffer = await downloadMedia(p.receipt);
   res.set("Cache-Control", "private, no-store");
-  res.set("Content-Disposition", `attachment; filename="receipt-${p._id}.${p.receipt.format}"`);
+  res.set(
+    "Content-Disposition",
+    `attachment; filename="receipt-${p._id}.${p.receipt.format}"`,
+  );
   res.type(p.receipt.contentType).send(buffer);
 });
 // Both review decisions share one lease so approval and rejection cannot race.
-r.use(['/payments/:id/approve', '/payments/:id/reject'], verifier, (req, res, next) => {
-  withOtpLock(`payment-review:${req.params.id}`, () => new Promise(resolve => {
-    res.once('finish', resolve); res.once('close', resolve); next();
-  })).catch(next);
-});
+r.use(
+  ["/payments/:id/approve", "/payments/:id/reject"],
+  verifier,
+  (req, res, next) => {
+    withOtpLock(
+      `payment-review:${req.params.id}`,
+      () =>
+        new Promise((resolve) => {
+          res.once("finish", resolve);
+          res.once("close", resolve);
+          next();
+        }),
+    ).catch(next);
+  },
+);
 r.post("/payments/:id/approve", verifier, async (req, res) => {
   const p = await Payment.findOne({
     _id: req.params.id,
@@ -144,9 +167,19 @@ r.post("/payments/:id/approve", verifier, async (req, res) => {
       .status(409)
       .json({ error: "Payment already reviewed or not found." });
   const registration = await Registration.findById(p.registrationId);
-  if (p.status === "PAID" && registration && String(registration.paymentId) === String(p._id)) {
-    const recovered = await confirmRegistration(p.registrationId, String(req.admin._id));
-    return res.json({ message: "Payment approved and admit card issued.", registration: safeRegistration(recovered) });
+  if (
+    p.status === "PAID" &&
+    registration &&
+    String(registration.paymentId) === String(p._id)
+  ) {
+    const recovered = await confirmRegistration(
+      p.registrationId,
+      String(req.admin._id),
+    );
+    return res.json({
+      message: "Payment approved and admit card issued.",
+      registration: safeRegistration(recovered),
+    });
   }
   if (
     registration?.status !== "PAYMENT_UNDER_VERIFICATION" ||
@@ -174,14 +207,31 @@ r.post("/payments/:id/reject", verifier, async (req, res) => {
     .slice(0, 500);
   if (note.length < 5)
     return res.status(400).json({ error: "Enter a reason for rejection." });
-  const existing = await Payment.findOne({ _id: req.params.id, mode: "manual" });
-  const registration = existing && await Registration.findById(existing.registrationId);
-  if (!existing || !registration || String(registration.paymentId) !== String(existing._id) ||
-      !["PAYMENT_UNDER_VERIFICATION", "PAYMENT_REJECTED"].includes(registration.status) ||
-      !["UNDER_REVIEW", "REJECTED"].includes(existing.status))
-    return res.status(409).json({ error: "Payment already reviewed or registration/payment status mismatch." });
+  const existing = await Payment.findOne({
+    _id: req.params.id,
+    mode: "manual",
+  });
+  const registration =
+    existing && (await Registration.findById(existing.registrationId));
+  if (
+    !existing ||
+    !registration ||
+    String(registration.paymentId) !== String(existing._id) ||
+    !["PAYMENT_UNDER_VERIFICATION", "PAYMENT_REJECTED"].includes(
+      registration.status,
+    ) ||
+    !["UNDER_REVIEW", "REJECTED"].includes(existing.status)
+  )
+    return res.status(409).json({
+      error:
+        "Payment already reviewed or registration/payment status mismatch.",
+    });
   const p = await Payment.findOneAndUpdate(
-    { _id: req.params.id, mode: "manual", status: { $in: ["UNDER_REVIEW", "REJECTED"] } },
+    {
+      _id: req.params.id,
+      mode: "manual",
+      status: { $in: ["UNDER_REVIEW", "REJECTED"] },
+    },
     {
       $set: { status: "REJECTED", reviewedBy: req.admin._id, reviewNote: note },
     },
@@ -199,12 +249,13 @@ r.post("/payments/:id/reject", verifier, async (req, res) => {
     },
     { $set: { status: "PAYMENT_REJECTED" } },
   );
-  if (existing.status !== "REJECTED") await Audit.create({
-    actor: String(req.admin._id),
-    action: "PAYMENT_REJECTED",
-    registrationId: p.registrationId,
-    details: { note },
-  });
+  if (existing.status !== "REJECTED")
+    await Audit.create({
+      actor: String(req.admin._id),
+      action: "PAYMENT_REJECTED",
+      registrationId: p.registrationId,
+      details: { note },
+    });
   res.json({
     message: "Payment rejected; parent can resubmit a correct receipt.",
   });
@@ -217,6 +268,19 @@ r.get("/admit-card/:id", examiner, async (req, res) => {
       .json({ error: "Only confirmed registrations have admit cards." });
   await admitPdf(res, student, await publicSettings());
 });
+r.get("/check-in/:id/photo", examiner, async (req, res) => {
+  const student = await Registration.findOne({
+    _id: req.params.id,
+    status: "CONFIRMED",
+  });
+  if (!student?.photo?.publicId)
+    return res.status(404).json({ error: "Student photo is unavailable." });
+  const buffer = await studentPhoto(student);
+  res
+    .set("Cache-Control", "private, no-store")
+    .set("Content-Type", student.photo.contentType)
+    .send(buffer);
+});
 r.post("/check-in", examiner, async (req, res) => {
   const { token } = parse(
     z.object({ token: z.string().min(20).max(100) }),
@@ -227,25 +291,49 @@ r.post("/check-in", examiner, async (req, res) => {
     { $set: { checkInAt: new Date() } },
     { new: true },
   );
-  if (!s)
-    return res
-      .status(409)
-      .json({ error: "Invalid, cancelled, or already checked-in admit card." });
+  if (!s) {
+    const existing = await Registration.findOne({
+      admitToken: token,
+      status: "CONFIRMED",
+    });
+    if (existing?.checkInAt)
+      return res.json({
+        registration: safeRegistration(existing),
+        alreadyCheckedIn: true,
+      });
+    return res.status(404).json({ error: "Invalid or cancelled admit card." });
+  }
   await Audit.create({
     actor: String(req.admin._id),
     action: "EXAM_CHECK_IN",
     registrationId: s._id,
   });
-  res.json({ registration: safeRegistration(s) });
+  res.json({ registration: safeRegistration(s), alreadyCheckedIn: false });
 });
 r.get("/settings", async (req, res) => res.json(await publicSettings()));
 // Separate from payment settings so publishing content cannot alter payment configuration.
 r.put("/portal", writable, async (req, res) => {
-  const data = parse(z.object({eventName:z.string().trim().min(1).max(160),portal:portalSchema}).strict(), req.body);
+  const data = parse(
+    z
+      .object({
+        eventName: z.string().trim().min(1).max(160),
+        portal: portalSchema,
+      })
+      .strict(),
+    req.body,
+  );
   await publicSettings();
-  const saved = await Settings.findByIdAndUpdate("primary", {$set:data}, {new:true,runValidators:true});
-  await Audit.create({actor:String(req.admin._id),action:"PUBLIC_CONTENT_UPDATED",details:{}});
-  res.json({eventName:saved.eventName,portal:saved.portal});
+  const saved = await Settings.findByIdAndUpdate(
+    "primary",
+    { $set: data },
+    { new: true, runValidators: true },
+  );
+  await Audit.create({
+    actor: String(req.admin._id),
+    action: "PUBLIC_CONTENT_UPDATED",
+    details: {},
+  });
+  res.json({ eventName: saved.eventName, portal: saved.portal });
 });
 r.patch("/settings", writable, async (req, res) => {
   const schema = z
@@ -272,25 +360,23 @@ r.patch("/settings", writable, async (req, res) => {
   const effective = { ...current.toObject(), ...data };
   if (effective.registrationOpen) {
     const mode = effective.paymentMode;
-    if (mode === "manual" && (!effective.upiId?.trim() || !effective.payeeName?.trim()))
-      return res
-        .status(400)
-        .json({
-          error:
-            "Configure official UPI ID before opening manual registrations.",
-        });
+    if (
+      mode === "manual" &&
+      (!effective.upiId?.trim() || !effective.payeeName?.trim())
+    )
+      return res.status(400).json({
+        error: "Configure official UPI ID before opening manual registrations.",
+      });
     if (
       mode === "razorpay" &&
       (!process.env.RAZORPAY_KEY_ID ||
         !process.env.RAZORPAY_KEY_SECRET ||
         !process.env.RAZORPAY_WEBHOOK_SECRET)
     )
-      return res
-        .status(400)
-        .json({
-          error:
-            "Configure all Razorpay credentials before opening registrations.",
-        });
+      return res.status(400).json({
+        error:
+          "Configure all Razorpay credentials before opening registrations.",
+      });
     if (
       process.env.NODE_ENV === "production" &&
       process.env.OTP_DELIVERY === "dev"
@@ -336,7 +422,7 @@ r.get("/export.csv", async (req, res) => {
     .type("text/csv")
     .set(
       "Content-Disposition",
-      'attachment; filename="shree-2026-registrations.csv"',
+      'attachment; filename="shree-2027-registrations.csv"',
     )
     .send("\uFEFF" + rows.join("\r\n"));
 });

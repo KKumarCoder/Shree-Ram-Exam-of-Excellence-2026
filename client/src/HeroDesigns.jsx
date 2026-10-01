@@ -1,4 +1,4 @@
-import {formatPublicDate, eligibleClassLabel} from './publicDisplay.js';
+import { formatPublicDate, eligibleClassLabel } from "./publicDisplay.js";
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -103,7 +103,7 @@ function Academy({ settings }) {
   return (
     <div className="concept-layout">
       <div className="concept-copy">
-        <Mark>SHREE 2026 OLYMPIAD · KANHRA</Mark>
+        <Mark>SHREE 2027 OLYMPIAD · KANHRA</Mark>
         <h2>
           A tradition of learning.
           <br />
@@ -151,7 +151,7 @@ function Bright({ settings }) {
             <em>Brighter you.</em>
           </h2>
           <p>
-            Bring your curiosity to the SHREE 2026 OLYMPIAD. A new challenge in
+            Bring your curiosity to the SHREE 2027 OLYMPIAD. A new challenge in
             maths, science, language and beyond.
           </p>
           <Actions label="Let’s take the challenge" />
@@ -183,7 +183,7 @@ function Bright({ settings }) {
       </div>
       <div className="bright-ribbon">
         STAY CURIOUS <Star /> THINK BIG <Star /> GIVE IT YOUR BEST <Star />{" "}
-        SHREE 2026
+        SHREE 2027
       </div>
     </>
   );
@@ -192,7 +192,7 @@ function Challenger({ settings }) {
   return (
     <>
       <div className="challenger-top">
-        <Mark>SHREE 2026 OLYMPIAD</Mark>
+        <Mark>SHREE 2027 OLYMPIAD</Mark>
         <span>YOUR NEXT CHALLENGE STARTS HERE ↗</span>
       </div>
       <h2 className="challenger-title">
@@ -220,7 +220,7 @@ function Beyond({ settings }) {
     <div className="concept-layout">
       <div className="concept-copy">
         <Mark>
-          <span className="live-dot" /> SHREE 2026 · A NEW HORIZON
+          <span className="live-dot" /> SHREE 2027 · A NEW HORIZON
         </Mark>
         <h2>
           Your potential.
@@ -233,7 +233,7 @@ function Beyond({ settings }) {
         </h2>
         <p>
           Every great discovery starts with a question. Explore your strengths
-          at the SHREE 2026 OLYMPIAD.
+          at the SHREE 2027 OLYMPIAD.
         </p>
         <Actions label="Begin your journey" />
         <Facts settings={settings} />
@@ -246,7 +246,7 @@ function Beyond({ settings }) {
           <Sparkles />
           <strong>SHREE</strong>
           <span>
-            20<span>26</span>
+            20<span>27</span>
           </span>
         </div>
         <span className="orbit-node node-one">
@@ -268,7 +268,7 @@ function Chapter({ settings }) {
     <>
       <div className="chapter-top">
         <Mark>THE SHREE JOURNAL</Mark>
-        <span>2026 EDITION / OLYMPIAD</span>
+        <span>2027 EDITION / OLYMPIAD</span>
       </div>
       <div className="concept-layout">
         <div className="concept-copy">
@@ -296,7 +296,7 @@ function Chapter({ settings }) {
               <em>why.</em>
             </strong>
             <Compass />
-            <span>SHREE 2026 OLYMPIAD</span>
+            <span>SHREE 2027 OLYMPIAD</span>
           </div>
           <div className="chapter-note">
             Curiosity is
@@ -328,7 +328,7 @@ function Ticket({ settings }) {
           </em>
         </h2>
         <p>
-          Join the SHREE 2026 OLYMPIAD.
+          Join the SHREE 2027 OLYMPIAD.
           <br />
           One opportunity to discover more of you.
         </p>
@@ -345,7 +345,7 @@ function Ticket({ settings }) {
           <h3>
             SHREE
             <br />
-            2026
+            2027
             <br />
             <em>OLYMPIAD</em>
           </h3>
@@ -367,7 +367,7 @@ export function HeroDesigns({ settings }) {
     <main className="design-studio">
       <div className="studio-intro">
         <div>
-          <span className="eyebrow">SHREE 2026 / DESIGN STUDIO</span>
+          <span className="eyebrow">SHREE 2027 / DESIGN STUDIO</span>
           <h1>
             Six directions.
             <br />

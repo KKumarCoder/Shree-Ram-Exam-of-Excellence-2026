@@ -1,4 +1,4 @@
-# SHREE 2026 OLYMPIAD — MERN source project
+# SHREE 2027 OLYMPIAD — MERN source project
 
 Shree Ram Public School · Kanhra-Badhra Road, Charkhi Dadri, Haryana 127306  
 Official school website: https://www.srpskanhra.com/  
@@ -32,7 +32,7 @@ npm run dev
 ```
 
 6. Open `http://localhost:5173`. Admin login: `http://localhost:5173/admin`.
-7. Admin → Event settings → add *real* school UPI ID and payee, confirm school policies, then enable registrations. Until then the form stays closed by default.
+7. Admin → Event settings → add _real_ school UPI ID and payee, confirm school policies, then enable registrations. Until then the form stays closed by default.
 8. To use Razorpay, add its three secrets and switch payment mode in admin settings after a real integration test.
 
 ### Local testing
@@ -48,11 +48,11 @@ The JavaScript and JSX source can be inspected without a database. The integrati
 
 ### Manual school UPI flow
 
-Guardian completes student form → receives authorized OTP → reviews official generated UPI QR → pays ₹149 to the *configured* school merchant → enters real UTR and uploads receipt → receives `APP-...` pending reference. Admin independently checks bank/UPI records, downloads private receipt, approves or rejects. Only upon approval does `SHREE26-...` get issued. Admit card and receipt are automatically emailed; the Status page also provides downloads after email OTP verification.
+Guardian completes student form → receives authorized OTP → reviews official generated UPI QR → pays ₹149 to the _configured_ school merchant → enters real UTR and uploads receipt → receives `APP-...` pending reference. Admin independently checks bank/UPI records, downloads private receipt, approves or rejects. Only upon approval does `SHREE26-...` get issued. Admit card and receipt are automatically emailed; the Status page also provides downloads after email OTP verification.
 
 ### Verified gateway flow
 
-Select Razorpay in admin after configuring live keys/webhook. Guardian completes OTP → accepts terms → creates an actual order → pays via hosted provider checkout → backend checks checkout HMAC *and* fetches payment to confirm status, exact order, INR and amount. A captured-payment webhook independently supports confirmation. Once confirmed, the PDF can be downloaded in the same session.
+Select Razorpay in admin after configuring live keys/webhook. Guardian completes OTP → accepts terms → creates an actual order → pays via hosted provider checkout → backend checks checkout HMAC _and_ fetches payment to confirm status, exact order, INR and amount. A captured-payment webhook independently supports confirmation. Once confirmed, the PDF can be downloaded in the same session.
 
 ### Student photography
 
@@ -98,7 +98,7 @@ server {
 }
 ```
 
-The example config only opens the new *subdomain*. Do not overwrite the existing school website's Nginx configuration.
+The example config only opens the new _subdomain_. Do not overwrite the existing school website's Nginx configuration.
 
 ## Environment and operational notes
 

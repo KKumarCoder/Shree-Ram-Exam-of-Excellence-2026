@@ -19,23 +19,44 @@ import {
 import { sendOtp, verifyOtp } from "../services/notifications.js";
 import { confirmRegistration } from "../services/confirm.js";
 import { admitPdf, applicationReceiptPdf } from "../services/pdf.js";
-import { assertDraft, assertAuthorization, otpDevMode, withOtpLock, limit } from "../services/otpSecurity.js";
+import {
+  assertDraft,
+  assertAuthorization,
+  otpDevMode,
+  withOtpLock,
+  limit,
+} from "../services/otpSecurity.js";
 import { Challenge } from "../models/index.js";
 const r = express.Router();
 // Serialize mutations of a draft across processes, including payment initiation.
-r.use('/registrations', async (req, res, next) => {
-  if (req.path === '/start') return next();
-  return authenticate('draft')(req, res, () => {
-    withOtpLock(`draft:${req.viewer.sub}`, () => new Promise(resolve => {
-      res.once('finish', resolve); res.once('close', resolve); next();
-    })).catch(next);
+r.use("/registrations", async (req, res, next) => {
+  if (req.path === "/start") return next();
+  return authenticate("draft")(req, res, () => {
+    withOtpLock(
+      `draft:${req.viewer.sub}`,
+      () =>
+        new Promise((resolve) => {
+          res.once("finish", resolve);
+          res.once("close", resolve);
+          next();
+        }),
+    ).catch(next);
   });
 });
 const uploadLimit = async (req, res, next) => {
-  try { await limit(`media:${req.viewer.sub}`, 20, 900); next(); } catch (error) { next(error); }
+  try {
+    await limit(`media:${req.viewer.sub}`, 20, 900);
+    next();
+  } catch (error) {
+    next(error);
+  }
 };
-const photoUpload = memoryUpload('photo', 5, ['image/jpeg', 'image/png']);
-const receiptUpload = memoryUpload('receipt', 3, ['image/jpeg', 'image/png', 'application/pdf']);
+const photoUpload = memoryUpload("photo", 5, ["image/jpeg", "image/png"]);
+const receiptUpload = memoryUpload("receipt", 3, [
+  "image/jpeg",
+  "image/png",
+  "application/pdf",
+]);
 const publicSettings = async () =>
   Settings.findOneAndUpdate(
     { _id: "primary" },
@@ -68,9 +89,30 @@ const getOwn = async (req) => {
   const s = await Registration.findById(req.viewer.sub);
   if (!s) throw notFound();
   assertDraft(s);
-  if (s.status === 'OTP_VERIFIED' && (!s.verifiedEmail || s.verifiedEmail !== s.email || !s.verificationExpiresAt || s.verificationExpiresAt <= new Date() || (s.verificationDevMode && !otpDevMode()))) {
-    const reset = await Registration.findOneAndUpdate({ _id: s._id, status: 'OTP_VERIFIED', verificationExpiresAt: s.verificationExpiresAt || null },
-      { $set: { status: 'DRAFT', verifiedAt: null, verificationExpiresAt: null, verificationDevMode: false } }, { new: true });
+  if (
+    s.status === "OTP_VERIFIED" &&
+    (!s.verifiedEmail ||
+      s.verifiedEmail !== s.email ||
+      !s.verificationExpiresAt ||
+      s.verificationExpiresAt <= new Date() ||
+      (s.verificationDevMode && !otpDevMode()))
+  ) {
+    const reset = await Registration.findOneAndUpdate(
+      {
+        _id: s._id,
+        status: "OTP_VERIFIED",
+        verificationExpiresAt: s.verificationExpiresAt || null,
+      },
+      {
+        $set: {
+          status: "DRAFT",
+          verifiedAt: null,
+          verificationExpiresAt: null,
+          verificationDevMode: false,
+        },
+      },
+      { new: true },
+    );
     return reset || Registration.findById(s._id);
   }
   return s;
@@ -126,36 +168,56 @@ r.post("/registrations/start", async (req, res) => {
     dob.getUTCFullYear() < 1995
   )
     return res.status(400).json({ error: "Enter a valid date of birth." });
-  const key = req.headers['idempotency-key'];
-  if (key && (typeof key !== 'string' || !/^[a-f0-9-]{36}$/i.test(key))) return res.status(400).json({ error: 'Invalid application request key.' });
-  const values = { ...data, draftExpiresAt: new Date(Date.now() + 10800000), applicationRef: `APP-${crypto.randomBytes(5).toString("hex").toUpperCase()}` };
-  const hash = crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');
+  const key = req.headers["idempotency-key"];
+  if (key && (typeof key !== "string" || !/^[a-f0-9-]{36}$/i.test(key)))
+    return res.status(400).json({ error: "Invalid application request key." });
+  const values = {
+    ...data,
+    draftExpiresAt: new Date(Date.now() + 10800000),
+    applicationRef: `APP-${crypto.randomBytes(5).toString("hex").toUpperCase()}`,
+  };
+  const hash = crypto
+    .createHash("sha256")
+    .update(JSON.stringify(data))
+    .digest("hex");
   let s;
   if (key) {
     try {
-      s = await Registration.findOneAndUpdate({ draftRequestKey: key }, { $setOnInsert: { ...values, draftRequestHash: hash } }, { upsert: true, new: true, setDefaultsOnInsert: true });
+      s = await Registration.findOneAndUpdate(
+        { draftRequestKey: key },
+        { $setOnInsert: { ...values, draftRequestHash: hash } },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+      );
     } catch (e) {
       if (e.code !== 11000) throw e;
       s = await Registration.findOne({ draftRequestKey: key });
     }
-    if (!s || s.draftRequestHash !== hash) return res.status(409).json({ error: 'This application request has already been used with different details.' });
+    if (!s || s.draftRequestHash !== hash)
+      return res
+        .status(409)
+        .json({
+          error:
+            "This application request has already been used with different details.",
+        });
     assertDraft(s);
   } else s = await Registration.create(values);
-  res
-    .status(201)
-    .json({
-      token: issueToken({ sub: String(s._id), scope: "draft" }, "3h"),
-      registration: safeRegistration(s),
-    });
+  res.status(201).json({
+    token: issueToken({ sub: String(s._id), scope: "draft" }, "3h"),
+    registration: safeRegistration(s),
+  });
 });
-r.post(["/registrations/otp/send", "/registrations/otp/resend"], authenticate("draft"), async (req, res) => {
-  const s = await getOwn(req);
-  if (s.status !== "DRAFT")
-    return res
-      .status(400)
-      .json({ error: "OTP verification is already complete." });
-  res.json(await sendOtp(s, "register"));
-});
+r.post(
+  ["/registrations/otp/send", "/registrations/otp/resend"],
+  authenticate("draft"),
+  async (req, res) => {
+    const s = await getOwn(req);
+    if (s.status !== "DRAFT")
+      return res
+        .status(400)
+        .json({ error: "OTP verification is already complete." });
+    res.json(await sendOtp(s, "register"));
+  },
+);
 r.post("/registrations/otp/verify", authenticate("draft"), async (req, res) => {
   const { otp } = parse(otpSchema, req.body);
   const s = await getOwn(req);
@@ -167,29 +229,83 @@ r.post("/registrations/otp/verify", authenticate("draft"), async (req, res) => {
     registration: safeRegistration(verified),
   });
 });
-r.patch('/registrations/mobile', authenticate('draft'), async (req, res) => {
+r.patch("/registrations/mobile", authenticate("draft"), async (req, res) => {
   const mobile = parse(phone, req.body?.guardianPhone);
   const s = await getOwn(req);
-  if (!['DRAFT', 'OTP_VERIFIED'].includes(s.status)) return res.status(409).json({ error: 'Mobile cannot change after payment submission.' });
-  const updated = await Registration.findOneAndUpdate({ _id: s._id, status: { $in: ['DRAFT', 'OTP_VERIFIED'] } },
-    { $set: { guardianPhone: mobile, status: 'DRAFT', verifiedAt: null, verificationExpiresAt: null, verificationDevMode: false } }, { new: true });
-  await Challenge.updateMany({ registrationId: s._id, verificationStatus: 'pending' }, { $set: { verificationStatus: 'superseded' } });
-  res.json({ registration: safeRegistration(updated), message: 'Mobile updated. Request a new verification code.' });
+  if (!["DRAFT", "OTP_VERIFIED"].includes(s.status))
+    return res
+      .status(409)
+      .json({ error: "Mobile cannot change after payment submission." });
+  const updated = await Registration.findOneAndUpdate(
+    { _id: s._id, status: { $in: ["DRAFT", "OTP_VERIFIED"] } },
+    {
+      $set: {
+        guardianPhone: mobile,
+        status: "DRAFT",
+        verifiedAt: null,
+        verificationExpiresAt: null,
+        verificationDevMode: false,
+      },
+    },
+    { new: true },
+  );
+  await Challenge.updateMany(
+    { registrationId: s._id, verificationStatus: "pending" },
+    { $set: { verificationStatus: "superseded" } },
+  );
+  res.json({
+    registration: safeRegistration(updated),
+    message: "Mobile updated. Request a new verification code.",
+  });
 });
-r.patch('/registrations/email', authenticate('draft'), async (req, res) => {
+r.patch("/registrations/email", authenticate("draft"), async (req, res) => {
   const email = parse(startSchema.shape.email, req.body?.email);
   const s = await getOwn(req);
-  if (!['DRAFT', 'OTP_VERIFIED'].includes(s.status)) return res.status(409).json({ error: 'Email cannot change after payment submission. Contact the school.' });
-  const updated = await Registration.findOneAndUpdate({ _id: s._id, status: { $in: ['DRAFT', 'OTP_VERIFIED'] } },
-    { $set: { email, verifiedEmail: '', status: 'DRAFT', verifiedAt: null, verificationExpiresAt: null, verificationDevMode: false } }, { new: true });
-  if (!updated) return res.status(409).json({error:'Registration changed. Reload and retry.'});
-  await Challenge.updateMany({ registrationId: s._id, verificationStatus: 'pending' }, { $set: { verificationStatus: 'superseded' } });
-  res.json({ registration: safeRegistration(updated), message: 'Email updated. Request a new verification code.' });
+  if (!["DRAFT", "OTP_VERIFIED"].includes(s.status))
+    return res
+      .status(409)
+      .json({
+        error:
+          "Email cannot change after payment submission. Contact the school.",
+      });
+  const updated = await Registration.findOneAndUpdate(
+    { _id: s._id, status: { $in: ["DRAFT", "OTP_VERIFIED"] } },
+    {
+      $set: {
+        email,
+        verifiedEmail: "",
+        status: "DRAFT",
+        verifiedAt: null,
+        verificationExpiresAt: null,
+        verificationDevMode: false,
+      },
+    },
+    { new: true },
+  );
+  if (!updated)
+    return res
+      .status(409)
+      .json({ error: "Registration changed. Reload and retry." });
+  await Challenge.updateMany(
+    { registrationId: s._id, verificationStatus: "pending" },
+    { $set: { verificationStatus: "superseded" } },
+  );
+  res.json({
+    registration: safeRegistration(updated),
+    message: "Email updated. Request a new verification code.",
+  });
 });
 r.get("/registrations/me", authenticate("draft"), async (req, res) => {
   const s = await getOwn(req);
-  const challenge = await Challenge.findOne({ registrationId: s._id, purpose: 'register' }).sort({ createdAt: -1 });
-  res.json({ registration: safeRegistration(s), resendAvailableAt: challenge?.resendAvailableAt, expiresAt: challenge?.expiresAt });
+  const challenge = await Challenge.findOne({
+    registrationId: s._id,
+    purpose: "register",
+  }).sort({ createdAt: -1 });
+  res.json({
+    registration: safeRegistration(s),
+    resendAvailableAt: challenge?.resendAvailableAt,
+    expiresAt: challenge?.expiresAt,
+  });
 });
 r.post(
   "/registrations/photo",
@@ -199,23 +315,37 @@ r.post(
   async (req, res) => {
     const s = await getOwn(req);
     if (
-      !["DRAFT", "OTP_VERIFIED", "PAYMENT_PENDING", "PAYMENT_REJECTED"].includes(
-        s.status,
-      )
+      ![
+        "DRAFT",
+        "OTP_VERIFIED",
+        "PAYMENT_PENDING",
+        "PAYMENT_REJECTED",
+      ].includes(s.status)
     )
       return res
         .status(403)
-        .json({ error: "Photographs cannot be changed at this application stage." });
-    const metadata = await validateUpload(req.file, 'photos');
+        .json({
+          error: "Photographs cannot be changed at this application stage.",
+        });
+    const metadata = await validateUpload(req.file, "photos");
     const photo = await uploadMedia(req.file.buffer, metadata);
     const prior = s.photo;
     // Compare the record version too: a slow request cannot overwrite newer state.
-    const updated = await Registration.findOneAndUpdate({ _id: s._id, __v: s.__v, status: s.status,
-      'photo.publicId': prior?.publicId || null },
-      { $set: { photo, photoPath: '' }, $inc: { __v: 1 } }, { new: true });
+    const updated = await Registration.findOneAndUpdate(
+      {
+        _id: s._id,
+        __v: s.__v,
+        status: s.status,
+        "photo.publicId": prior?.publicId || null,
+      },
+      { $set: { photo, photoPath: "" }, $inc: { __v: 1 } },
+      { new: true },
+    );
     if (!updated) {
       await deleteMedia(photo);
-      return res.status(409).json({ error: 'Registration changed. Reload and retry.' });
+      return res
+        .status(409)
+        .json({ error: "Registration changed. Reload and retry." });
     }
     // On an ambiguous DB failure the journal reconciles references before deletion.
     await deleteMedia(prior);
@@ -239,22 +369,18 @@ r.post(
       !s.verifiedAt ||
       !["OTP_VERIFIED", "PAYMENT_REJECTED"].includes(s.status)
     )
-      return res
-        .status(409)
-        .json({
-          error:
-            "Mobile must be verified and registration must be eligible for payment.",
-        });
+      return res.status(409).json({
+        error:
+          "Mobile must be verified and registration must be eligible for payment.",
+      });
     assertAuthorization(s);
     if (!s.photo?.publicId)
-      return res
-        .status(400)
-        .json({
-          error: "Student passport-size photograph is required before payment.",
-        });
+      return res.status(400).json({
+        error: "Student passport-size photograph is required before payment.",
+      });
     if (!settings.upiId)
       return res.status(503).json({ error: "School UPI ID not configured." });
-    const metadata = await validateUpload(req.file, 'receipts');
+    const metadata = await validateUpload(req.file, "receipts");
     const receipt = await uploadMedia(req.file.buffer, metadata);
     let pay;
     try {
@@ -267,7 +393,16 @@ r.post(
         status: "UNDER_REVIEW",
       });
       const updated = await Registration.findOneAndUpdate(
-        { _id: s._id, $or: [{ status: "OTP_VERIFIED", verificationExpiresAt: { $gt: new Date() } }, { status: "PAYMENT_REJECTED" }] },
+        {
+          _id: s._id,
+          $or: [
+            {
+              status: "OTP_VERIFIED",
+              verificationExpiresAt: { $gt: new Date() },
+            },
+            { status: "PAYMENT_REJECTED" },
+          ],
+        },
         {
           $set: {
             paymentId: pay._id,
@@ -285,27 +420,29 @@ r.post(
           .status(409)
           .json({ error: "Registration was updated in another session." });
       }
-      res
-        .status(201)
-        .json({
-          message:
-            "Receipt submitted. Payment is awaiting actual bank verification by the school.",
-          registration: safeRegistration(updated),
-        });
+      res.status(201).json({
+        message:
+          "Receipt submitted. Payment is awaiting actual bank verification by the school.",
+        registration: safeRegistration(updated),
+      });
     } catch (e) {
       // Resolve an uncertain database result before removing its receipt.
       if (pay) {
-        const linked = await Registration.exists({ _id: s._id, paymentId: pay._id });
-        if (!linked) { await Payment.deleteOne({ _id: pay._id }); await deleteMedia(receipt); }
+        const linked = await Registration.exists({
+          _id: s._id,
+          paymentId: pay._id,
+        });
+        if (!linked) {
+          await Payment.deleteOne({ _id: pay._id });
+          await deleteMedia(receipt);
+        }
       }
       // If create failed ambiguously, the journal will check actual references.
 
       if (e.code === 11000)
-        return res
-          .status(409)
-          .json({
-            error: "This transaction reference has already been submitted.",
-          });
+        return res.status(409).json({
+          error: "This transaction reference has already been submitted.",
+        });
       throw e;
     }
   },
@@ -352,11 +489,9 @@ r.post(
       return res.status(409).json({ error: "Verify mobile before payment." });
     assertAuthorization(s);
     if (!s.photo?.publicId)
-      return res
-        .status(400)
-        .json({
-          error: "Student passport-size photograph is required before payment.",
-        });
+      return res.status(400).json({
+        error: "Student passport-size photograph is required before payment.",
+      });
     if (req.body?.termsAccepted !== true)
       return res
         .status(400)
@@ -379,7 +514,7 @@ r.post(
         amount: settings.fee * 100,
         currency: "INR",
         receipt: String(s._id),
-        notes: { event: "SHREE 2026 OLYMPIAD" },
+        notes: { event: "SHREE 2027 OLYMPIAD" },
       }),
     });
     const pay = await Payment.create({
@@ -409,7 +544,10 @@ export async function captureRazorpay(orderId, paymentId) {
   });
   if (!pay) throw notFound();
   if (pay.status === "PAID") {
-    if (pay.providerPaymentId !== paymentId) throw Object.assign(new Error("Different payment already recorded."), { status: 409 });
+    if (pay.providerPaymentId !== paymentId)
+      throw Object.assign(new Error("Different payment already recorded."), {
+        status: 409,
+      });
     const s = await Registration.findById(pay.registrationId);
     return s.status === "CONFIRMED"
       ? s
@@ -521,13 +659,27 @@ r.get("/status/me", authenticate("student"), async (req, res) => {
 });
 async function downloadApplicationReceipt(req, res) {
   const s = await getOwn(req);
-  if (['DRAFT', 'OTP_VERIFIED'].includes(s.status))
-    return res.status(403).json({ error: "Submit your application before downloading its receipt." });
-  const payment = s.paymentId ? await Payment.findOne({ _id: s.paymentId, registrationId: s._id }) : null;
+  if (["DRAFT", "OTP_VERIFIED"].includes(s.status))
+    return res
+      .status(403)
+      .json({
+        error: "Submit your application before downloading its receipt.",
+      });
+  const payment = s.paymentId
+    ? await Payment.findOne({ _id: s.paymentId, registrationId: s._id })
+    : null;
   await applicationReceiptPdf(res, s, payment);
 }
-r.get("/registrations/application-receipt", authenticate("draft"), downloadApplicationReceipt);
-r.get("/application-receipt", authenticate("student"), downloadApplicationReceipt);
+r.get(
+  "/registrations/application-receipt",
+  authenticate("draft"),
+  downloadApplicationReceipt,
+);
+r.get(
+  "/application-receipt",
+  authenticate("student"),
+  downloadApplicationReceipt,
+);
 r.get("/registrations/admit-card", authenticate("draft"), async (req, res) => {
   const s = await getOwn(req);
   if (s.status !== "CONFIRMED")

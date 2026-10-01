@@ -30,7 +30,19 @@
 .portal-toast .Toastify__close-button:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 .portal-toast .Toastify__progress-bar { height: 3px; }
 @media (max-width: 480px) {
-  .Toastify__toast-container { width: calc(100vw - 24px); left: 12px; top: max(12px, env(safe-area-inset-top)); }
+  :root {
+    --toastify-toast-width: calc(100vw - 24px);
+  }
+  :root .Toastify__toast-container {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+  }
+  :root .Toastify__toast-container--top-right {
+    top: max(12px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+    left: auto;
+    transform: none;
+  }
   .Toastify__toast.portal-toast { margin-bottom: 10px; }
 }
 @media (prefers-reduced-motion: reduce) {

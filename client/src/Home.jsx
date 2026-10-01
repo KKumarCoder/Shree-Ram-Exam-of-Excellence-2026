@@ -1,36 +1,329 @@
-import {formatPublicDate} from './publicDisplay.js';
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, ArrowUpRight, BookOpen, Calculator, FlaskConical, Globe2, Lightbulb, Trophy, ShieldCheck, FileText, IndianRupee, Download, CalendarDays, GraduationCap, Laptop, Tablet, Bike, Watch, Check, Plus, Phone, MapPin } from 'lucide-react';
-import './home-redesign.css';
-import {SectionArtwork, JourneyMap} from './HomeSectionVisual.jsx';
-import {ScholarshipShowcase} from './ScholarshipShowcase.jsx';
-import {OriginalHero} from './OriginalHero.jsx';
-import {SubjectCarousel} from './SubjectCarousel.jsx';
-import {RegistrationJourney} from './RegistrationJourney.jsx';
-import {CandidateServices,AtAGlance,PublicDataNotice,PortalHeading,ImportantDatesTimeline,ExamPatternSummary,FAQList,EligibilityChecker,CandidateJourney,Notices} from './PortalComponents.jsx';
-import {eventBrand,prizeCategories} from './portalData.js';
-const subjects = [[BookOpen,'Explore your strengths','Discover topics that spark your curiosity.'],[Lightbulb,'Think independently','Practise reasoning and solving new problems.'],[ShieldCheck,'Build confidence','Prepare steadily and give your best effort.'],[Trophy,'Explore recognition','Understand the school’s published award opportunities.'],[GraduationCap,'Look ahead','Build learning habits for future challenges.']];
+import { formatPublicDate } from "./publicDisplay.js";
+import React from "react";
+import { Link } from "react-router-dom";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  BookOpen,
+  Calculator,
+  FlaskConical,
+  Globe2,
+  Lightbulb,
+  Trophy,
+  ShieldCheck,
+  FileText,
+  IndianRupee,
+  Download,
+  CalendarDays,
+  GraduationCap,
+  Laptop,
+  Tablet,
+  Bike,
+  Watch,
+  Check,
+  Plus,
+  Phone,
+  MapPin,
+} from "lucide-react";
+import "./home-redesign.css";
+import { SectionArtwork, JourneyMap } from "./HomeSectionVisual.jsx";
+import { ScholarshipShowcase } from "./ScholarshipShowcase.jsx";
+import { OriginalHero } from "./OriginalHero.jsx";
+import { SubjectCarousel } from "./SubjectCarousel.jsx";
+import { RegistrationJourney } from "./RegistrationJourney.jsx";
+import {
+  CandidateServices,
+  AtAGlance,
+  PublicDataNotice,
+  PortalHeading,
+  ImportantDatesTimeline,
+  ExamPatternSummary,
+  FAQList,
+  EligibilityChecker,
+  CandidateJourney,
+  Notices,
+} from "./PortalComponents.jsx";
+import { eventBrand, prizeCategories } from "./portalData.js";
+const subjects = [
+  [
+    BookOpen,
+    "Explore your strengths",
+    "Discover topics that spark your curiosity.",
+  ],
+  [
+    Lightbulb,
+    "Think independently",
+    "Practise reasoning and solving new problems.",
+  ],
+  [
+    ShieldCheck,
+    "Build confidence",
+    "Prepare steadily and give your best effort.",
+  ],
+  [
+    Trophy,
+    "Explore recognition",
+    "Understand the school’s published award opportunities.",
+  ],
+  [GraduationCap, "Look ahead", "Build learning habits for future challenges."],
+];
 
-function Heading({eyebrow,title,copy}) {return <div className="shree-section-heading"><span className="shree-eyebrow">{eyebrow}</span><h2>{title}</h2>{copy && <p>{copy}</p>}</div>;}
-export function Home({settings,loading,settingsError,reloadSettings}) {
- return <main className="shree-home">
-  <OriginalHero settings={settings}/>
-  <div className="shree-announcement"><div className="shell"><span><CalendarDays/>Exam date <b>{formatPublicDate(settings.examDate)}</b></span><span><IndianRupee/>Registration fee <b>₹{settings.fee}</b></span><span><ShieldCheck/><b>{settings.registrationOpen?'Registrations open':'Registration updates coming soon'}</b></span></div></div>
-  <CandidateServices/>
-  <section className="portal-section shell"><PortalHeading title={`${eventBrand(settings).eventName} at a glance`}/><PublicDataNotice loading={loading} error={settingsError} retry={reloadSettings}/><AtAGlance settings={settings}/></section>
-  <section className="shree-about shell" id="about"><div><span className="shree-eyebrow">MORE THAN AN EXAM</span><h2>A little curiosity.<br/>A <em>lot of potential.</em></h2></div><div><p>At Shree Ram Public School, we believe learning begins with asking questions. {eventBrand(settings).eventName} gives students a chance to explore their strengths, build academic confidence and enjoy a healthy challenge.</p><a className="shree-text-link" href="#how-to-register">Find your starting point <ArrowUpRight size={18}/></a></div></section>
-  <section className="shree-subjects shell"><Heading eyebrow="WHY PARTICIPATE" title="Curious minds belong here."/><SubjectCarousel settings={settings} benefits={subjects}/></section>
-  <section className="shree-awards" id="prizes"><div className="shell"><Heading eyebrow="EFFORT DESERVES RECOGNITION" title={<>Dream big. Give it your best.</>} copy="Explore the prize categories in our school’s Olympiad programme."/><div className="shree-discovery-art"><img src="/images/shree-2026/awards-achievement-students.png" alt="Students celebrating with a trophy and certificate" width="1448" height="1086" loading="lazy" decoding="async"/></div><div className="shree-award-grid">{prizeCategories.map(({eligibleClasses:group,name:title,image},i)=><article key={title}><div className="shree-award-visual"><span>0{i+1}</span><img src={image} alt={`${title === 'Watch' ? 'Smartwatch' : title} prize illustration`} width="1024" height="1024" loading="lazy" decoding="async"/></div><span className="shree-award-group">{group}</span><h3>{title}</h3></article>)}</div><p className="shree-fineprint">Prize categories are based on the school’s promotional programme. Final eligibility and award rules are confirmed by the school.</p></div></section>
-  <ScholarshipShowcase settings={settings}/>
-  <section className="portal-section shell shree-updates shree-dates" aria-label="Important Dates"><div className="update-heading-row"><PortalHeading eyebrow="PLAN YOUR NEXT STEP" title="Important Dates" copy="Keep track of each milestone, from registration to recognition."/><SectionArtwork type="dates"/></div><ImportantDatesTimeline settings={settings}/><Link className="portal-text-link" to="/important-dates">View examination schedule →</Link></section>
-  <section className="portal-section shell"><PortalHeading eyebrow="PREPARE WITH CONFIDENCE" title="Your class. Your preparation."/><div className="portal-split"><div><h3>Exam pattern</h3><ExamPatternSummary settings={settings}/><Link className="portal-text-link" to="/exam-pattern">Full exam pattern →</Link></div><EligibilityChecker settings={settings}/></div></section>
-  <RegistrationJourney settings={settings}/>
-  <section className="portal-section shell shree-updates shree-journey" aria-label="Your examination journey"><PortalHeading eyebrow="FROM APPLICATION TO RECOGNITION" title={`Your ${eventBrand(settings).eventShortName} Journey`} copy="A clear path through every stage of your Olympiad experience."/><JourneyMap/><CandidateJourney settings={settings}/></section>
-  <section className="shree-exam shell"><div className="shree-exam-heading"><span className="shree-eyebrow">MARK YOUR CALENDAR</span><h2>Your next challenge<br/>starts here.</h2><p>Keep your application reference safe. After payment approval, your admit card will include your exam details.</p><Link className="shree-text-link" to="/status">Check status & download admit card <ArrowUpRight size={18}/></Link></div><div className="shree-exam-info">{[[CalendarDays,'EXAM DATE',formatPublicDate(settings.examDate)],[MapPin,'EXAM VENUE',settings.venue || 'To be announced'],[IndianRupee,'REGISTRATION FEE',`₹${settings.fee}`],[Phone,'NEED A HAND?',settings.contactPhone]].map(([Icon,label,value])=><div key={label}><Icon/><span><small>{label}</small><strong>{value}</strong></span></div>)}</div></section>
-  <section className="portal-section shell shree-updates shree-notices" aria-label="Latest Notices"><div className="update-heading-row"><PortalHeading eyebrow="STAY INFORMED" title="Latest Notices" copy="Official updates and useful information from the school."/><SectionArtwork type="notices"/></div><Notices settings={settings} preview/><div className="portal-actions"><Link className="portal-text-link" to="/notices">All notices →</Link><Link className="portal-text-link" to="/exam-guidelines">Exam-day instructions →</Link><Link className="portal-text-link" to="/information-bulletin">Information bulletin →</Link></div></section>
-  <section className="portal-section shell"><PortalHeading eyebrow="A LITTLE CLARITY BEFORE YOU BEGIN" title="Good questions. Clear answers."/><FAQList settings={settings} preview/></section>
-  <section className="portal-section shell"><div className="portal-card"><h2>A little help. A clear next step.</h2><p>The school helpdesk can assist with registration, payment review and application access.</p><Link className="btn gold" to="/help">Contact the helpdesk <ArrowUpRight size={18}/></Link></div></section>
-  <section className="shree-final-cta"><div className="shell"><div><span className="shree-eyebrow">{eventBrand(settings).eventName}</span><h2>Ready to discover<br/>what you can do?</h2><p>Your curiosity. Your effort. Your next achievement.</p></div><Link className="shree-button" to="/register">Let’s get started <ArrowUpRight size={22}/></Link><GraduationCap className="shree-cta-art" aria-hidden="true"/></div></section>
- </main>;
+function Heading({ eyebrow, title, copy }) {
+  return (
+    <div className="shree-section-heading">
+      <span className="shree-eyebrow">{eyebrow}</span>
+      <h2>{title}</h2>
+      {copy && <p>{copy}</p>}
+    </div>
+  );
+}
+export function Home({ settings, loading, settingsError, reloadSettings }) {
+  return (
+    <main className="shree-home">
+      <OriginalHero settings={settings} />
+      <div className="shree-announcement">
+        <div className="shell">
+          <span>
+            <CalendarDays />
+            Exam date <b>{formatPublicDate(settings.examDate)}</b>
+          </span>
+          <span>
+            <IndianRupee />
+            Registration fee <b>₹{settings.fee}</b>
+          </span>
+          <span>
+            <ShieldCheck />
+            <b>
+              {settings.registrationOpen
+                ? "Registrations open"
+                : "Registration updates coming soon"}
+            </b>
+          </span>
+        </div>
+      </div>
+      <CandidateServices />
+      <section className="portal-section shell">
+        <PortalHeading
+          title={`${eventBrand(settings).eventName} at a glance`}
+        />
+        <PublicDataNotice
+          loading={loading}
+          error={settingsError}
+          retry={reloadSettings}
+        />
+        <AtAGlance settings={settings} />
+      </section>
+      <section className="shree-about shell" id="about">
+        <div>
+          <span className="shree-eyebrow">MORE THAN AN EXAM</span>
+          <h2>
+            A little curiosity.
+            <br />A <em>lot of potential.</em>
+          </h2>
+        </div>
+        <div>
+          <p>
+            At Shree Ram Public School, we believe learning begins with asking
+            questions. {eventBrand(settings).eventName} gives students a chance
+            to explore their strengths, build academic confidence and enjoy a
+            healthy challenge.
+          </p>
+          <a className="shree-text-link" href="#how-to-register">
+            Find your starting point <ArrowUpRight size={18} />
+          </a>
+        </div>
+      </section>
+      <section className="shree-subjects shell">
+        <Heading eyebrow="WHY PARTICIPATE" title="Curious minds belong here." />
+        <SubjectCarousel settings={settings} benefits={subjects} />
+      </section>
+      <section className="shree-awards" id="prizes">
+        <div className="shell">
+          <Heading
+            eyebrow="EFFORT DESERVES RECOGNITION"
+            title={<>Dream big. Give it your best.</>}
+            copy="Explore the prize categories in our school’s Olympiad programme."
+          />
+          <div className="shree-discovery-art">
+            <img
+              src="/images/shree-2027/awards-achievement-students.png"
+              alt="Students celebrating with a trophy and certificate"
+              width="1448"
+              height="1086"
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
+          <div className="shree-award-grid">
+            {prizeCategories.map(
+              ({ eligibleClasses: group, name: title, image }, i) => (
+                <article key={title}>
+                  <div className="shree-award-visual">
+                    <span>0{i + 1}</span>
+                    <img
+                      src={image}
+                      alt={`${title === "Watch" ? "Smartwatch" : title} prize illustration`}
+                      width="1024"
+                      height="1024"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </div>
+                  <span className="shree-award-group">{group}</span>
+                  <h3>{title}</h3>
+                </article>
+              ),
+            )}
+          </div>
+          <p className="shree-fineprint">
+            Prize categories are based on the school’s promotional programme.
+            Final eligibility and award rules are confirmed by the school.
+          </p>
+        </div>
+      </section>
+      <ScholarshipShowcase settings={settings} />
+      <section
+        className="portal-section shell shree-updates shree-dates"
+        aria-label="Important Dates"
+      >
+        <div className="update-heading-row">
+          <PortalHeading
+            eyebrow="PLAN YOUR NEXT STEP"
+            title="Important Dates"
+            copy="Keep track of each milestone, from registration to recognition."
+          />
+          <SectionArtwork type="dates" />
+        </div>
+        <ImportantDatesTimeline settings={settings} />
+        <Link className="portal-text-link" to="/important-dates">
+          View examination schedule →
+        </Link>
+      </section>
+      <section className="portal-section shell">
+        <PortalHeading
+          eyebrow="PREPARE WITH CONFIDENCE"
+          title="Your class. Your preparation."
+        />
+        <div className="portal-split">
+          <div>
+            <h3>Exam pattern</h3>
+            <ExamPatternSummary settings={settings} />
+            <Link className="portal-text-link" to="/exam-pattern">
+              Full exam pattern →
+            </Link>
+          </div>
+          <EligibilityChecker settings={settings} />
+        </div>
+      </section>
+      <RegistrationJourney settings={settings} />
+      <section
+        className="portal-section shell shree-updates shree-journey"
+        aria-label="Your examination journey"
+      >
+        <PortalHeading
+          eyebrow="FROM APPLICATION TO RECOGNITION"
+          title={`Your ${eventBrand(settings).eventShortName} Journey`}
+          copy="A clear path through every stage of your Olympiad experience."
+        />
+        <JourneyMap />
+        <CandidateJourney settings={settings} />
+      </section>
+      <section className="shree-exam shell">
+        <div className="shree-exam-heading">
+          <span className="shree-eyebrow">MARK YOUR CALENDAR</span>
+          <h2>
+            Your next challenge
+            <br />
+            starts here.
+          </h2>
+          <p>
+            Keep your application reference safe. After payment approval, your
+            admit card will include your exam details.
+          </p>
+          <Link className="shree-text-link" to="/status">
+            Check status & download admit card <ArrowUpRight size={18} />
+          </Link>
+        </div>
+        <div className="shree-exam-info">
+          {[
+            [CalendarDays, "EXAM DATE", formatPublicDate(settings.examDate)],
+            [MapPin, "EXAM VENUE", settings.venue || "To be announced"],
+            [IndianRupee, "REGISTRATION FEE", `₹${settings.fee}`],
+            [Phone, "NEED A HAND?", settings.contactPhone],
+          ].map(([Icon, label, value]) => (
+            <div key={label}>
+              <Icon />
+              <span>
+                <small>{label}</small>
+                <strong>{value}</strong>
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section
+        className="portal-section shell shree-updates shree-notices"
+        aria-label="Latest Notices"
+      >
+        <div className="update-heading-row">
+          <PortalHeading
+            eyebrow="STAY INFORMED"
+            title="Latest Notices"
+            copy="Official updates and useful information from the school."
+          />
+          <SectionArtwork type="notices" />
+        </div>
+        <Notices settings={settings} preview />
+        <div className="portal-actions">
+          <Link className="portal-text-link" to="/notices">
+            All notices →
+          </Link>
+          <Link className="portal-text-link" to="/exam-guidelines">
+            Exam-day instructions →
+          </Link>
+          <Link className="portal-text-link" to="/information-bulletin">
+            Information bulletin →
+          </Link>
+        </div>
+      </section>
+      <section className="portal-section shell">
+        <PortalHeading
+          eyebrow="A LITTLE CLARITY BEFORE YOU BEGIN"
+          title="Good questions. Clear answers."
+        />
+        <FAQList settings={settings} preview />
+      </section>
+      <section className="portal-section shell">
+        <div className="portal-card">
+          <h2>A little help. A clear next step.</h2>
+          <p>
+            The school helpdesk can assist with registration, payment review and
+            application access.
+          </p>
+          <Link className="btn gold" to="/help">
+            Contact the helpdesk <ArrowUpRight size={18} />
+          </Link>
+        </div>
+      </section>
+      <section className="shree-final-cta">
+        <div className="shell">
+          <div>
+            <span className="shree-eyebrow">
+              {eventBrand(settings).eventName}
+            </span>
+            <h2>
+              Ready to discover
+              <br />
+              what you can do?
+            </h2>
+            <p>Your curiosity. Your effort. Your next achievement.</p>
+          </div>
+          <Link className="shree-button" to="/register">
+            Let’s get started <ArrowUpRight size={22} />
+          </Link>
+          <GraduationCap className="shree-cta-art" aria-hidden="true" />
+        </div>
+      </section>
+    </main>
+  );
 }

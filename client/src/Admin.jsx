@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
 import { api, downloadBlob, img } from "./api.js";
-import {PortalEditor} from "./PortalEditor.jsx";
+import { PortalEditor } from "./PortalEditor.jsx";
 const sections = [
   ["dashboard", "Overview", LayoutDashboard],
   ["registrations", "Registrations", Users],
@@ -28,6 +28,115 @@ const sections = [
   ["settings", "Event settings", Settings],
   ["checkin", "Exam check-in", ScanLine],
 ];
+function CheckInResultDialog({ result, onClose }) {
+  const dialogRef = useRef(null);
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const registration = result?.registration;
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (result && dialog && !dialog.open) dialog.showModal();
+    else if (!result && dialog?.open) dialog.close();
+  }, [result]);
+
+  useEffect(() => {
+    if (!result || photoLoading) return;
+    const timeout = window.setTimeout(() => dialogRef.current?.close(), 2000);
+    return () => window.clearTimeout(timeout);
+  }, [result, photoLoading]);
+
+  useEffect(() => {
+    if (!registration?.id) return;
+    let active = true;
+    let url;
+    setPhotoUrl("");
+    setPhotoLoading(true);
+    api
+      .get(`/admin/check-in/${registration.id}/photo`, {
+        responseType: "blob",
+      })
+      .then(({ data }) => {
+        url = URL.createObjectURL(data);
+        if (active) setPhotoUrl(url);
+        else URL.revokeObjectURL(url);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setPhotoLoading(false);
+      });
+    return () => {
+      active = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [registration?.id]);
+
+  return (
+    <dialog
+      ref={dialogRef}
+      className={`checkin-result-dialog ${result?.alreadyCheckedIn ? "is-duplicate" : "is-present"}`}
+      aria-labelledby="checkin-result-title"
+      onClose={onClose}
+    >
+      {registration && (
+        <div
+          className={`checkin-result-content ${result.alreadyCheckedIn ? "is-duplicate" : "is-present"}`}
+        >
+          <button
+            type="button"
+            className="checkin-result-close"
+            aria-label="Close check-in result"
+            onClick={() => dialogRef.current?.close()}
+            autoFocus
+          >
+            <X size={18} />
+          </button>
+          <div className="checkin-result-photo">
+            {photoUrl ? (
+              <img
+                src={photoUrl}
+                alt={`${registration.studentName} student photo`}
+              />
+            ) : (
+              <Users size={38} aria-hidden="true" />
+            )}
+            {photoLoading && <span>Loading photo</span>}
+          </div>
+          <span className="checkin-result-status">
+            {result.alreadyCheckedIn ? "ALREADY SCANNED" : "PRESENT"}
+            {result.alreadyCheckedIn ? (
+              <X size={17} aria-hidden="true" />
+            ) : (
+              <Check size={17} aria-hidden="true" />
+            )}
+          </span>
+          <h2 id="checkin-result-title">
+            {result.alreadyCheckedIn
+              ? "Attendance already recorded"
+              : "Attendance confirmed"}
+          </h2>
+          <p className="checkin-result-name">{registration.studentName}</p>
+          <div className="checkin-result-details">
+            <span>Class {registration.studentClass}</span>
+            <strong>{registration.registrationNumber}</strong>
+          </div>
+          <p className="checkin-result-message">
+            {result.alreadyCheckedIn
+              ? "This admit card was scanned earlier. No duplicate check-in was added."
+              : "Student has been marked present."}
+          </p>
+          <button
+            type="button"
+            className="btn primary checkin-result-done"
+            onClick={() => dialogRef.current?.close()}
+          >
+            Done
+          </button>
+        </div>
+      )}
+    </dialog>
+  );
+}
 export function Admin() {
   const [me, setMe] = useState(null),
     [email, setEmail] = useState(""),
@@ -57,14 +166,20 @@ export function Admin() {
   }
   const load = async () => {
     const version = ++loadVersion.current;
-    if (active === 'registrations' || active === 'payments') {
-      setRecordsRefresh(value => value + 1);
+    if (active === "registrations" || active === "payments") {
+      setRecordsRefresh((value) => value + 1);
       return;
     }
-    if (active === 'checkin') { await loadAttendance(); return; }
-    const { data } = await api.get(active === 'settings' ? '/admin/settings' : '/admin/dashboard');
+    if (active === "checkin") {
+      await loadAttendance();
+      return;
+    }
+    const { data } = await api.get(
+      active === "settings" ? "/admin/settings" : "/admin/dashboard",
+    );
     if (version !== loadVersion.current) return;
-    if (active === 'settings') setSettings(data); else setStats(data);
+    if (active === "settings") setSettings(data);
+    else setStats(data);
   };
   useEffect(() => {
     api
@@ -77,7 +192,9 @@ export function Admin() {
   useEffect(() => {
     if (me) load().catch((e) => notify.error(e.message));
   }, [me, active]);
-  const loadAttendance = async () => { setRecordsRefresh(value => value + 1); };
+  const loadAttendance = async () => {
+    setRecordsRefresh((value) => value + 1);
+  };
   const canPay =
       !!me && ["SUPER_ADMIN", "ADMIN", "PAYMENT_VERIFIER"].includes(me.role),
     canSet = !!me && ["SUPER_ADMIN", "ADMIN"].includes(me.role),
@@ -88,7 +205,7 @@ export function Admin() {
       const activeScanner = scannerRef.current;
       scannerRef.current = null;
       setScanner(null);
-      setScannerState('idle');
+      setScannerState("idle");
       if (activeScanner) {
         activeScanner
           .stop()
@@ -148,8 +265,10 @@ export function Admin() {
   const checkIn = (value = token) =>
     run(async () => {
       const r = await api.post("/admin/check-in", { token: value.trim() });
-      setScanResult(r.data.registration);
-      notify.success("Student checked in.");
+      setScanResult({
+        registration: r.data.registration,
+        alreadyCheckedIn: r.data.alreadyCheckedIn,
+      });
       setToken("");
       await loadAttendance();
     });
@@ -167,30 +286,34 @@ export function Admin() {
           if (scanLock.current || scannerRef.current !== camera) return;
           scanLock.current = true;
           try {
-          const match = decodedText.match(/\/api\/verify\/([^/?#]+)/);
-          const scannedToken = match
-            ? decodeURIComponent(match[1])
-            : decodedText.trim();
-          if (scannedToken.length < 20) {
-            notify.error("This QR code is not a Shree Olympiad admit card.");
-            return;
+            const match = decodedText.match(/\/api\/verify\/([^/?#]+)/);
+            const scannedToken = match
+              ? decodeURIComponent(match[1])
+              : decodedText.trim();
+            if (scannedToken.length < 20) {
+              notify.error("This QR code is not a Shree Olympiad admit card.");
+              return;
+            }
+            await camera.stop().catch(() => {});
+            try {
+              camera.clear();
+            } catch {}
+            scannerRef.current = null;
+            setScanner(null);
+            setScannerState("idle");
+            setToken(scannedToken);
+            await checkIn(scannedToken);
+          } finally {
+            scanLock.current = false;
           }
-          await camera.stop().catch(() => {});
-          try {
-            camera.clear();
-          } catch {}
-          scannerRef.current = null;
-          setScanner(null);
-          setScannerState("idle");
-          setToken(scannedToken);
-          await checkIn(scannedToken);
-          } finally { scanLock.current = false; }
         },
         () => {},
       );
       if (scannerRef.current !== camera) {
         await camera.stop().catch(() => {});
-        try { camera.clear(); } catch {}
+        try {
+          camera.clear();
+        } catch {}
         return;
       }
       setScannerState("running");
@@ -286,7 +409,7 @@ export function Admin() {
         <Link className="admin-brand" to="/">
           <img src={img("school-logo.png")} />
           <strong>
-            SHREE 2026
+            SHREE 2027
             <br />
             OLYMPIAD
           </strong>
@@ -368,15 +491,24 @@ export function Admin() {
             </div>
           </>
         )}
-        {['registrations', 'payments'].includes(active) && (
-          <AdminRecords key={active} kind={active} refreshKey={recordsRefresh}
-            canPay={canPay} canExam={canExam} onUnauthorized={() => setMe(null)}
-            onPdf={pdf} />
+        {["registrations", "payments"].includes(active) && (
+          <AdminRecords
+            key={active}
+            kind={active}
+            refreshKey={recordsRefresh}
+            canPay={canPay}
+            canExam={canExam}
+            onUnauthorized={() => setMe(null)}
+            onPdf={pdf}
+          />
         )}
         {active === "settings" && canSet && settings && (
           <div className="admin-panel settings-panel">
             <h2>Event configuration</h2>
-            <PortalEditor settings={settings} onSaved={data=>setSettings(prev=>({...prev,...data}))}/>
+            <PortalEditor
+              settings={settings}
+              onSaved={(data) => setSettings((prev) => ({ ...prev, ...data }))}
+            />
             <p>
               Registrations start closed. Configure real payment and OTP
               credentials before enabling registration.
@@ -492,36 +624,34 @@ export function Admin() {
                         : "Start camera"}
                   </button>
                   {scanner && (
-                    <button className="btn light scanner-stop" onClick={stopScanner}>
+                    <button
+                      className="btn light scanner-stop"
+                      onClick={stopScanner}
+                    >
                       Stop camera
                     </button>
                   )}
                   <label className="btn light scan-image-button">
                     Scan image
-                    <input type="file" accept="image/*" onChange={scanImage} disabled={busy || scannerState !== "idle"} aria-label="Scan admit card image" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={scanImage}
+                      disabled={busy || scannerState !== "idle"}
+                      aria-label="Scan admit card image"
+                    />
                   </label>
                 </div>
                 <p className="scanner-help">
                   Allow camera access when your browser asks. Point the camera
                   at the QR code printed on the admit card.
                 </p>
-                {scanResult && (
-                  <div className="receipt-summary">
-                    <div>
-                      <span>Student</span>
-                      <strong>{scanResult.studentName}</strong>
-                    </div>
-                    <div>
-                      <span>Registration</span>
-                      <strong>{scanResult.registrationNumber}</strong>
-                    </div>
-                    <div>
-                      <span>Check-in</span>
-                      <strong>Recorded</strong>
-                    </div>
-                  </div>
-                )}
-                <AttendanceRecords refreshKey={recordsRefresh} canEdit={canSet} onUnauthorized={() => setMe(null)} onChanged={() => setScanResult(null)} />
+                <AttendanceRecords
+                  refreshKey={recordsRefresh}
+                  canEdit={canSet}
+                  onUnauthorized={() => setMe(null)}
+                  onChanged={() => setScanResult(null)}
+                />
               </>
             ) : (
               <p>Exam Coordinator role required.</p>
@@ -529,6 +659,10 @@ export function Admin() {
           </div>
         )}
       </section>
+      <CheckInResultDialog
+        result={scanResult}
+        onClose={() => setScanResult(null)}
+      />
     </main>
   );
 }
