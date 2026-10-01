@@ -26,7 +26,7 @@ const fs=require('node:fs');
  assert.equal(await page.getByRole('columnheader',{name:'Room / Seat'}).count(),0);
  const center=await page.locator('#admin-qr-reader').boundingBox(),panel=await page.locator('.exam-checkin-panel').boundingBox();assert.ok(Math.abs(center.x+center.width/2-panel.x-panel.width/2)<3);
  await page.getByLabel('Next attendance page').click();await page.getByText('6–7 of 7').waitFor();await page.getByRole('button',{name:'First',exact:true}).click();
- await page.locator('.attendance-filters').getByLabel('Class',{exact:true}).selectOption('8');await page.getByText('1–3 of 3').waitFor();await page.getByRole('button',{name:'Reset filters'}).click();
+ await page.locator('.attendance-filters').getByLabel('Attendance class',{exact:true}).selectOption('8');await page.getByText('1–3 of 3').waitFor();await page.getByRole('button',{name:'Reset filters'}).click();
  await page.getByRole('button',{name:'Edit',exact:true}).first().click();await page.getByLabel('Reason for correction').fill('Corrected from paper attendance');await page.getByRole('button',{name:'Save attendance'}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
  await page.getByRole('button',{name:'Delete',exact:true}).first().click();await page.getByLabel('Reason for correction').fill('Mistaken initial check-in');await page.getByRole('button',{name:'Delete attendance',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});assert.equal(changes,2);
  for(const name of ['Excel','PDF']){const download=page.waitForEvent('download');await page.getByRole('button',{name,exact:true}).click();await download;}assert.equal(exports,2);
