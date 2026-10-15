@@ -314,7 +314,16 @@ test("verification cannot authorize another draft or purpose", async () => {
   await assert.rejects(service.verifyOtp(b, "register", code));
   await assert.rejects(service.verifyOtp(a, "lookup", code));
   await Challenge.updateMany({}, { $set: { resendAvailableAt: new Date(0) } });
-  await assert.rejects(service.sendOtp(b, "register"), /another application/);
+  // Resending OTP for another draft/purpose supersedes pending challenge without false 409 conflict
+  await service.sendOtp(b, "register");
+  await assert.rejects(service.verifyOtp(a, "register", code));
+});
+test("pending register challenge does not block subsequent lookup OTP on same email", async () => {
+  const s = await draft();
+  await service.sendOtp(s, "register");
+  await Challenge.updateMany({}, { $set: { resendAvailableAt: new Date(0) } });
+  const lookupResult = await service.sendOtp(s, "lookup");
+  assert.ok(lookupResult.expiresAt);
 });
 test("changed email invalidates previous pending challenge", async () => {
   const s = await draft();

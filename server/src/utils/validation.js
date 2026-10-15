@@ -34,7 +34,7 @@ const place = cleaned().refine(
   (value) => location.test(value) && hasLetters(value),
   "Enter a place name using letters, spaces, dots, apostrophes or hyphens.",
 );
-export const startSchema = z
+export const startObjectSchema = z
   .object({
     studentName: name,
     dob: z
@@ -101,20 +101,23 @@ export const startSchema = z
       ),
     consent: z.literal(true),
   })
-  .strict()
-  .superRefine((data, ctx) => {
-    if (
-      data.studentClass === "11" &&
-      (!data.course || !["PCM", "PCB", "ARTS", "COMMERCE"].includes(data.course))
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["course"],
-        message:
-          "Please select a stream/course (PCM, PCB, ARTS, COMMERCE) for Class 11.",
-      });
-    }
-  });
+  .strict();
+
+export const emailSchema = startObjectSchema.shape.email;
+
+export const startSchema = startObjectSchema.superRefine((data, ctx) => {
+  if (
+    data.studentClass === "11" &&
+    (!data.course || !["PCM", "PCB", "ARTS", "COMMERCE"].includes(data.course))
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["course"],
+      message:
+        "Please select a stream/course (PCM, PCB, ARTS, COMMERCE) for Class 11.",
+    });
+  }
+});
 export const otpSchema = z.object({ otp: z.string().regex(/^\d{6}$/) });
 export const manualSchema = z.object({
   utr: z

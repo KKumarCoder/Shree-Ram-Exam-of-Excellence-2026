@@ -16,26 +16,31 @@ export function createOtpService(provider = emailProvider) {
     const recipient = normalizeEmail(registration.email);
     return withOtpLock(`email:${recipient}`, async () => {
       const fresh = await Registration.findById(registration._id);
-      assertDraft(fresh);
+      if (purpose === 'register') assertDraft(fresh);
       if (fresh.email !== registration.email) throw otpError('Email changed. Reload and retry.', 409);
       if (purpose === 'register' && fresh.status !== 'DRAFT') throw otpError('Email already verified.', 409);
       const prior = await Challenge.findOne({ recipient }).sort({ createdAt: -1 });
       if (prior?.resendAvailableAt > new Date()) throw otpError(`Wait ${Math.ceil((prior.resendAvailableAt - Date.now()) / 1000)} seconds before requesting another code.`, 429);
-      if (prior?.expiresAt > new Date() && prior.verificationStatus === 'pending' &&
-          (String(prior.registrationId) !== String(fresh._id) || prior.purpose !== purpose))
-        throw otpError('This email has an active verification in another application. Complete it or wait for its session to expire.', 409);
       await limit('send-global', setting('OTP_GLOBAL_HOURLY_LIMIT', 100), 3600);
       await limit(`send-email:${recipient}`, setting('OTP_EMAIL_HOURLY_LIMIT', 5), 3600);
       await limit(`send-draft:${fresh._id}`, setting('OTP_DRAFT_HOURLY_LIMIT', 5), 3600);
       const cooldown = setting('OTP_RESEND_COOLDOWN_SECONDS', 60, 30, 300);
       const now = new Date();
       // Persist cooldown even on an uncertain provider timeout: retries also cost money.
-      await Challenge.updateMany({ recipient, registrationId: fresh._id, verificationStatus: 'pending' }, { $set: { verificationStatus: 'superseded' } });
+      await Challenge.updateMany({ recipient, verificationStatus: 'pending' }, { $set: { verificationStatus: 'superseded' } });
+      const isSameChallenge =
+        prior?.verificationStatus === 'pending' &&
+        String(prior?.registrationId) === String(fresh._id) &&
+        prior?.purpose === purpose &&
+        prior.expiresAt > now;
+      const ttlSeconds = setting('OTP_CHALLENGE_TTL_SECONDS', 300);
+      const expiresAt = isSameChallenge ? prior.expiresAt : new Date(+now + ttlSeconds * 1000);
+      const attempts = isSameChallenge ? prior.attempts : 0;
       const challenge = await Challenge.create({
         recipient, registrationId: fresh._id, purpose, provider: 'smtp', devMode: otpDevMode(),
         lastSentAt: now, resendAvailableAt: new Date(+now + cooldown * 1000),
-        expiresAt: prior?.verificationStatus === 'pending' && prior.expiresAt > now ? prior.expiresAt : new Date(+now + setting('OTP_CHALLENGE_TTL_SECONDS', 300) * 1000),
-        attempts: prior?.expiresAt > now ? prior.attempts : 0,
+        expiresAt,
+        attempts,
       });
       const code = generateOtp();
       const codeHash = hashOtp(challenge, code);
@@ -54,7 +59,7 @@ export function createOtpService(provider = emailProvider) {
     const recipient = normalizeEmail(registration.email);
     return withOtpLock(`email:${recipient}`, async () => {
       const fresh = await Registration.findById(registration._id);
-      assertDraft(fresh);
+      if (purpose === 'register') assertDraft(fresh);
       if (fresh.email !== registration.email) throw otpError('Email changed. Request a new code.', 409);
       if (purpose === 'register' && fresh.status !== 'DRAFT') throw otpError('Verification already completed.', 409);
       const challenge = await Challenge.findOneAndUpdate({ registrationId: fresh._id, purpose, recipient,

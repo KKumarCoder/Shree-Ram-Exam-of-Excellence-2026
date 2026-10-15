@@ -11,6 +11,7 @@ import {
   phone,
   parse,
   startSchema,
+  emailSchema,
   otpSchema,
   manualSchema,
   lookupSchema,
@@ -394,7 +395,7 @@ r.patch("/registrations/mobile", authenticate("draft"), async (req, res) => {
   });
 });
 r.patch("/registrations/email", authenticate("draft"), async (req, res) => {
-  const email = parse(startSchema.shape.email, req.body?.email);
+  const email = parse(emailSchema, req.body?.email);
   const s = await getOwn(req);
   if (!["DRAFT", "OTP_VERIFIED"].includes(s.status))
     return res
