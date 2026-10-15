@@ -1,33 +1,45 @@
-import { AttendanceRecords } from "./AttendanceRecords.jsx";
-import { AdminRecords } from "./AdminRecords.jsx";
-import { notify } from "./notifications.js";
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  LayoutDashboard,
-  Users,
-  Wallet,
-  ClipboardCheck,
-  Settings,
-  LogOut,
-  Download,
-  Search,
+  ScanLine,
+  RefreshCcw,
+  Loader2,
+  Lock,
+  Mail,
   Check,
   X,
-  RefreshCcw,
-  ShieldCheck,
-  ScanLine,
+  Users,
+  AlertTriangle,
 } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
 import { api, downloadBlob, img } from "./api.js";
+import { notify } from "./notifications.js";
+import { AdminLayout } from "./admin/AdminLayout.jsx";
+import { DashboardOverview } from "./admin/DashboardOverview.jsx";
+import { ReminderCenterView } from "./admin/ReminderCenterView.jsx";
+import { AdmitCardView } from "./admin/AdmitCardView.jsx";
+import { ReportsView } from "./admin/ReportsView.jsx";
+import { DuplicateAuditView } from "./admin/DuplicateAuditView.jsx";
+import { AdminRecords } from "./AdminRecords.jsx";
+import { PaymentRecoveryDashboard } from "./PaymentRecoveryDashboard.jsx";
 import { PortalEditor } from "./PortalEditor.jsx";
-const sections = [
-  ["dashboard", "Overview", LayoutDashboard],
-  ["registrations", "Registrations", Users],
-  ["payments", "Payment review", Wallet],
-  ["settings", "Event settings", Settings],
-  ["checkin", "Exam check-in", ScanLine],
-];
+import { AttendanceRecords } from "./AttendanceRecords.jsx";
+import { StudentDetailModal } from "./StudentDetailModal.jsx";
+import "./admin/admin-theme.css";
+
+const sectionTitles = {
+  dashboard: "Overview",
+  registrations: "Manage Registrations",
+  payments: "Payment Review",
+  recovery: "Incomplete Applications",
+  reminders: "Email Reminder Center",
+  admit_cards: "Admit Card Management",
+  checkin: "Exam Check-in",
+  settings: "Event Settings",
+  duplicates: "Suspected Duplicates",
+  reports: "Reports & Exports",
+};
+
 function CheckInResultDialog({ result, onClose }) {
   const dialogRef = useRef(null);
   const [photoUrl, setPhotoUrl] = useState("");
@@ -137,50 +149,67 @@ function CheckInResultDialog({ result, onClose }) {
     </dialog>
   );
 }
+
 export function Admin() {
-  const [me, setMe] = useState(null),
-    [email, setEmail] = useState(""),
-    [password, setPassword] = useState(""),
-    [active, setActive] = useState("dashboard"),
-    [stats, setStats] = useState(null),
-    [settings, setSettings] = useState(null),
-    [token, setToken] = useState(""),
-    [scanResult, setScanResult] = useState(null),
-    [scanner, setScanner] = useState(null),
-    scannerRef = useRef(null),
-    [scannerState, setScannerState] = useState("idle"),
-    [busy, setBusy] = useState(false);
+  const [me, setMe] = useState(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [active, setActive] = useState("dashboard");
+  const [stats, setStats] = useState(null);
+  const [settings, setSettings] = useState(null);
+  const [token, setToken] = useState("");
+  const [scanResult, setScanResult] = useState(null);
+  const [scanner, setScanner] = useState(null);
+  const scannerRef = useRef(null);
+  const [scannerState, setScannerState] = useState("idle");
+  const [busy, setBusy] = useState(false);
   const [recordsRefresh, setRecordsRefresh] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedStudentDetail, setSelectedStudentDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const scanLock = useRef(false);
   const loadVersion = useRef(0);
+
   async function run(fn) {
     setBusy(true);
     try {
       await fn();
     } catch (e) {
       notify.error(e.message);
-      if (e.status === 401) setMe(null);
     } finally {
       setBusy(false);
     }
   }
+
   const load = async () => {
     const version = ++loadVersion.current;
-    if (active === "registrations" || active === "payments") {
+    if (
+      active === "registrations" ||
+      active === "payments" ||
+      active === "duplicates" ||
+      active === "recovery" ||
+      active === "reminders" ||
+      active === "admit_cards" ||
+      active === "reports"
+    ) {
       setRecordsRefresh((value) => value + 1);
-      return;
     }
     if (active === "checkin") {
       await loadAttendance();
       return;
     }
-    const { data } = await api.get(
-      active === "settings" ? "/admin/settings" : "/admin/dashboard",
-    );
-    if (version !== loadVersion.current) return;
-    if (active === "settings") setSettings(data);
-    else setStats(data);
+    try {
+      const { data } = await api.get(
+        active === "settings" ? "/admin/settings" : "/admin/dashboard"
+      );
+      if (version !== loadVersion.current) return;
+      if (active === "settings") setSettings(data);
+      else setStats(data);
+    } catch (e) {
+      // safe fallback
+    }
   };
+
   useEffect(() => {
     api
       .get("/admin/me")
@@ -189,17 +218,21 @@ export function Admin() {
       })
       .catch(() => {});
   }, []);
+
   useEffect(() => {
     if (me) load().catch((e) => notify.error(e.message));
   }, [me, active]);
+
   const loadAttendance = async () => {
     setRecordsRefresh((value) => value + 1);
   };
+
   const canPay =
-      !!me && ["SUPER_ADMIN", "ADMIN", "PAYMENT_VERIFIER"].includes(me.role),
-    canSet = !!me && ["SUPER_ADMIN", "ADMIN"].includes(me.role),
-    canExam =
-      !!me && ["SUPER_ADMIN", "ADMIN", "EXAM_COORDINATOR"].includes(me.role);
+    !!me && ["SUPER_ADMIN", "ADMIN", "PAYMENT_VERIFIER"].includes(me.role);
+  const canSet = !!me && ["SUPER_ADMIN", "ADMIN"].includes(me.role);
+  const canExam =
+    !!me && ["SUPER_ADMIN", "ADMIN", "EXAM_COORDINATOR"].includes(me.role);
+
   useEffect(() => {
     return () => {
       const activeScanner = scannerRef.current;
@@ -218,6 +251,7 @@ export function Admin() {
       }
     };
   }, [active, me]);
+
   async function login(e) {
     e.preventDefault();
     await run(async () => {
@@ -226,6 +260,7 @@ export function Admin() {
       setPassword("");
     });
   }
+
   async function logout() {
     await run(async () => {
       await api.post("/admin/logout");
@@ -233,6 +268,7 @@ export function Admin() {
       setActive("dashboard");
     });
   }
+
   const pdf = (id) =>
     run(async () => {
       const r = await api.get(`/admin/admit-card/${id}`, {
@@ -240,6 +276,7 @@ export function Admin() {
       });
       downloadBlob(r.data, `admit-${id}.pdf`);
     });
+
   const saveSettings = () =>
     run(async () => {
       const payload = {
@@ -260,8 +297,9 @@ export function Admin() {
       };
       const r = await api.patch("/admin/settings", payload);
       setSettings(r.data);
-      notify.success("Event settings saved.");
+      notify.success("Event settings saved successfully.");
     });
+
   const checkIn = (value = token) =>
     run(async () => {
       const r = await api.post("/admin/check-in", { token: value.trim() });
@@ -272,6 +310,7 @@ export function Admin() {
       setToken("");
       await loadAttendance();
     });
+
   const startScanner = async () => {
     if (scannerRef.current || scannerState !== "idle") return;
     setScannerState("starting");
@@ -307,7 +346,7 @@ export function Admin() {
             scanLock.current = false;
           }
         },
-        () => {},
+        () => {}
       );
       if (scannerRef.current !== camera) {
         await camera.stop().catch(() => {});
@@ -325,10 +364,11 @@ export function Admin() {
       setScanner(null);
       setScannerState("idle");
       notify.error(
-        "Camera could not start. Allow camera access and use HTTPS or localhost.",
+        "Camera could not start. Allow camera access and use HTTPS or localhost."
       );
     }
   };
+
   const stopScanner = async () => {
     const activeScanner = scannerRef.current;
     scannerRef.current = null;
@@ -340,6 +380,7 @@ export function Admin() {
     setScanner(null);
     setScannerState("idle");
   };
+
   const scanImage = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -357,7 +398,7 @@ export function Admin() {
       await checkIn(scannedToken);
     } catch {
       notify.error(
-        "QR image could not be read. Use a clear, well-lit admit card image.",
+        "QR image could not be read. Use a clear, well-lit admit card image."
       );
     } finally {
       try {
@@ -366,166 +407,278 @@ export function Admin() {
       setScannerState("idle");
     }
   };
-  if (!me)
+
+  const viewStudentDetail = async (id) => {
+    setDetailLoading(true);
+    try {
+      const { data: detail } = await api.get(`/admin/registrations/${id}/history`);
+      setSelectedStudentDetail(detail);
+    } catch (err) {
+      notify.error(err.message || "Failed to load student history.");
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const handleGlobalSearch = (query) => {
+    if (query) {
+      setActive("registrations");
+    }
+  };
+
+  // 1. Soft 3D Admin Login Screen
+  if (!me) {
     return (
-      <main className="admin-login shell">
-        <div className="login-box">
-          <img src={img("school-logo.png")} alt="School logo" />
-          <span className="eyebrow">AUTHORIZED SCHOOL STAFF</span>
-          <h1>Admin Login</h1>
-          <p>Secure administration of Olympiad registrations and payments.</p>
-          <form onSubmit={login}>
-            <label>
-              <span>Email</span>
+      <main
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "var(--erp-app-bg)",
+          padding: "20px",
+          fontFamily: "inherit",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "460px",
+            width: "100%",
+            background: "var(--erp-surface-raised)",
+            borderRadius: "var(--erp-radius-card)",
+            padding: "40px 36px",
+            boxShadow: "var(--erp-shadow-card)",
+            border: "1px solid var(--erp-border-light)",
+            textAlign: "center",
+          }}
+        >
+          <img
+            src={img("school-logo.png")}
+            alt="Shree Ram Public School logo"
+            style={{
+              width: "72px",
+              height: "72px",
+              objectFit: "contain",
+              margin: "0 auto 16px",
+              filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.08))",
+            }}
+          />
+
+          <span className="erp-eyebrow" style={{ display: "block", marginBottom: "6px" }}>
+            AUTHORIZED SCHOOL ERP STAFF
+          </span>
+          <h1
+            style={{
+              fontSize: "1.9rem",
+              fontWeight: 800,
+              color: "var(--erp-navy)",
+              margin: "0 0 6px",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            Admin ERP Login
+          </h1>
+          <p
+            style={{
+              fontSize: "0.86rem",
+              color: "var(--erp-text-secondary)",
+              margin: "0 0 28px",
+            }}
+          >
+            Secure administration of Olympiad candidates, payments, and admit cards.
+          </p>
+
+          <form onSubmit={login} style={{ display: "flex", flexDirection: "column", gap: "16px", textAlign: "left" }}>
+            <label className="crud-form-field">
+              <span>Admin Email</span>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@school.example"
+                placeholder="admin@shree.local"
+                style={{
+                  background: "#FFFFFF",
+                  padding: "12px 14px",
+                  borderRadius: "var(--erp-radius-input)",
+                }}
               />
             </label>
-            <label>
+
+            <label className="crud-form-field">
               <span>Password</span>
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
+                placeholder="Enter admin password"
+                style={{
+                  background: "#FFFFFF",
+                  padding: "12px 14px",
+                  borderRadius: "var(--erp-radius-input)",
+                }}
               />
             </label>
-            <button disabled={busy} className="btn primary wide">
-              {busy ? "Signing in..." : "Sign in securely"}
+
+            <button
+              type="submit"
+              disabled={busy}
+              className="erp-btn-cta"
+              style={{
+                width: "100%",
+                padding: "14px",
+                justifyContent: "center",
+                marginTop: "10px",
+                fontSize: "0.94rem",
+              }}
+            >
+              {busy ? (
+                <>
+                  <Loader2 size={16} className="admin-spin" /> Signing in securely…
+                </>
+              ) : (
+                "Sign In to ERP Dashboard"
+              )}
             </button>
           </form>
-          <Link to="/">Back to website</Link>
+
+          <div style={{ marginTop: "24px" }}>
+            <Link
+              to="/"
+              style={{
+                fontSize: "0.82rem",
+                color: "var(--erp-sky-deep)",
+                fontWeight: 700,
+                textDecoration: "none",
+              }}
+            >
+              ← Back to Olympiad Website
+            </Link>
+          </div>
         </div>
       </main>
     );
+  }
+
+  // 2. Logged-in Enterprise Soft 3D ERP Interface
   return (
-    <main className="admin-shell">
-      <aside className="admin-sidebar">
-        <Link className="admin-brand" to="/">
-          <img src={img("school-logo.png")} />
-          <strong>
-            SHREE 2027
-            <br />
-            OLYMPIAD
-          </strong>
-        </Link>
-        <small>ADMINISTRATOR PORTAL</small>
-        {sections
-          .filter(([id]) => id !== "settings" || canSet)
-          .map(([id, label, Icon]) => (
-            <button
-              key={id}
-              className={active === id ? "selected" : ""}
-              onClick={() => setActive(id)}
-            >
-              <Icon size={18} />
-              {label}
-            </button>
-          ))}
-        <button className="logout" onClick={logout}>
-          <LogOut size={18} />
-          Log out
-        </button>
-      </aside>
-      <section className="admin-content">
-        <div className="admin-top">
-          <div>
-            <span className="eyebrow">SHREE RAM PUBLIC SCHOOL</span>
-            <h1>{sections.find(([id]) => id === active)?.[1]}</h1>
-            <p>
-              {me.email} · {me.role.replaceAll("_", " ")}
-            </p>
+    <AdminLayout
+      active={active}
+      onSelectSection={setActive}
+      activeTitle={sectionTitles[active] || "Workspace"}
+      canPay={canPay}
+      canExam={canExam}
+      canSet={canSet}
+      me={me}
+      onLogout={logout}
+      stats={stats}
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+      onSearchSubmit={handleGlobalSearch}
+    >
+      {/* SECTION 1: Overview */}
+      {active === "dashboard" && (
+        <DashboardOverview
+          stats={stats}
+          onRefresh={() => run(load)}
+          loading={busy}
+          onNavigate={setActive}
+          onViewStudent={viewStudentDetail}
+        />
+      )}
+
+      {/* SECTION 2: Incomplete Applications / Recovery */}
+      {active === "recovery" && (
+        <PaymentRecoveryDashboard
+          canPay={canPay}
+          refreshKey={recordsRefresh}
+        />
+      )}
+
+      {/* SECTION 3: Registrations & Payments Tables */}
+      {["registrations", "payments"].includes(active) && (
+        <AdminRecords
+          key={active}
+          kind={active}
+          refreshKey={recordsRefresh}
+          canPay={canPay}
+          canExam={canExam}
+          onUnauthorized={() => setMe(null)}
+          onPdf={pdf}
+        />
+      )}
+
+      {/* SECTION 4: Email Reminder Center */}
+      {active === "reminders" && (
+        <ReminderCenterView
+          canSet={canSet}
+          onNavigateToRecovery={() => setActive("recovery")}
+          refreshKey={recordsRefresh}
+        />
+      )}
+
+      {/* SECTION 5: Admit Card Management */}
+      {active === "admit_cards" && (
+        <AdmitCardView
+          canExam={canExam}
+          onPdfDownload={pdf}
+          stats={stats}
+        />
+      )}
+
+      {/* SECTION 6: Suspected Duplicates */}
+      {active === "duplicates" && (
+        <DuplicateAuditView
+          canAdmin={canSet}
+          refreshKey={recordsRefresh}
+        />
+      )}
+
+      {/* SECTION 7: Reports & Exports */}
+      {active === "reports" && <ReportsView stats={stats} />}
+
+      {/* SECTION 8: Event Settings */}
+      {active === "settings" && canSet && settings && (
+        <div className="erp-panel-card">
+          <div className="erp-panel-head" style={{ marginBottom: "20px" }}>
+            <div className="erp-panel-title-area">
+              <span className="erp-eyebrow">PORTAL & EXAMINATION RULES</span>
+              <h2 style={{ fontSize: "1.8rem", color: "var(--erp-navy)", margin: "4px 0" }}>
+                Event Configuration
+              </h2>
+              <p>Configure fee, venue, schedule, and public Olympiad syllabus/information.</p>
+            </div>
           </div>
-          <button
-            className="btn light"
-            onClick={() => run(load)}
-            disabled={busy}
-          >
-            <RefreshCcw size={16} /> Refresh
-          </button>
-        </div>
-        {active === "dashboard" && stats && (
-          <>
-            <div className="metrics">
-              {[
-                ["Total applications", stats.total, Users],
-                ["Confirmed", stats.confirmed, ClipboardCheck],
-                ["Pending applications", stats.pending, LayoutDashboard],
-                ["Manual reviews", stats.review, Wallet],
-                ["Verified revenue", `₹${stats.revenue}`, Wallet],
-              ].map(([label, num, Icon]) => (
-                <div className="metric" key={label}>
-                  <Icon />
-                  <span>{label}</span>
-                  <strong>{num}</strong>
-                </div>
-              ))}
-            </div>
-            <div className="dashboard-panel">
-              <div>
-                <h2>Class-wise confirmed registrations</h2>
-                {stats.classes.length ? (
-                  stats.classes.map((s) => (
-                    <div className="bar-row" key={s._id}>
-                      <span>Class {s._id}</span>
-                      <div>
-                        <i
-                          style={{
-                            width: `${Math.max(4, (s.count / stats.confirmed) * 100)}%`,
-                          }}
-                        />
-                      </div>
-                      <strong>{s.count}</strong>
-                    </div>
-                  ))
-                ) : (
-                  <p>Confirmed registration data will appear here.</p>
-                )}
-              </div>
-              <img src={img("admin.webp")} alt="Admin dashboard illustration" />
-            </div>
-          </>
-        )}
-        {["registrations", "payments"].includes(active) && (
-          <AdminRecords
-            key={active}
-            kind={active}
-            refreshKey={recordsRefresh}
-            canPay={canPay}
-            canExam={canExam}
-            onUnauthorized={() => setMe(null)}
-            onPdf={pdf}
+
+          <PortalEditor
+            settings={settings}
+            onSaved={(data) => setSettings((prev) => ({ ...prev, ...data }))}
           />
-        )}
-        {active === "settings" && canSet && settings && (
-          <div className="admin-panel settings-panel">
-            <h2>Event configuration</h2>
-            <PortalEditor
-              settings={settings}
-              onSaved={(data) => setSettings((prev) => ({ ...prev, ...data }))}
-            />
-            <p>
-              Registrations start closed. Configure real payment and OTP
-              credentials before enabling registration.
-            </p>
-            <div className="form-grid">
+
+          <div
+            style={{
+              marginTop: "26px",
+              paddingTop: "24px",
+              borderTop: "1px solid var(--erp-border)",
+            }}
+          >
+            <h3 style={{ fontSize: "1.2rem", color: "var(--erp-navy)", marginBottom: "16px" }}>
+              Logistics & Financial Settings
+            </h3>
+            <div className="crud-form-grid" style={{ marginBottom: "20px" }}>
               {[
-                ["fee", "Registration fee (₹)", "number"],
-                ["examDate", "Exam date / label"],
-                ["reportingTime", "Reporting time"],
-                ["examTime", "Exam time"],
+                ["fee", "Registration Fee (₹)", "number"],
+                ["examDate", "Exam Date / Label"],
+                ["reportingTime", "Reporting Time"],
+                ["examTime", "Exam Time"],
                 ["venue", "Venue"],
-                ["upiId", "Official school UPI ID"],
-                ["payeeName", "Official payee name"],
-                ["contactPhone", "School phone"],
-                ["contactEmail", "School email", "email"],
+                ["upiId", "Official School UPI ID"],
+                ["payeeName", "Official Payee Name"],
+                ["contactPhone", "School Phone"],
+                ["contactEmail", "School Email", "email"],
               ].map(([key, label, type = "text"]) => (
-                <label key={key}>
+                <label key={key} className="crud-form-field">
                   <span>{label}</span>
                   <input
                     type={type}
@@ -536,38 +689,53 @@ export function Admin() {
                   />
                 </label>
               ))}
-              <label>
-                <span>Payment method</span>
+
+              <label className="crud-form-field">
+                <span>Payment Mode</span>
                 <select
                   value={settings.paymentMode}
                   onChange={(e) =>
                     setSettings((s) => ({ ...s, paymentMode: e.target.value }))
                   }
                 >
-                  <option value="manual">
-                    Manual UPI & receipt verification
-                  </option>
-                  <option value="razorpay">Razorpay verified gateway</option>
+                  <option value="manual">Manual UPI & Receipt Verification</option>
+                  <option value="razorpay">Razorpay Verified Gateway</option>
                 </select>
               </label>
             </div>
-            {[
-              ["terms", "Terms and guardian consent"],
-              ["privacy", "Privacy statement"],
-              ["refund", "Refund policy"],
-            ].map(([key, label]) => (
-              <label key={key}>
-                <span>{label}</span>
-                <textarea
-                  rows={4}
-                  value={settings[key] || ""}
-                  onChange={(e) =>
-                    setSettings((s) => ({ ...s, [key]: e.target.value }))
-                  }
-                />
-              </label>
-            ))}
-            <label className="checkline">
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "20px" }}>
+              {[
+                ["terms", "Terms and Guardian Consent"],
+                ["privacy", "Privacy Statement"],
+                ["refund", "Refund Policy"],
+              ].map(([key, label]) => (
+                <label key={key} className="crud-form-field">
+                  <span>{label}</span>
+                  <textarea
+                    rows={3}
+                    value={settings[key] || ""}
+                    onChange={(e) =>
+                      setSettings((s) => ({ ...s, [key]: e.target.value }))
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                background: "var(--erp-surface-soft)",
+                padding: "14px 18px",
+                borderRadius: "var(--erp-radius-button)",
+                border: "1px solid var(--erp-border)",
+                marginBottom: "24px",
+                cursor: "pointer",
+              }}
+            >
               <input
                 type="checkbox"
                 checked={settings.registrationOpen}
@@ -577,92 +745,118 @@ export function Admin() {
                     registrationOpen: e.target.checked,
                   }))
                 }
+                style={{ width: "18px", height: "18px" }}
               />
-              <span>
-                <strong>Open registration to the public</strong> (only after all
-                required configuration is complete)
+              <span style={{ fontSize: "0.88rem", color: "var(--erp-navy)", fontWeight: 700 }}>
+                Open registration to the public (only after all required configuration is complete)
               </span>
             </label>
+
             <button
-              className="btn primary"
+              type="button"
+              className="erp-btn-cta"
               disabled={busy}
               onClick={saveSettings}
             >
-              Save settings
+              {busy ? "Saving Settings…" : "Save Event Settings"}
             </button>
           </div>
-        )}
-        {active === "checkin" && (
-          <div className="admin-panel exam-checkin-panel">
-            <div className="form-head">
-              <ScanLine />
-              <div>
-                <h2>Scan admit card QR</h2>
-                <p>
-                  Use the camera to scan a confirmed student&apos;s admit card.
-                  Attendance is marked automatically.
-                </p>
-              </div>
+        </div>
+      )}
+
+      {/* SECTION 9: Exam Check-in & Scanner */}
+      {active === "checkin" && (
+        <div className="erp-panel-card">
+          <div className="erp-panel-head" style={{ marginBottom: "20px" }}>
+            <div className="erp-panel-title-area">
+              <span className="erp-eyebrow">BARCODE & QR ATTENDANCE</span>
+              <h2 style={{ fontSize: "1.8rem", color: "var(--erp-navy)", margin: "4px 0" }}>
+                Scan Admit Card QR
+              </h2>
+              <p>
+                Use device camera or image upload to scan a confirmed candidate's admit card.
+                Attendance is marked automatically in real-time.
+              </p>
             </div>
-            {canExam ? (
-              <>
-                <div id="admin-qr-reader" className="qr-reader" />
-                <div className="scanner-actions">
-                  <button
-                    className="btn primary"
-                    onClick={startScanner}
-                    disabled={
-                      busy ||
-                      scannerState === "starting" ||
-                      scannerState === "running"
-                    }
-                  >
-                    {scannerState === "starting"
-                      ? "Starting camera..."
-                      : scannerState === "running"
-                        ? "Camera active"
-                        : "Start camera"}
-                  </button>
-                  {scanner && (
-                    <button
-                      className="btn light scanner-stop"
-                      onClick={stopScanner}
-                    >
-                      Stop camera
-                    </button>
-                  )}
-                  <label className="btn light scan-image-button">
-                    Scan image
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={scanImage}
-                      disabled={busy || scannerState !== "idle"}
-                      aria-label="Scan admit card image"
-                    />
-                  </label>
-                </div>
-                <p className="scanner-help">
-                  Allow camera access when your browser asks. Point the camera
-                  at the QR code printed on the admit card.
-                </p>
-                <AttendanceRecords
-                  refreshKey={recordsRefresh}
-                  canEdit={canSet}
-                  onUnauthorized={() => setMe(null)}
-                  onChanged={() => setScanResult(null)}
-                />
-              </>
-            ) : (
-              <p>Exam Coordinator role required.</p>
-            )}
           </div>
-        )}
-      </section>
+
+          {canExam ? (
+            <>
+              <div
+                id="admin-qr-reader"
+                style={{
+                  maxWidth: "420px",
+                  margin: "0 auto 20px",
+                  borderRadius: "var(--erp-radius-card-sm)",
+                  overflow: "hidden",
+                }}
+              />
+              <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginBottom: "20px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="erp-btn-cta"
+                  onClick={startScanner}
+                  disabled={
+                    busy ||
+                    scannerState === "starting" ||
+                    scannerState === "running"
+                  }
+                >
+                  <ScanLine size={16} />
+                  <span>
+                    {scannerState === "starting"
+                      ? "Starting camera…"
+                      : scannerState === "running"
+                        ? "Camera Active"
+                        : "Start Camera"}
+                  </span>
+                </button>
+                {scanner && (
+                  <button
+                    type="button"
+                    className="erp-btn-soft"
+                    onClick={stopScanner}
+                  >
+                    Stop Camera
+                  </button>
+                )}
+                <label className="erp-btn-soft" style={{ cursor: "pointer" }}>
+                  <span>Scan Image File</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={scanImage}
+                    disabled={busy || scannerState !== "idle"}
+                    style={{ display: "none" }}
+                  />
+                </label>
+              </div>
+
+              <AttendanceRecords
+                refreshKey={recordsRefresh}
+                canEdit={canSet}
+                onUnauthorized={() => setMe(null)}
+                onChanged={() => setScanResult(null)}
+              />
+            </>
+          ) : (
+            <p style={{ color: "var(--erp-text-muted)" }}>Exam Coordinator role required.</p>
+          )}
+        </div>
+      )}
+
+      {/* Modals & Dialogs */}
       <CheckInResultDialog
         result={scanResult}
         onClose={() => setScanResult(null)}
       />
-    </main>
+
+      <StudentDetailModal
+        selectedStudentDetail={selectedStudentDetail}
+        onClose={() => setSelectedStudentDetail(null)}
+        canPay={canPay}
+        onRefresh={() => setRecordsRefresh((r) => r + 1)}
+      />
+    </AdminLayout>
   );
 }

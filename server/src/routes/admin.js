@@ -7,7 +7,14 @@ import {
   recordFilters,
   registrationQuery,
   listPayments,
+  getAdminDashboardMetrics,
+  getDuplicateGroupsReport,
+  getStudentDetailWithHistory,
+  supersedeDuplicateRegistration,
+  registrationStatuses,
+  paymentStatuses,
 } from "../services/adminRecords.js";
+import { generateStudentIdentityHash } from "../utils/identity.js";
 import { exportAdminRecords } from "../services/adminExport.js";
 import { portalSchema } from "../utils/portalContent.js";
 import express from "express";
@@ -21,12 +28,19 @@ import {
   Payment,
   Settings,
   Audit,
+  ReminderLog,
+  Challenge,
 } from "../models/index.js";
 import { issueToken, authenticate, adminRoles } from "../middleware/auth.js";
 import { safeRegistration, publicSettings } from "./public.js";
 import { confirmRegistration } from "../services/confirm.js";
 import { admitPdf } from "../services/pdf.js";
 import { parse, safeCsv } from "../utils/validation.js";
+import {
+  sendManualReminder,
+  areRemindersEnabled,
+  getReminderIntervals,
+} from "../services/reminderScheduler.js";
 const r = express.Router();
 const writable = adminRoles("SUPER_ADMIN", "ADMIN");
 const verifier = adminRoles("SUPER_ADMIN", "ADMIN", "PAYMENT_VERIFIER");
@@ -66,31 +80,10 @@ r.get("/me", (req, res) =>
   res.json({ email: req.admin.email, role: req.admin.role }),
 );
 r.get("/dashboard", async (req, res) => {
-  const [total, confirmed, pending, review] = await Promise.all([
-    Registration.countDocuments(),
-    Registration.countDocuments({ status: "CONFIRMED" }),
-    Registration.countDocuments({
-      status: { $in: ["DRAFT", "OTP_VERIFIED", "PAYMENT_PENDING"] },
-    }),
-    Registration.countDocuments({ status: "PAYMENT_UNDER_VERIFICATION" }),
-  ]);
-  const revenue = await Payment.aggregate([
-    { $match: { status: "PAID" } },
-    { $group: { _id: null, total: { $sum: "$amount" } } },
-  ]);
-  const groups = await Registration.aggregate([
-    { $match: { status: "CONFIRMED" } },
-    { $group: { _id: "$studentClass", count: { $sum: 1 } } },
-    { $sort: { _id: 1 } },
-  ]);
-  res.json({
-    total,
-    confirmed,
-    pending,
-    review,
-    revenue: revenue[0]?.total || 0,
-    classes: groups,
-  });
+  res.json(await getAdminDashboardMetrics());
+});
+r.get("/duplicates", verifier, async (req, res) => {
+  res.json(await getDuplicateGroupsReport());
 });
 r.get("/registrations", async (req, res) => {
   const filters = recordFilters(req.query);
@@ -247,7 +240,23 @@ r.post("/payments/:id/reject", verifier, async (req, res) => {
       paymentId: p._id,
       status: "PAYMENT_UNDER_VERIFICATION",
     },
-    { $set: { status: "PAYMENT_REJECTED" } },
+    {
+      $set: {
+        status: "PAYMENT_REJECTED",
+        applicationStatus: "rejected",
+        paymentStatus: "rejected",
+      },
+      $push: {
+        statusHistory: {
+          from: "PAYMENT_UNDER_VERIFICATION",
+          to: "PAYMENT_REJECTED",
+          axis: "legacy",
+          changedAt: new Date(),
+          reason: note,
+          actor: String(req.admin._id),
+        },
+      },
+    },
   );
   if (existing.status !== "REJECTED")
     await Audit.create({
@@ -260,12 +269,464 @@ r.post("/payments/:id/reject", verifier, async (req, res) => {
     message: "Payment rejected; parent can resubmit a correct receipt.",
   });
 });
+
+// Admin Payment Update (UTR, Amount, Status, Note)
+r.patch("/payments/:id", verifier, async (req, res) => {
+  const p = await Payment.findById(req.params.id);
+  if (!p) return res.status(404).json({ error: "Payment not found." });
+
+  const body = req.body || {};
+
+  if (body.utr !== undefined) {
+    const rawUtr = String(body.utr).trim().toUpperCase();
+    if (!/^[A-Z0-9]{8,22}$/.test(rawUtr)) {
+      return res.status(400).json({ error: "Enter a valid 8-22 character alphanumeric UTR/Reference number." });
+    }
+    const conflict = await Payment.findOne({
+      _id: { $ne: p._id },
+      utr: rawUtr,
+      status: "PAID",
+    });
+    if (conflict) {
+      return res.status(409).json({ error: `UTR ${rawUtr} is already used in an approved transaction.` });
+    }
+    p.utr = rawUtr;
+  }
+
+  if (body.amount !== undefined) {
+    const amt = Number(body.amount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      return res.status(400).json({ error: "Amount must be a positive number." });
+    }
+    p.amount = amt;
+  }
+
+  if (body.reviewNote !== undefined) {
+    p.reviewNote = String(body.reviewNote).trim().slice(0, 500);
+  }
+
+  if (body.status !== undefined && body.status !== p.status) {
+    const newStatus = String(body.status).toUpperCase();
+    if (!paymentStatuses.includes(newStatus)) {
+      return res.status(400).json({ error: "Invalid payment status. Must be UNDER_REVIEW, PAID, or REJECTED." });
+    }
+    p.status = newStatus;
+    p.reviewedBy = req.admin._id;
+
+    const registration = await Registration.findById(p.registrationId);
+
+    if (newStatus === "PAID") {
+      p.verifiedAt = new Date();
+      await p.save();
+      if (registration) {
+        await confirmRegistration(registration._id, String(req.admin._id));
+      }
+    } else if (newStatus === "REJECTED") {
+      p.verifiedAt = null;
+      await p.save();
+      if (registration) {
+        registration.status = "PAYMENT_REJECTED";
+        registration.paymentStatus = "rejected";
+        registration.statusHistory.push({
+          from: registration.status,
+          to: "PAYMENT_REJECTED",
+          axis: "legacy",
+          changedAt: new Date(),
+          reason: body.reviewNote || "Payment marked rejected by administrator",
+          actor: req.admin?.email || "admin",
+        });
+        await registration.save();
+      }
+    } else if (newStatus === "UNDER_REVIEW") {
+      p.verifiedAt = null;
+      await p.save();
+      if (registration) {
+        registration.status = "PAYMENT_UNDER_VERIFICATION";
+        registration.paymentStatus = "under_review";
+        registration.applicationStatus = "submitted";
+        await registration.save();
+      }
+    }
+  } else {
+    await p.save();
+  }
+
+  await Audit.create({
+    actor: req.admin?.email || String(req.admin._id),
+    action: "PAYMENT_ADMIN_UPDATED",
+    details: {
+      paymentId: p._id,
+      registrationId: p.registrationId,
+      changes: body,
+    },
+  });
+
+  res.json({
+    message: "Payment updated successfully.",
+    payment: p,
+  });
+});
+
+// Admin Payment Delete
+r.delete("/payments/:id", verifier, async (req, res) => {
+  const p = await Payment.findById(req.params.id);
+  if (!p) return res.status(404).json({ error: "Payment not found." });
+
+  const registrationId = p.registrationId;
+  const utr = p.utr;
+
+  if (registrationId) {
+    const reg = await Registration.findById(registrationId);
+    if (reg && String(reg.paymentId) === String(p._id)) {
+      reg.paymentId = undefined;
+      if (reg.status !== "CONFIRMED") {
+        reg.status = "OTP_VERIFIED";
+        reg.paymentStatus = "not_submitted";
+        reg.applicationStatus = "awaiting_payment_proof";
+      }
+      reg.statusHistory.push({
+        from: reg.status,
+        to: reg.status,
+        axis: "legacy",
+        changedAt: new Date(),
+        reason: `Payment record ${utr || p._id} deleted by administrator`,
+        actor: req.admin?.email || "admin",
+      });
+      await reg.save();
+    }
+  }
+
+  await Payment.deleteOne({ _id: p._id });
+
+  await Audit.create({
+    actor: req.admin?.email || String(req.admin._id),
+    action: "PAYMENT_ADMIN_DELETED",
+    details: {
+      deletedPaymentId: p._id,
+      registrationId,
+      utr,
+      reason: req.body?.reason || "Deleted by administrator",
+    },
+  });
+
+  res.json({
+    message: `Payment record ${utr ? `(UTR: ${utr})` : ""} deleted successfully.`,
+    id: String(p._id),
+  });
+});
+
+r.get("/registrations/:id/history", async (req, res) => {
+  const detail = await getStudentDetailWithHistory(req.params.id);
+  if (!detail) return res.status(404).json({ error: "Registration not found." });
+  res.json(detail);
+});
+
+// Admin Registration Update
+r.patch("/registrations/:id", writable, async (req, res) => {
+  const reg = await Registration.findById(req.params.id);
+  if (!reg) return res.status(404).json({ error: "Registration not found." });
+
+  const body = req.body || {};
+  const before = {
+    studentName: reg.studentName,
+    studentClass: reg.studentClass,
+    status: reg.status,
+    guardianPhone: reg.guardianPhone,
+    email: reg.email,
+  };
+
+  if (body.studentName !== undefined) {
+    const name = String(body.studentName).trim().toUpperCase();
+    if (!name || name.length < 2)
+      return res.status(400).json({ error: "Student name must be at least 2 characters." });
+    reg.studentName = name;
+  }
+  if (body.studentClass !== undefined) {
+    const cls = String(body.studentClass).trim();
+    if (!/^(?:[2-9]|1[01])$/.test(cls))
+      return res.status(400).json({ error: "Class must be between 2 and 11." });
+    reg.studentClass = cls;
+    if (cls !== "11") {
+      reg.course = "";
+    }
+  }
+  if (body.course !== undefined) {
+    const crs = String(body.course).trim().toUpperCase();
+    if (reg.studentClass === "11") {
+      if (crs && !["PCM", "PCB", "ARTS", "COMMERCE"].includes(crs))
+        return res.status(400).json({ error: "Course must be PCM, PCB, ARTS, or COMMERCE." });
+      reg.course = crs;
+    } else {
+      reg.course = "";
+    }
+  }
+  if (body.dob !== undefined) {
+    const dob = String(body.dob).trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dob))
+      return res.status(400).json({ error: "Date of birth must be YYYY-MM-DD." });
+    reg.dob = dob;
+  }
+  if (body.guardianName !== undefined) {
+    reg.guardianName = String(body.guardianName).trim().toUpperCase();
+  }
+  if (body.guardianPhone !== undefined) {
+    const phone = String(body.guardianPhone).replace(/\D/g, "");
+    if (phone.length < 10)
+      return res.status(400).json({ error: "Valid 10-digit mobile number required." });
+    reg.guardianPhone = phone.slice(-10);
+  }
+  if (body.email !== undefined) {
+    const email = String(body.email).trim().toLowerCase();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      return res.status(400).json({ error: "Valid email address required." });
+    reg.email = email;
+  }
+  if (body.currentSchool !== undefined) {
+    reg.currentSchool = String(body.currentSchool).trim().toUpperCase();
+  }
+  if (body.address !== undefined) reg.address = String(body.address).trim().toUpperCase();
+  if (body.city !== undefined) reg.city = String(body.city).trim().toUpperCase();
+  if (body.district !== undefined) reg.district = String(body.district).trim().toUpperCase();
+  if (body.state !== undefined) reg.state = String(body.state).trim().toUpperCase();
+  if (body.pincode !== undefined) reg.pincode = String(body.pincode).trim();
+
+  // Registration number manual override / update
+  if (body.registrationNumber !== undefined) {
+    const regNum = String(body.registrationNumber).trim().toUpperCase();
+    if (regNum) {
+      const exists = await Registration.findOne({
+        _id: { $ne: reg._id },
+        registrationNumber: regNum,
+      });
+      if (exists) {
+        return res
+          .status(409)
+          .json({ error: `Registration number ${regNum} already assigned to another student.` });
+      }
+      reg.registrationNumber = regNum;
+    } else {
+      reg.registrationNumber = undefined;
+    }
+  }
+
+  // Status update
+  if (body.status !== undefined && body.status !== reg.status) {
+    const newStatus = String(body.status).toUpperCase();
+    if (!registrationStatuses.includes(newStatus)) {
+      return res.status(400).json({ error: "Invalid registration status." });
+    }
+    const oldStatus = reg.status;
+    reg.status = newStatus;
+    reg.statusHistory.push({
+      from: oldStatus,
+      to: newStatus,
+      axis: "legacy",
+      changedAt: new Date(),
+      reason: body.statusReason || "Status updated manually by administrator",
+      actor: req.admin?.email || "admin",
+    });
+
+    if (newStatus === "CONFIRMED") {
+      reg.applicationStatus = "approved";
+      reg.paymentStatus = "verified";
+      reg.approvedAt = reg.approvedAt || new Date();
+    } else if (newStatus === "PAYMENT_UNDER_VERIFICATION") {
+      reg.applicationStatus = "submitted";
+      reg.paymentStatus = "under_review";
+    } else if (newStatus === "PAYMENT_REJECTED") {
+      reg.paymentStatus = "rejected";
+    } else if (["OTP_VERIFIED", "PAYMENT_PENDING"].includes(newStatus)) {
+      reg.applicationStatus = "awaiting_payment_proof";
+    } else if (newStatus === "DRAFT") {
+      reg.applicationStatus = "draft";
+    } else if (newStatus === "CANCELLED") {
+      reg.applicationStatus = "superseded";
+    }
+  }
+
+  // Recalculate identity hash
+  reg.studentIdentityHash = generateStudentIdentityHash({
+    guardianPhone: reg.guardianPhone,
+    studentName: reg.studentName,
+    dob: reg.dob,
+    studentClass: reg.studentClass,
+  });
+
+  await reg.save();
+
+  await Audit.create({
+    actor: req.admin?.email || String(req.admin._id),
+    action: "REGISTRATION_ADMIN_UPDATED",
+    registrationId: reg._id,
+    details: {
+      applicationRef: reg.applicationRef,
+      studentName: reg.studentName,
+      before,
+      updatedFields: Object.keys(body),
+    },
+  });
+
+  res.json({
+    message: "Registration updated successfully.",
+    registration: safeRegistration(reg),
+  });
+});
+
+// Admin Registration Delete
+r.delete("/registrations/:id", writable, async (req, res) => {
+  const reg = await Registration.findById(req.params.id);
+  if (!reg) return res.status(404).json({ error: "Registration not found." });
+
+  const ref = reg.applicationRef;
+  const name = reg.studentName;
+  const id = reg._id;
+
+  // Cleanup payments, challenges, reminder logs
+  await Payment.deleteMany({ registrationId: id });
+  await Challenge.deleteMany({ registrationId: id });
+  await ReminderLog.deleteMany({ registrationId: id });
+
+  await Registration.deleteOne({ _id: id });
+
+  await Audit.create({
+    actor: req.admin?.email || String(req.admin._id),
+    action: "REGISTRATION_ADMIN_DELETED",
+    details: {
+      deletedRegistrationId: id,
+      applicationRef: ref,
+      studentName: name,
+      reason: req.body?.reason || "Deleted by administrator",
+    },
+  });
+
+  res.json({
+    message: `Registration for ${name} (${ref}) deleted successfully.`,
+    id: String(id),
+  });
+});
+
+r.post("/registrations/:id/supersede", writable, async (req, res) => {
+  const { primaryId, reason } = req.body || {};
+  if (!primaryId)
+    return res.status(400).json({ error: "Primary registration ID is required." });
+  const result = await supersedeDuplicateRegistration(
+    req.params.id,
+    primaryId,
+    reason || "Marked as duplicate/superseded by administrator",
+    String(req.admin._id),
+  );
+  await Audit.create({
+    actor: String(req.admin._id),
+    action: "REGISTRATION_SUPERSEDED",
+    registrationId: result._id,
+    details: { primaryId, reason },
+  });
+  res.json({
+    message: "Registration marked as duplicate/superseded.",
+    registration: safeRegistration(result),
+  });
+});
+
+r.post("/registrations/:id/remind", verifier, async (req, res) => {
+  try {
+    const result = await sendManualReminder(req.params.id, req.admin);
+    if (!result.success) {
+      return res
+        .status(400)
+        .json({ error: result.reason || "Failed to send reminder." });
+    }
+    const updated = await Registration.findById(req.params.id);
+    res.json({
+      success: true,
+      message: "Reminder email dispatched successfully.",
+      messageId: result.messageId,
+      registration: safeRegistration(updated),
+    });
+  } catch (err) {
+    res
+      .status(err.status || 500)
+      .json({ error: err.message || "Failed to send reminder." });
+  }
+});
+
+r.get("/registrations/:id/reminders", async (req, res) => {
+  const logs = await ReminderLog.find({ registrationId: req.params.id }).sort({
+    sentAt: -1,
+  });
+  res.json({ logs });
+});
+
+r.get("/settings/reminders", async (req, res) => {
+  const settings = await Settings.findById("primary");
+  const enabled = areRemindersEnabled(settings);
+  const intervals = getReminderIntervals(settings);
+  const [sentCount, failedCount, pendingCount] = await Promise.all([
+    ReminderLog.countDocuments({ status: "SENT" }),
+    ReminderLog.countDocuments({ status: "FAILED" }),
+    Registration.countDocuments({
+      status: { $in: ["DRAFT", "OTP_VERIFIED", "PAYMENT_PENDING"] },
+      applicationStatus: { $in: ["draft", "awaiting_payment_proof"] },
+      reminderOptOut: { $ne: true },
+      reminderCount: { $lt: 3 },
+    }),
+  ]);
+  res.json({
+    enabled,
+    intervals,
+    sentCount,
+    failedCount,
+    pendingCount,
+  });
+});
+
+r.get("/reminders/logs", async (req, res) => {
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+  const [logs, total] = await Promise.all([
+    ReminderLog.find()
+      .populate("registrationId", "studentName studentClass applicationRef email guardianPhone")
+      .sort({ sentAt: -1, _id: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean(),
+    ReminderLog.countDocuments(),
+  ]);
+  res.json({ logs, total, page, pages: Math.ceil(total / limit) || 1 });
+});
+
+r.post("/settings/reminders/toggle", writable, async (req, res) => {
+  const settings = await Settings.findById("primary");
+  const current = areRemindersEnabled(settings);
+  const nextVal =
+    typeof req.body.enabled === "boolean" ? req.body.enabled : !current;
+
+  settings.remindersEnabled = nextVal;
+  await settings.save();
+
+  await Audit.create({
+    actor: String(req.admin._id),
+    action: nextVal ? "REMINDERS_ACTIVATED" : "REMINDERS_PAUSED",
+    details: { enabled: nextVal },
+  });
+
+  res.json({
+    success: true,
+    enabled: nextVal,
+    message: nextVal
+      ? "Automated registration reminders have been activated."
+      : "Automated registration reminders have been paused.",
+  });
+});
 r.get("/admit-card/:id", examiner, async (req, res) => {
   const student = await Registration.findById(req.params.id);
-  if (student?.status !== "CONFIRMED")
+  const eligible =
+    student?.status === "CONFIRMED" &&
+    (student.applicationStatus ? student.applicationStatus === "approved" : true) &&
+    (student.paymentStatus ? student.paymentStatus === "verified" : true);
+  if (!eligible)
     return res
       .status(403)
-      .json({ error: "Only confirmed registrations have admit cards." });
+      .json({ error: "Only approved registrations with verified payments have admit cards." });
   await admitPdf(res, student, await publicSettings());
 });
 r.get("/check-in/:id/photo", examiner, async (req, res) => {

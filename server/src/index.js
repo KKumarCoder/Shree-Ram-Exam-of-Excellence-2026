@@ -11,10 +11,11 @@ import { persistentLimiter, setting, otpEnabled, otpDevMode } from "./services/o
 import { otpHashSecret } from "./services/otpCode.js";
 import { validateEmailEnvironment } from "./services/email.js";
 import { startNotificationWorker } from "./services/notifications.js";
-import { OtpBucket, OtpLock, Challenge, Registration, MediaAsset } from "./models/index.js";
+import { startReminderWorker } from "./services/reminderScheduler.js";
+import { OtpBucket, OtpLock, Challenge, Registration, MediaAsset, ReminderLog } from "./models/index.js";
 import publicRoutes, { webhook } from "./routes/public.js";
 import adminRoutes from "./routes/admin.js";
-import { isAllowedOrigin } from "./utils/origin.js";
+import { isAllowedOrigin, isLocalDevOrigin } from "./utils/origin.js";
 const required = [
   "MONGODB_URI",
   "JWT_SECRET",
@@ -48,14 +49,38 @@ try {
 const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", setting("TRUST_PROXY_HOPS", 0, 0, 5));
-app.use(helmet());
-const allowedOrigins = [process.env.FRONTEND_URL];
+const isDev = process.env.NODE_ENV !== "production";
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.CLIENT_ORIGIN,
+  ...(isDev
+    ? [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+        "http://localhost:5175",
+        "http://127.0.0.1:5175",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+      ]
+    : []),
+].filter(Boolean);
+
+const checkOriginAllowed = (origin) => {
+  if (!origin) return true;
+  if (isAllowedOrigin(origin, allowedOrigins)) return true;
+  if (isDev && isLocalDevOrigin(origin)) return true;
+  return false;
+};
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || isAllowedOrigin(origin, allowedOrigins))
-        return callback(null, true);
-      return callback(new Error("Origin not allowed by CORS"));
+      if (checkOriginAllowed(origin)) return callback(null, true);
+      const err = new Error("Origin not allowed by CORS");
+      err.status = 403;
+      return callback(err);
     },
     credentials: true,
   }),
@@ -85,6 +110,8 @@ app.get("/api/health", (req, res) =>
 );
 app.use("/api/registrations/start", sensitive);
 app.use("/api/registrations/otp", sensitive);
+app.use("/api/registrations/resume", sensitive);
+app.use("/api/registrations/recovery", sensitive);
 app.use("/api/status/request", sensitive);
 app.use("/api/status/verify", sensitive);
 app.use("/api/admin/login", sensitive);
@@ -92,7 +119,7 @@ app.use("/api/admin/login", sensitive);
 app.use("/api/admin", (req, res, next) => {
   if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
     const origin = req.headers.origin;
-    if (origin && !isAllowedOrigin(origin, allowedOrigins))
+    if (origin && !checkOriginAllowed(origin))
       return res.status(403).json({ error: "Invalid request origin." });
   }
   next();
@@ -106,8 +133,16 @@ try {
   await mongoose.connect(process.env.MONGODB_URI, {
     serverSelectionTimeoutMS: 10000,
   });
-  await Promise.all([OtpBucket.init(), OtpLock.init(), Challenge.init(), Registration.init(), MediaAsset.init()]);
+  await Promise.all([
+    OtpBucket.init(),
+    OtpLock.init(),
+    Challenge.init(),
+    Registration.init(),
+    MediaAsset.init(),
+    ReminderLog.init(),
+  ]);
   startNotificationWorker();
+  startReminderWorker();
   startMediaWorker();
   const port = Number(process.env.PORT || 5000);
   app.listen(port, () =>

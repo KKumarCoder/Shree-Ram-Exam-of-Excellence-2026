@@ -244,7 +244,7 @@ export async function applicationReceiptPdf(res, student, payment) {
     [
       "cap",
       "CLASS / DATE OF BIRTH",
-      `${student.studentClass} / ${student.dob}`,
+      `${student.studentClass === "11" && student.course ? `11 (${student.course})` : student.studentClass} / ${student.dob}`,
     ],
     ["person", "GUARDIAN NAME", student.guardianName],
     ["phone", "GUARDIAN MOBILE", `******${student.guardianPhone.slice(-4)}`],

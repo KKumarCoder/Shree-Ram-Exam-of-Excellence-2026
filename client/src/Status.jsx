@@ -221,7 +221,12 @@ export function Status() {
               <div className="receipt-summary">
                 {[
                   ["Student", record.studentName],
-                  ["Class", record.studentClass],
+                  [
+                    "Class",
+                    record.studentClass === "11" && record.course
+                      ? `${record.studentClass} (${record.course})`
+                      : record.studentClass,
+                  ],
                   ["Application ref.", record.applicationRef],
                   ["Registration no.", record.registrationNumber || "Pending"],
                   ["Application status", record.status.replaceAll("_", " ")],
@@ -279,13 +284,24 @@ export function Status() {
                   <div className="notice">
                     <Clock3 size={16} />{" "}
                     {record.status === "PAYMENT_REJECTED"
-                      ? "Payment was rejected. Contact the school office to correct the payment submission."
+                      ? "Payment was rejected. Resubmit payment proof to complete registration."
                       : record.status === "CANCELLED"
                         ? "This application is cancelled. Contact the school office."
                         : "Admit card is available only after payment approval. Check again after school review."}
                   </div>
+                  {["DRAFT", "OTP_VERIFIED", "PAYMENT_REJECTED"].includes(
+                    record.status,
+                  ) && (
+                    <Link
+                      to="/register"
+                      className="btn primary wide"
+                      style={{ marginTop: "10px", textAlign: "center" }}
+                    >
+                      Continue & Complete Application →
+                    </Link>
+                  )}
                   <button
-                    className="btn primary wide"
+                    className="btn light wide"
                     disabled={busy}
                     onClick={refreshStatus}
                   >

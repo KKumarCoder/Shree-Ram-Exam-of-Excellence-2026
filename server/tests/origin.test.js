@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isAllowedOrigin } from "../src/utils/origin.js";
+import { isAllowedOrigin, isLocalDevOrigin } from "../src/utils/origin.js";
 
 test("accepts localhost and 127.0.0.1 dev origins", () => {
   assert.equal(
@@ -15,6 +15,16 @@ test("accepts localhost and 127.0.0.1 dev origins", () => {
     isAllowedOrigin("http://[::1]:5173", ["http://localhost:5173"]),
     true,
   );
+});
+
+test("isLocalDevOrigin allows any local dev HTTP port", () => {
+  assert.equal(isLocalDevOrigin("http://localhost:5174"), true);
+  assert.equal(isLocalDevOrigin("http://127.0.0.1:5174"), true);
+  assert.equal(isLocalDevOrigin("http://[::1]:3000"), true);
+  assert.equal(isLocalDevOrigin("https://localhost:5174"), false);
+  assert.equal(isLocalDevOrigin("http://evil.com:5174"), false);
+  assert.equal(isLocalDevOrigin(""), false);
+  assert.equal(isLocalDevOrigin(null), false);
 });
 
 test("rejects untrusted origins", () => {

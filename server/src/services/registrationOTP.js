@@ -21,7 +21,6 @@ export function createOtpService(provider = emailProvider) {
       if (purpose === 'register' && fresh.status !== 'DRAFT') throw otpError('Email already verified.', 409);
       const prior = await Challenge.findOne({ recipient }).sort({ createdAt: -1 });
       if (prior?.resendAvailableAt > new Date()) throw otpError(`Wait ${Math.ceil((prior.resendAvailableAt - Date.now()) / 1000)} seconds before requesting another code.`, 429);
-      // Keep an active session bound to its draft and purpose.
       if (prior?.expiresAt > new Date() && prior.verificationStatus === 'pending' &&
           (String(prior.registrationId) !== String(fresh._id) || prior.purpose !== purpose))
         throw otpError('This email has an active verification in another application. Complete it or wait for its session to expire.', 409);
@@ -31,7 +30,7 @@ export function createOtpService(provider = emailProvider) {
       const cooldown = setting('OTP_RESEND_COOLDOWN_SECONDS', 60, 30, 300);
       const now = new Date();
       // Persist cooldown even on an uncertain provider timeout: retries also cost money.
-      await Challenge.updateMany({ recipient, verificationStatus: 'pending' }, { $set: { verificationStatus: 'superseded' } });
+      await Challenge.updateMany({ recipient, registrationId: fresh._id, verificationStatus: 'pending' }, { $set: { verificationStatus: 'superseded' } });
       const challenge = await Challenge.create({
         recipient, registrationId: fresh._id, purpose, provider: 'smtp', devMode: otpDevMode(),
         lastSentAt: now, resendAvailableAt: new Date(+now + cooldown * 1000),
@@ -81,8 +80,31 @@ export function createOtpService(provider = emailProvider) {
         { $set: { verificationStatus: 'approved', verifiedAt: now, consumedAt: now, codeHash: '' } }, { new: true });
       if (!consumed) throw otpError('Verification no longer available. Request a new code.', 409);
       if (purpose === 'register') {
-        const updated = await Registration.findOneAndUpdate({ _id: fresh._id, email: fresh.email, status: 'DRAFT' },
-          { $set: { status: 'OTP_VERIFIED', verifiedAt: now, verifiedEmail: recipient, verificationDevMode: challenge.devMode, verificationExpiresAt: new Date(+now + setting('OTP_AUTHORIZATION_TTL_SECONDS', 1800) * 1000) } }, { new: true });
+        const updated = await Registration.findOneAndUpdate(
+          { _id: fresh._id, email: fresh.email, status: 'DRAFT' },
+          {
+            $set: {
+              status: 'OTP_VERIFIED',
+              verificationStatus: 'verified',
+              applicationStatus: 'awaiting_payment_proof',
+              verifiedAt: now,
+              verifiedEmail: recipient,
+              verificationDevMode: challenge.devMode,
+              verificationExpiresAt: new Date(+now + setting('OTP_AUTHORIZATION_TTL_SECONDS', 1800) * 1000),
+            },
+            $push: {
+              statusHistory: {
+                from: 'DRAFT',
+                to: 'OTP_VERIFIED',
+                axis: 'legacy',
+                changedAt: now,
+                reason: 'Email OTP verified successfully',
+                actor: 'guardian',
+              },
+            },
+          },
+          { new: true }
+        );
         if (!updated) throw otpError('Registration changed. Request a new code.', 409);
         return updated;
       }

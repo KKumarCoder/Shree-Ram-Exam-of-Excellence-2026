@@ -49,9 +49,23 @@ export const startSchema = z
           date.getUTCFullYear() >= 1995
         );
       }, "Enter a real date of birth between 1995 and today."),
+    gender: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .pipe(z.enum(["MALE", "FEMALE", "OTHER"]))
+      .optional()
+      .default("MALE"),
     studentClass: z
       .string()
       .regex(/^(?:[2-9]|1[01])$/, "Select a class from 2 to 11."),
+    course: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .pipe(z.enum(["PCM", "PCB", "ARTS", "COMMERCE", ""]))
+      .optional()
+      .default(""),
     currentSchool: name,
     guardianName: name,
     guardianPhone: phone,
@@ -87,13 +101,31 @@ export const startSchema = z
       ),
     consent: z.literal(true),
   })
-  .strict();
+  .strict()
+  .superRefine((data, ctx) => {
+    if (
+      data.studentClass === "11" &&
+      (!data.course || !["PCM", "PCB", "ARTS", "COMMERCE"].includes(data.course))
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["course"],
+        message:
+          "Please select a stream/course (PCM, PCB, ARTS, COMMERCE) for Class 11.",
+      });
+    }
+  });
 export const otpSchema = z.object({ otp: z.string().regex(/^\d{6}$/) });
 export const manualSchema = z.object({
   utr: z
     .string()
     .trim()
-    .regex(/^[a-zA-Z0-9\-]{8,40}$/),
+    .transform((value) => value.replace(/\s+/g, ""))
+    .refine((val) => val === "" || /^[a-zA-Z0-9\-]{8,40}$/.test(val), {
+      message: "Enter a valid 8–40 character transaction UTR reference if provided.",
+    })
+    .optional()
+    .default(""),
   termsAccepted: z.union([z.literal("true"), z.literal(true)]),
 });
 export const lookupSchema = z.object({
@@ -101,6 +133,12 @@ export const lookupSchema = z.object({
     .string()
     .regex(/^(?:SHREE26-[0-9]{6}|SHREE27-[1-9][0-9]{3,}|APP-[A-F0-9]{10})$/),
   phone,
+});
+export const resumeRequestSchema = z.object({
+  identifier: z.string().trim().min(3).max(150),
+});
+export const resumeSelectSchema = z.object({
+  registrationId: z.string().regex(/^[a-f0-9]{24}$/),
 });
 export function parse(schema, value) {
   const result = schema.safeParse(value);

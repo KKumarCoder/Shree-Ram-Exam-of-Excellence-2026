@@ -35,3 +35,15 @@ export function isAllowedOrigin(origin, allowedOrigins = []) {
     );
   });
 }
+
+export function isLocalDevOrigin(origin) {
+  if (!origin) return false;
+  try {
+    const url = new URL(origin);
+    const host = normalizeHost(url.hostname);
+    return url.protocol === "http:" && host === "localhost";
+  } catch {
+    return false;
+  }
+}
+

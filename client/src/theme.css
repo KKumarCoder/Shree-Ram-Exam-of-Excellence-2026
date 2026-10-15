@@ -64,7 +64,7 @@ p { color: var(--muted); }
 .progress { border-bottom:1px solid var(--edge); padding-bottom:24px; margin-bottom:28px; }
 .progress>div.current>span,.progress>div.done>span { background:var(--accent); color:var(--accent-text); box-shadow:0 0 0 4px var(--surface-soft); }
 .form-grid { gap:22px; }
-label>span { color:var(--text); }
+label:not(.gov-field-label, .register-page label, .gov-field-group label, .gov-form-card label)>span { color:var(--text); }
 input:not([type=checkbox],[type=file]),select,textarea {
   background:var(--surface); border:1px solid var(--edge); color:var(--text); border-radius:12px; min-height:49px; padding:13px 15px; transition:border-color .15s,box-shadow .15s;
 }

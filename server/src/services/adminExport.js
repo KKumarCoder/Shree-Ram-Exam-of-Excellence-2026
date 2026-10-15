@@ -8,17 +8,17 @@ const dateText = value => value ? new Date(value).toLocaleDateString('en-IN', { 
 export function reportData(records, payments) {
   const columns = payments
     ? ['Student', 'Class', 'Reference', 'Mobile', 'Amount (INR)', 'UTR', 'Status', 'Submitted', 'Review note']
-    : ['Student', 'Class', 'Reference', 'Mobile', 'Email', 'Status', 'Submitted', 'School', 'Room', 'Seat'];
+    : ['Student', 'Class', 'Course/Stream', 'Reference', 'Mobile', 'Email', 'Status', 'Submitted', 'School', 'Room', 'Seat'];
   const rows = records.map(r => payments
-    ? [r.registrationId?.studentName, r.registrationId?.studentClass, r.registrationId?.registrationNumber || r.registrationId?.applicationRef, r.registrationId?.guardianPhone, r.amount, r.utr, r.status, dateText(r.createdAt), r.reviewNote]
-    : [r.studentName, r.studentClass, r.registrationNumber || r.applicationRef, r.guardianPhone, r.email, r.status, dateText(r.createdAt), r.currentSchool, r.room, r.seat]);
+    ? [r.registrationId?.studentName, r.registrationId?.studentClass ? (r.registrationId?.studentClass === '11' && r.registrationId?.course ? `11 (${r.registrationId.course})` : r.registrationId?.studentClass) : '', r.registrationId?.registrationNumber || r.registrationId?.applicationRef, r.registrationId?.guardianPhone, r.amount, r.utr, r.status, dateText(r.createdAt), r.reviewNote]
+    : [r.studentName, r.studentClass, r.course || (r.studentClass === '11' ? '—' : ''), r.registrationNumber || r.applicationRef, r.guardianPhone, r.email, r.status, dateText(r.createdAt), r.currentSchool, r.room, r.seat]);
   return { columns, rows: rows.map(row => row.map(value => value ?? '')) };
 }
 export async function excelReport(columns, rows, title) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Shree Ram Public School';
   const sheet = workbook.addWorksheet(title, { views: [{ state: 'frozen', ySplit: 1 }] });
-  sheet.columns = columns.map(header => ({ header, width: header === 'Class' ? 9 : header === 'Student' || header === 'Email' || header === 'Review note' ? 30 : 24 }));
+  sheet.columns = columns.map(header => ({ header, width: header === 'Class' || header === 'Course/Stream' ? 14 : header === 'Student' || header === 'Email' || header === 'Review note' ? 30 : 24 }));
   rows.forEach(row => sheet.addRow(row)); // Plain string cells; user values are never Excel formulas.
   sheet.getRow(1).height = 26;
   sheet.getRow(1).eachCell(cell => { cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF103B54' } }; });

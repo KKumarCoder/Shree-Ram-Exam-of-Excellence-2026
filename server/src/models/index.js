@@ -57,7 +57,14 @@ export const Registration = model(
       draftRequestHash: { type: String },
       studentName: { type: String, required: true, trim: true },
       dob: { type: String, required: true },
+      gender: { type: String, enum: ["MALE", "FEMALE", "OTHER"], default: "MALE" },
       studentClass: { type: String, required: true },
+      course: {
+        type: String,
+        enum: ["PCM", "PCB", "ARTS", "COMMERCE", ""],
+        default: "",
+        index: true,
+      },
       currentSchool: { type: String, required: true },
       guardianName: { type: String, required: true },
       guardianPhone: { type: String, required: true },
@@ -91,6 +98,54 @@ export const Registration = model(
         default: "DRAFT",
         index: true,
       },
+      studentIdentityHash: { type: String, index: true },
+      verificationStatus: {
+        type: String,
+        enum: ["pending", "verified"],
+        default: "pending",
+        index: true,
+      },
+      applicationStatus: {
+        type: String,
+        enum: [
+          "draft",
+          "awaiting_payment_proof",
+          "submitted",
+          "approved",
+          "rejected",
+          "superseded",
+        ],
+        default: "draft",
+        index: true,
+      },
+      paymentStatus: {
+        type: String,
+        enum: ["not_submitted", "under_review", "verified", "rejected"],
+        default: "not_submitted",
+        index: true,
+      },
+      statusHistory: [
+        {
+          from: { type: String },
+          to: { type: String },
+          axis: {
+            type: String,
+            enum: ["legacy", "verification", "application", "payment"],
+            default: "legacy",
+          },
+          changedAt: { type: Date, default: Date.now },
+          reason: { type: String, default: "" },
+          actor: { type: String, default: "system" },
+        },
+      ],
+      supersededBy: {
+        type: Schema.Types.ObjectId,
+        ref: "Registration",
+        default: null,
+      },
+      supersededReason: { type: String, default: "" },
+      submittedAt: { type: Date, default: null },
+      approvedAt: { type: Date, default: null },
       paymentMode: {
         type: String,
         enum: ["manual", "razorpay", ""],
@@ -107,6 +162,25 @@ export const Registration = model(
       notificationAttempts: { type: Number, default: 0 },
       notificationNextAttemptAt: { type: Date },
       notificationLease: { type: String },
+      reminderCount: { type: Number, default: 0 },
+      reminderStatus: {
+        type: String,
+        enum: ["IDLE", "PENDING", "SENDING", "PAUSED", "COMPLETED", "OPT_OUT"],
+        default: "IDLE",
+        index: true,
+      },
+      reminderNextAttemptAt: { type: Date, default: null, index: true },
+      reminderLease: { type: String, default: null },
+      reminderLeaseExpiresAt: { type: Date, default: null },
+      reminderLastSentAt: { type: Date, default: null },
+      reminderOptOut: { type: Boolean, default: false },
+      recoveryTokenHash: {
+        type: String,
+        default: null,
+        index: true,
+        sparse: true,
+      },
+      recoveryTokenExpiresAt: { type: Date, default: null },
     },
     opts,
   ),
@@ -238,6 +312,8 @@ export const Settings = model(
           { marks: "<60%", benefit: "5%" },
         ],
       },
+      remindersEnabled: { type: Boolean, default: false },
+      reminderIntervals: { type: [Number], default: [2, 24, 72] },
     },
     opts,
   ),
@@ -273,6 +349,37 @@ export const Notification = model(
     opts,
   ),
 );
+export const ReminderLog = model(
+  "ReminderLog",
+  new Schema(
+    {
+      registrationId: {
+        type: Schema.Types.ObjectId,
+        ref: "Registration",
+        required: true,
+        index: true,
+      },
+      attemptNumber: { type: Number, required: true },
+      channel: { type: String, default: "email" },
+      recipientEmail: { type: String, required: true },
+      status: {
+        type: String,
+        enum: ["SENT", "FAILED", "SKIPPED"],
+        required: true,
+      },
+      providerMessageId: { type: String, default: "" },
+      errorDetail: { type: String, default: "" },
+      triggerType: {
+        type: String,
+        enum: ["AUTOMATIC", "MANUAL"],
+        default: "AUTOMATIC",
+      },
+      triggeredBy: { type: String, default: "system" },
+      sentAt: { type: Date, default: Date.now },
+    },
+    opts,
+  ),
+);
 
 export const OtpBucket = model(
   "OtpBucket",
@@ -294,7 +401,70 @@ export const OtpLock = model(
 // Stable, indexed ordering for paginated administrator lists.
 Registration.schema.index({ createdAt: -1, _id: -1 });
 Registration.schema.index({ status: 1, createdAt: -1, _id: -1 });
+Registration.schema.index({ studentIdentityHash: 1, createdAt: -1 });
+Registration.schema.index({ guardianPhone: 1, createdAt: -1 });
+Registration.schema.index({ applicationStatus: 1, createdAt: -1 });
+Registration.schema.index({ paymentStatus: 1, createdAt: -1 });
 Payment.schema.index({ mode: 1, status: 1, createdAt: -1, _id: -1 });
 
 Registration.schema.index({ "photo.publicId": 1 });
 Payment.schema.index({ "receipt.publicId": 1 });
+Registration.schema.index({ reminderNextAttemptAt: 1, reminderStatus: 1 });
+ReminderLog.schema.index({ registrationId: 1, sentAt: -1 });
+ReminderLog.schema.index({ sentAt: -1 });
+
+export function mapLegacyToNewStatuses(legacyStatus) {
+  switch (legacyStatus) {
+    case "CONFIRMED":
+      return {
+        verificationStatus: "verified",
+        applicationStatus: "approved",
+        paymentStatus: "verified",
+      };
+    case "PAYMENT_UNDER_VERIFICATION":
+      return {
+        verificationStatus: "verified",
+        applicationStatus: "submitted",
+        paymentStatus: "under_review",
+      };
+    case "PAYMENT_PENDING":
+    case "OTP_VERIFIED":
+      return {
+        verificationStatus: "verified",
+        applicationStatus: "awaiting_payment_proof",
+        paymentStatus: "not_submitted",
+      };
+    case "PAYMENT_REJECTED":
+      return {
+        verificationStatus: "verified",
+        applicationStatus: "rejected",
+        paymentStatus: "rejected",
+      };
+    case "CANCELLED":
+      return {
+        verificationStatus: "pending",
+        applicationStatus: "superseded",
+        paymentStatus: "not_submitted",
+      };
+    case "DRAFT":
+    default:
+      return {
+        verificationStatus: "pending",
+        applicationStatus: "draft",
+        paymentStatus: "not_submitted",
+      };
+  }
+}
+
+export function mapNewToLegacyStatus(appStatus, payStatus, verStatus) {
+  if (appStatus === "approved" && payStatus === "verified") return "CONFIRMED";
+  if (appStatus === "submitted" || payStatus === "under_review")
+    return "PAYMENT_UNDER_VERIFICATION";
+  if (appStatus === "rejected" || payStatus === "rejected")
+    return "PAYMENT_REJECTED";
+  if (appStatus === "superseded") return "CANCELLED";
+  if (verStatus === "verified" || appStatus === "awaiting_payment_proof")
+    return "OTP_VERIFIED";
+  return "DRAFT";
+}
+

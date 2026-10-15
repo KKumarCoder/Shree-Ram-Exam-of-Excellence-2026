@@ -48,7 +48,7 @@ export function Footer({ settings }) {
           </div>
         </div>
         <nav className="footer-portal-links" aria-label="School policies"><Link to="/privacy">Privacy Policy</Link><Link to="/terms">Terms & Conditions</Link><Link to="/refund">Refund / Cancellation Policy</Link><Link to="/payment-policy">Payment Policy</Link></nav>
-        <div className="school-footer-bottom"><span>© {new Date().getFullYear()} Shree Ram Public School. All rights reserved.</span><span>{eventBrand(settings).eventName} <i aria-hidden="true">/</i> <Link to="/admin">Staff login <ArrowUpRight size={12}/></Link></span></div>
+        <div className="school-footer-bottom"><span>© {new Date().getFullYear()} Shree Ram Public School. All rights reserved.</span><span>{eventBrand(settings).eventName} <i aria-hidden="true">/</i> <Link to="/admin" target="_blank" rel="noopener noreferrer">Staff login <ArrowUpRight size={12}/></Link></span></div>
       </div>
     </footer>
   );

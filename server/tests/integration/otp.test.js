@@ -484,14 +484,15 @@ const photoForm = () => {
 const fixturePdf = await PDFDocument.create();
 fixturePdf.addPage();
 const receiptPdf = await fixturePdf.save();
-const receiptForm = () => {
+let utrCounter = 100000;
+const receiptForm = (utr) => {
   const form = new FormData();
   form.append(
     "receipt",
     new Blob([receiptPdf], { type: "application/pdf" }),
     "receipt.pdf",
   );
-  form.append("utr", "TESTUTR123456");
+  form.append("utr", utr || `TESTUTR${++utrCounter}`);
   form.append("termsAccepted", "true");
   return form;
 };
@@ -1242,7 +1243,7 @@ test("duplicate UTR does not leave a second payment; orphan receipt is reconcile
   const token = issueToken({ sub: String(s._id), scope: "draft" });
   await upload("/registrations/photo", token, photoForm());
   assert.equal(
-    (await upload("/registrations/manual", token, receiptForm())).status,
+    (await upload("/registrations/manual", token, receiptForm("TESTUTR123456"))).status,
     409,
   );
   assert.equal(await Payment.countDocuments(), 1);

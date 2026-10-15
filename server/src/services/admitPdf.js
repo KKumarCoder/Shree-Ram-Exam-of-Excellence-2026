@@ -217,7 +217,17 @@ export async function admitPdf(res, student, settings) {
   );
   field("Student Name", student.studentName, 59, 425, 528, 247, "person");
   field("Guardian Name", student.guardianName, 59, 478, 528, 247, "person");
-  field("Class", student.studentClass, 59, 532, 528, 247, "cap");
+  field(
+    "Class",
+    student.studentClass === "11" && student.course
+      ? `${student.studentClass} (${student.course})`
+      : student.studentClass,
+    59,
+    532,
+    528,
+    247,
+    "cap",
+  );
   line(609, 369, 609, 584);
   line(1017, 363, 1017, 584);
   field("Date of Birth", student.dob, 633, 371, 368, 204, "calendar");

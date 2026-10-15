@@ -49,6 +49,14 @@ test("requires real UTR and accepted terms", () => {
       .success,
     false,
   );
+  assert.equal(
+    manualSchema.safeParse({ termsAccepted: "true" }).success,
+    true,
+  );
+  assert.equal(
+    manualSchema.safeParse({ utr: "", termsAccepted: "true" }).success,
+    true,
+  );
 });
 test("accepts current and legacy registration numbers or private application references", () => {
   assert.equal(
@@ -175,3 +183,38 @@ test("email is mandatory for registration", () => {
   for (const email of ["", undefined, "invalid"])
     assert.equal(startSchema.safeParse({ ...good, email }).success, false);
 });
+
+test("class 11 requires stream course selection (PCM, PCB, ARTS, COMMERCE)", () => {
+  // Class 11 without course or with empty course must fail
+  assert.equal(
+    startSchema.safeParse({ ...good, studentClass: "11" }).success,
+    false,
+  );
+  assert.equal(
+    startSchema.safeParse({ ...good, studentClass: "11", course: "" }).success,
+    false,
+  );
+  assert.equal(
+    startSchema.safeParse({ ...good, studentClass: "11", course: "INVALID" })
+      .success,
+    false,
+  );
+
+  // Class 11 with valid streams must succeed
+  for (const stream of ["PCM", "PCB", "ARTS", "COMMERCE"]) {
+    const res = startSchema.safeParse({
+      ...good,
+      studentClass: "11",
+      course: stream,
+    });
+    assert.equal(res.success, true);
+    assert.equal(res.data.course, stream);
+  }
+
+  // Non-class 11 does not require course
+  assert.equal(
+    startSchema.safeParse({ ...good, studentClass: "7" }).success,
+    true,
+  );
+});
+
