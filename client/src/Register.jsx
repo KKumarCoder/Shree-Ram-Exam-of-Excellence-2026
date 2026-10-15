@@ -13,6 +13,8 @@ import {
   X,
   Search,
   Users,
+  User,
+  MapPin,
   RotateCcw,
   Phone,
   Mail,
@@ -137,9 +139,9 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         .catch((err) => {
           notify.error(
             err.message ||
-              (lang === "hi"
-                ? "रिकवरी लिंक अमान्य या समाप्त हो गया है। आप अपने ईमेल से आवेदन जारी रख सकते हैं।"
-                : "Recovery link is expired or invalid. You can resume your application using your registered email.")
+            (lang === "hi"
+              ? "रिकवरी लिंक अमान्य या समाप्त हो गया है। आप अपने ईमेल से आवेदन जारी रख सकते हैं।"
+              : "Recovery link is expired or invalid. You can resume your application using your registered email.")
           );
           setResumeStep("input");
           setResumeOpen(true);
@@ -154,9 +156,9 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         .then(({ data }) => {
           notify.success(
             data.message ||
-              (lang === "hi"
-                ? "आपको ईमेल सूचनाओं से अनसब्सक्राइब कर दिया गया है।"
-                : "You have been unsubscribed from reminder emails.")
+            (lang === "hi"
+              ? "आपको ईमेल सूचनाओं से अनसब्सक्राइब कर दिया गया है।"
+              : "You have been unsubscribed from reminder emails.")
           );
         })
         .catch((err) => {
@@ -427,8 +429,8 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         const synthesizedAddress = form.address?.trim()
           ? form.address.trim()
           : villageValue.length >= 5
-          ? villageValue
-          : `VILLAGE ${villageValue}`;
+            ? villageValue
+            : `VILLAGE ${villageValue}`;
 
         const payload = {
           ...form,
@@ -444,9 +446,9 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         if (r.data.resumed) {
           notify.info(
             r.data.message ||
-              (lang === "hi"
-                ? "इस विद्यार्थी का पूर्व में शुरू किया गया आवेदन बहाल किया गया।"
-                : "Restored existing application for this student.")
+            (lang === "hi"
+              ? "इस विद्यार्थी का पूर्व में शुरू किया गया आवेदन बहाल किया गया।"
+              : "Restored existing application for this student.")
           );
         }
       }
@@ -489,7 +491,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
       notify.success(sent.data.message || t.otpSub);
       setResendAt(
         Date.parse(sent.data.resendAvailableAt) ||
-          Date.now() + (sent.data.cooldownSeconds || 60) * 1000
+        Date.now() + (sent.data.cooldownSeconds || 60) * 1000
       );
     });
 
@@ -508,7 +510,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
       notify.success(r.data.message);
       setResendAt(
         Date.parse(r.data.resendAvailableAt) ||
-          Date.now() + (r.data.cooldownSeconds || 60) * 1000
+        Date.now() + (r.data.cooldownSeconds || 60) * 1000
       );
     });
 
@@ -527,9 +529,9 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
       setWizardStep(3);
       notify.success(
         r.data.message ||
-          (lang === "hi"
-            ? "ईमेल सफलतापूर्वक सत्यापित हो गया।"
-            : "Email verified successfully.")
+        (lang === "hi"
+          ? "ईमेल सफलतापूर्वक सत्यापित हो गया।"
+          : "Email verified successfully.")
       );
     });
 
@@ -643,9 +645,9 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
       setResumeStep("otp");
       notify.success(
         data.message ||
-          (lang === "hi"
-            ? "सत्यापन कोड आपके ईमेल पर भेजा गया है।"
-            : "Verification code sent to your email.")
+        (lang === "hi"
+          ? "सत्यापन कोड आपके ईमेल पर भेजा गया है।"
+          : "Verification code sent to your email.")
       );
     } catch (err) {
       notify.error(err.message || "Failed to find application.");
@@ -674,7 +676,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
     } catch (err) {
       notify.error(
         err.message ||
-          (lang === "hi" ? "गलत सत्यापन कोड।" : "Incorrect verification code.")
+        (lang === "hi" ? "गलत सत्यापन कोड।" : "Incorrect verification code.")
       );
     } finally {
       setResumeBusy(false);
@@ -804,9 +806,9 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
     } catch (err) {
       notify.error(
         err.message ||
-          (lang === "hi"
-            ? "अमान्य सत्यापन कोड। कृपया दोबारा प्रयास करें।"
-            : "Invalid verification code. Please check your email and try again.")
+        (lang === "hi"
+          ? "अमान्य सत्यापन कोड। कृपया दोबारा प्रयास करें।"
+          : "Invalid verification code. Please check your email and try again.")
       );
     } finally {
       setResumeBusy(false);
@@ -844,42 +846,30 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
             </div>
           </div>
 
-          {/* Language Switcher Pill */}
-          <button
-            type="button"
-            className="lang-switcher-btn"
-            onClick={toggleLanguage}
-            title="Change Language / भाषा बदलें"
-            aria-label="Toggle language between English and Hindi"
-          >
-            🌐 <strong>{t.langToggle}</strong>
-          </button>
-        </div>
-
-        {/* ===================================================================
-            2. RESUME PROMPT QUICK-BAR & INSTRUCTIONS
-            =================================================================== */}
-        <section className="gov-resume-bar">
-          <div className="gov-resume-text">
-            <div className="gov-resume-icon">
-              <Search size={20} />
-            </div>
-            <div>
-              <strong>{t.resumeBannerTitle}</strong>
-              <p>{t.resumeBannerDesc}</p>
-            </div>
+          {/* Actions: Resume Previous Application & Language Switcher */}
+          <div className="gov-top-actions">
+            <button
+              type="button"
+              className="gov-resume-compact-btn"
+              onClick={() => {
+                setResumeOpen(true);
+                setResumeStep("input");
+              }}
+              title={t.resumeBannerTitle}
+            >
+              <RotateCcw size={14} /> <span>{t.resumeBtn}</span>
+            </button>
+            <button
+              type="button"
+              className="lang-switcher-btn"
+              onClick={toggleLanguage}
+              title="Change Language / भाषा बदलें"
+              aria-label="Toggle language between English and Hindi"
+            >
+              🌐 <strong>{t.langToggle}</strong>
+            </button>
           </div>
-          <button
-            type="button"
-            className="gov-resume-btn"
-            onClick={() => {
-              setResumeOpen(true);
-              setResumeStep("input");
-            }}
-          >
-            <RotateCcw size={16} /> {t.resumeBtn}
-          </button>
-        </section>
+        </div>
 
 
         {/* Settings Error / Warning */}
@@ -925,9 +915,8 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                 return (
                   <div
                     key={s.num}
-                    className={`gov-step-item ${isActive ? "active" : ""} ${
-                      isCompleted ? "completed" : ""
-                    }`}
+                    className={`gov-step-item ${isActive ? "active" : ""} ${isCompleted ? "completed" : ""
+                      }`}
                   >
                     <div className="gov-step-num">
                       {isCompleted ? <Check size={18} /> : s.num}
@@ -948,10 +937,10 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   {wizardStep === 1
                     ? t.step1Title
                     : wizardStep === 2
-                    ? t.step2Title
-                    : wizardStep === 3
-                    ? t.step3Title
-                    : t.step4Title}
+                      ? t.step2Title
+                      : wizardStep === 3
+                        ? t.step3Title
+                        : t.step4Title}
                 </span>
                 <span className="gov-mobile-step-pill">
                   {t.stepIndicatorMobile(
@@ -960,10 +949,10 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                     wizardStep === 1
                       ? t.step1Short
                       : wizardStep === 2
-                      ? t.step2Short
-                      : wizardStep === 3
-                      ? t.step3Short
-                      : t.step4Short
+                        ? t.step2Short
+                        : wizardStep === 3
+                          ? t.step3Short
+                          : t.step4Short
                   )}
                 </span>
               </div>
@@ -988,127 +977,161 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
               handleSaveStep1();
             }}
           >
-            {/* Section A: Student Information */}
-            <section className="gov-form-section">
-              <div className="gov-section-header">
-                <div className="gov-section-icon">
-                  <FileText size={20} />
-                </div>
-                <div>
-                  <h3>{t.sectionStudent}</h3>
-                  <p>{t.sectionStudentDesc}</p>
-                </div>
+            {/* Group 1: Student Information */}
+            <div className="form-group-heading">
+              <span className="group-heading-icon">
+                <User size={16} />
+              </span>
+              <h4>{lang === "hi" ? "विद्यार्थी विवरण" : "Student Details"}</h4>
+            </div>
+
+            <div className="gov-grid-2">
+              {/* Student Full Name */}
+              <div className="gov-field-group">
+                <label htmlFor="studentName" className="gov-field-label">
+                  <span className="gov-label-text">{t.studentName}</span>
+                  <span className="required-star">*</span>
+                </label>
+                <input
+                  id="studentName"
+                  type="text"
+                  required
+                  autoFocus
+                  maxLength={fieldMaxLength("studentName")}
+                  className={`gov-input ${
+                    fieldErrors.studentName ? "is-invalid" : ""
+                  }`}
+                  value={form.studentName}
+                  placeholder={t.studentNamePlaceholder}
+                  onChange={(e) =>
+                    updateField("studentName", e.target.value)
+                  }
+                  onBlur={(e) =>
+                    handleBlurField("studentName", e.target.value)
+                  }
+                />
+                {fieldErrors.studentName && (
+                  <span className="gov-field-error">
+                    <AlertCircle size={14} /> {fieldErrors.studentName}
+                  </span>
+                )}
               </div>
 
-              <div className="gov-grid-2">
-                {/* Student Full Name */}
-                <div className="gov-field-group">
-                  <label htmlFor="studentName" className="gov-field-label">
-                    <span className="gov-label-text">{t.studentName}</span>
-                    <span className="required-star">*</span>
-                  </label>
-                  <input
-                    id="studentName"
-                    type="text"
-                    required
-                    autoFocus
-                    maxLength={fieldMaxLength("studentName")}
-                    className={`gov-input ${
-                      fieldErrors.studentName ? "is-invalid" : ""
-                    }`}
-                    value={form.studentName}
-                    placeholder={t.studentNamePlaceholder}
-                    onChange={(e) =>
-                      updateField("studentName", e.target.value)
-                    }
-                    onBlur={(e) =>
-                      handleBlurField("studentName", e.target.value)
-                    }
-                  />
-                  {fieldErrors.studentName ? (
-                    <span className="gov-field-error">
-                      <AlertCircle size={14} /> {fieldErrors.studentName}
-                    </span>
-                  ) : (
-                    <span className="gov-field-help">{t.studentNameHelp}</span>
-                  )}
-                </div>
+              {/* Date of Birth */}
+              <div className="gov-field-group">
+                <label htmlFor="dob" className="gov-field-label">
+                  <span className="gov-label-text">{t.dob}</span>
+                  <span className="required-star">*</span>
+                </label>
+                <input
+                  id="dob"
+                  type="date"
+                  required
+                  min="1995-01-01"
+                  max={new Date().toLocaleDateString("en-CA")}
+                  className={`gov-input ${
+                    fieldErrors.dob ? "is-invalid" : ""
+                  }`}
+                  value={form.dob}
+                  onChange={(e) => updateField("dob", e.target.value)}
+                  onBlur={(e) => handleBlurField("dob", e.target.value)}
+                />
+                {fieldErrors.dob && (
+                  <span className="gov-field-error">
+                    <AlertCircle size={14} /> {fieldErrors.dob}
+                  </span>
+                )}
+              </div>
 
-                {/* Date of Birth */}
-                <div className="gov-field-group">
-                  <label htmlFor="dob" className="gov-field-label">
-                    <span className="gov-label-text">{t.dob}</span>
-                    <span className="required-star">*</span>
-                  </label>
-                  <input
-                    id="dob"
-                    type="date"
-                    required
-                    min="1995-01-01"
-                    max={new Date().toLocaleDateString("en-CA")}
-                    className={`gov-input ${
-                      fieldErrors.dob ? "is-invalid" : ""
-                    }`}
-                    value={form.dob}
-                    onChange={(e) => updateField("dob", e.target.value)}
-                    onBlur={(e) => handleBlurField("dob", e.target.value)}
-                  />
-                  {fieldErrors.dob ? (
-                    <span className="gov-field-error">
-                      <AlertCircle size={14} /> {fieldErrors.dob}
-                    </span>
-                  ) : (
-                    <span className="gov-field-help">{t.dobHelp}</span>
-                  )}
-                </div>
+              {/* Gender */}
+              <div className="gov-field-group">
+                <label htmlFor="gender" className="gov-field-label">
+                  <span className="gov-label-text">{t.gender}</span>
+                  <span className="required-star">*</span>
+                </label>
+                <select
+                  id="gender"
+                  required
+                  className={`gov-select ${
+                    fieldErrors.gender ? "is-invalid" : ""
+                  }`}
+                  value={form.gender}
+                  onChange={(e) => updateField("gender", e.target.value)}
+                  onBlur={(e) => handleBlurField("gender", e.target.value)}
+                >
+                  <option value="">{t.selectGenderPlaceholder}</option>
+                  <option value="MALE">{t.genderMale}</option>
+                  <option value="FEMALE">{t.genderFemale}</option>
+                </select>
+                {fieldErrors.gender && (
+                  <span className="gov-field-error">
+                    <AlertCircle size={14} /> {fieldErrors.gender}
+                  </span>
+                )}
+              </div>
 
-                {/* Gender Dropdown (Male / Female) */}
+              {/* Class */}
+              <div className="gov-field-group">
+                <label htmlFor="studentClass" className="gov-field-label">
+                  <span className="gov-label-text">{t.studentClass}</span>
+                  <span className="required-star">*</span>
+                </label>
+                <select
+                  id="studentClass"
+                  required
+                  className={`gov-select ${
+                    fieldErrors.studentClass ? "is-invalid" : ""
+                  }`}
+                  value={form.studentClass}
+                  onChange={(e) => {
+                    const nextClass = e.target.value;
+                    updateField("studentClass", nextClass);
+                    if (nextClass !== "11") {
+                      updateField("course", "");
+                      setFieldErrors((prev) => {
+                        const copy = { ...prev };
+                        delete copy.course;
+                        return copy;
+                      });
+                    }
+                  }}
+                  onBlur={(e) =>
+                    handleBlurField("studentClass", e.target.value)
+                  }
+                >
+                  <option value="">{t.selectClassPlaceholder}</option>
+                  {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((cls) => (
+                    <option key={cls} value={String(cls)}>
+                      {lang === "hi" ? `कक्षा ${cls}` : `Class ${cls}`}
+                    </option>
+                  ))}
+                </select>
+                {fieldErrors.studentClass && (
+                  <span className="gov-field-error">
+                    <AlertCircle size={14} /> {fieldErrors.studentClass}
+                  </span>
+                )}
+              </div>
+
+              {/* Course Dropdown (Only visible when Class 11 is selected) */}
+              {form.studentClass === "11" && (
                 <div className="gov-field-group">
-                  <label htmlFor="gender" className="gov-field-label">
-                    <span className="gov-label-text">{t.gender}</span>
+                  <label htmlFor="course" className="gov-field-label">
+                    <span className="gov-label-text">
+                      {lang === "hi" ? "कोर्स (Course)" : "Course"}
+                    </span>
                     <span className="required-star">*</span>
                   </label>
                   <select
-                    id="gender"
+                    id="course"
                     required
                     className={`gov-select ${
-                      fieldErrors.gender ? "is-invalid" : ""
+                      fieldErrors.course ? "is-invalid" : ""
                     }`}
-                    value={form.gender}
-                    onChange={(e) => updateField("gender", e.target.value)}
-                    onBlur={(e) => handleBlurField("gender", e.target.value)}
-                  >
-                    <option value="">{t.selectGenderPlaceholder}</option>
-                    <option value="MALE">{t.genderMale}</option>
-                    <option value="FEMALE">{t.genderFemale}</option>
-                  </select>
-                  {fieldErrors.gender ? (
-                    <span className="gov-field-error">
-                      <AlertCircle size={14} /> {fieldErrors.gender}
-                    </span>
-                  ) : (
-                    <span className="gov-field-help">{t.genderHelp}</span>
-                  )}
-                </div>
-
-                {/* Class Dropdown (Classes 2 to 11) */}
-                <div className="gov-field-group">
-                  <label htmlFor="studentClass" className="gov-field-label">
-                    <span className="gov-label-text">{t.studentClass}</span>
-                    <span className="required-star">*</span>
-                  </label>
-                  <select
-                    id="studentClass"
-                    required
-                    className={`gov-select ${
-                      fieldErrors.studentClass ? "is-invalid" : ""
-                    }`}
-                    value={form.studentClass}
+                    value={form.course}
                     onChange={(e) => {
-                      const nextClass = e.target.value;
-                      updateField("studentClass", nextClass);
-                      if (nextClass !== "11") {
-                        updateField("course", "");
+                      updateField("course", e.target.value);
+                      if (fieldErrors.course) {
                         setFieldErrors((prev) => {
                           const copy = { ...prev };
                           delete copy.course;
@@ -1116,440 +1139,327 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                         });
                       }
                     }}
-                    onBlur={(e) =>
-                      handleBlurField("studentClass", e.target.value)
-                    }
+                    onBlur={(e) => handleBlurField("course", e.target.value)}
                   >
-                    <option value="">{t.selectClassPlaceholder}</option>
-                    {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((cls) => (
-                      <option key={cls} value={String(cls)}>
-                        {lang === "hi" ? `कक्षा ${cls}` : `Class ${cls}`}
-                      </option>
-                    ))}
+                    <option value="">
+                      {lang === "hi" ? "-- कोर्स चुनें --" : "-- Select Course --"}
+                    </option>
+                    <option value="PCM">PCM</option>
+                    <option value="PCB">PCB</option>
+                    <option value="COMMERCE">COMMERCE</option>
+                    <option value="ARTS">ARTS</option>
                   </select>
-                  {fieldErrors.studentClass && (
+                  {fieldErrors.course && (
                     <span className="gov-field-error">
-                      <AlertCircle size={14} /> {fieldErrors.studentClass}
+                      <AlertCircle size={14} /> {fieldErrors.course}
                     </span>
                   )}
                 </div>
+              )}
 
-                {/* Course Dropdown (Only visible when Class 11 is selected) */}
-                {form.studentClass === "11" && (
-                  <div className="gov-field-group">
-                    <label htmlFor="course" className="gov-field-label">
-                      <span className="gov-label-text">
-                        {lang === "hi" ? "कोर्स (Course)" : "Course"}
-                      </span>
-                      <span className="required-star">*</span>
-                    </label>
-                    <select
-                      id="course"
-                      required
-                      className={`gov-select ${
-                        fieldErrors.course ? "is-invalid" : ""
-                      }`}
-                      value={form.course}
-                      onChange={(e) => {
-                        updateField("course", e.target.value);
-                        if (fieldErrors.course) {
-                          setFieldErrors((prev) => {
-                            const copy = { ...prev };
-                            delete copy.course;
-                            return copy;
-                          });
-                        }
-                      }}
-                      onBlur={(e) => handleBlurField("course", e.target.value)}
-                    >
-                      <option value="">
-                        {lang === "hi" ? "-- कोर्स चुनें --" : "-- Select Course --"}
-                      </option>
-                      <option value="PCM">PCM</option>
-                      <option value="PCB">PCB</option>
-                      <option value="COMMERCE">COMMERCE</option>
-                      <option value="ARTS">ARTS</option>
-                    </select>
-                    {fieldErrors.course ? (
-                      <span className="gov-field-error">
-                        <AlertCircle size={14} /> {fieldErrors.course}
-                      </span>
-                    ) : (
-                      <span className="gov-field-help">
-                        {lang === "hi"
-                          ? "कक्षा 11 के लिए कोर्स चुनें (PCM, PCB, COMMERCE, ARTS)"
-                          : "Select course for Class 11 (PCM, PCB, COMMERCE, ARTS)"}
-                      </span>
-                    )}
-                  </div>
+              {/* Current School */}
+              <div className="gov-field-group">
+                <label htmlFor="currentSchool" className="gov-field-label">
+                  <span className="gov-label-text">{t.currentSchool}</span>
+                  <span className="required-star">*</span>
+                </label>
+                <input
+                  id="currentSchool"
+                  type="text"
+                  required
+                  maxLength={fieldMaxLength("currentSchool")}
+                  className={`gov-input ${
+                    fieldErrors.currentSchool ? "is-invalid" : ""
+                  }`}
+                  value={form.currentSchool}
+                  placeholder={t.currentSchoolPlaceholder}
+                  onChange={(e) =>
+                    updateField("currentSchool", e.target.value)
+                  }
+                  onBlur={(e) =>
+                    handleBlurField("currentSchool", e.target.value)
+                  }
+                />
+                {fieldErrors.currentSchool && (
+                  <span className="gov-field-error">
+                    <AlertCircle size={14} /> {fieldErrors.currentSchool}
+                  </span>
                 )}
+              </div>
 
-                {/* Current School */}
-                <div className="gov-field-group gov-span-2">
-                  <label htmlFor="currentSchool" className="gov-field-label">
-                    <span className="gov-label-text">{t.currentSchool}</span>
-                    <span className="required-star">*</span>
-                  </label>
+              {/* Compact Student Passport Photo */}
+              <div className="gov-field-group">
+                <label className="gov-field-label">
+                  <span className="gov-label-text">{t.photoLabel}</span>
+                  <span className="required-star">*</span>
+                </label>
+                <label className="gov-photo-compact" htmlFor="student-photo-input">
                   <input
-                    id="currentSchool"
-                    type="text"
-                    required
-                    maxLength={fieldMaxLength("currentSchool")}
-                    className={`gov-input ${
-                      fieldErrors.currentSchool ? "is-invalid" : ""
-                    }`}
-                    value={form.currentSchool}
-                    placeholder={t.currentSchoolPlaceholder}
-                    onChange={(e) =>
-                      updateField("currentSchool", e.target.value)
-                    }
-                    onBlur={(e) =>
-                      handleBlurField("currentSchool", e.target.value)
-                    }
-                  />
-                  {fieldErrors.currentSchool && (
-                    <span className="gov-field-error">
-                      <AlertCircle size={14} /> {fieldErrors.currentSchool}
-                    </span>
-                  )}
-                </div>
-
-                {/* Passport-Size Photograph Upload */}
-                <div className="gov-field-group gov-span-2">
-                  <label className="gov-field-label">
-                    <span className="gov-label-text">{t.photoLabel}</span>
-                    <span className="required-star">*</span>
-                  </label>
-                  <label className="gov-photo-box" htmlFor="student-photo-input">
-                    <input
-                      id="student-photo-input"
-                      type="file"
-                      accept="image/jpeg,image/png"
-                      style={{ display: "none" }}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] || null;
-                        if (file) {
-                          if (
-                            !["image/jpeg", "image/png"].includes(file.type) ||
-                            file.size > 5 * 1024 * 1024
-                          ) {
-                            notify.error(t.errorPhotoInvalid);
-                            setPhoto(null);
-                            setPhotoPreview(null);
-                            return;
-                          }
-                          setPhoto(file);
-                          setPhotoPreview(URL.createObjectURL(file));
+                    id="student-photo-input"
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      if (file) {
+                        if (
+                          !["image/jpeg", "image/png"].includes(file.type) ||
+                          file.size > 5 * 1024 * 1024
+                        ) {
+                          notify.error(t.errorPhotoInvalid);
+                          setPhoto(null);
+                          setPhotoPreview(null);
+                          return;
                         }
-                      }}
+                        setPhoto(file);
+                        setPhotoPreview(URL.createObjectURL(file));
+                      }
+                    }}
+                  />
+                  {photoPreview ? (
+                    <img
+                      src={photoPreview}
+                      alt="Student Preview"
+                      className="gov-photo-compact-thumb"
                     />
-                    {photoPreview ? (
-                      <img
-                        src={photoPreview}
-                        alt="Student Passport Preview"
-                        className="gov-photo-preview"
-                      />
-                    ) : registration?.photoUploaded ? (
-                      <div
-                        className="gov-photo-preview"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "#238653",
-                        }}
-                      >
-                        <CheckCircle2 size={32} />
-                      </div>
-                    ) : (
-                      <div
-                        className="gov-photo-preview"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "#94A3B8",
-                        }}
-                      >
-                        <Upload size={28} />
-                      </div>
-                    )}
-                    <div className="gov-photo-info">
-                      <strong>
-                        {photo
-                          ? photo.name
-                          : registration?.photoUploaded
-                          ? t.photoUploadedBadge
-                          : lang === "hi"
-                          ? "फोटो चुनने के लिए यहाँ क्लिक करें (JPG / PNG, अधिकतम 5 MB)"
-                          : "Click here to choose student photo (JPG / PNG, max 5 MB)"}
-                      </strong>
-                      <p>{t.photoHelp}</p>
+                  ) : registration?.photoUploaded ? (
+                    <div className="gov-photo-compact-thumb success">
+                      <CheckCircle2 size={18} />
                     </div>
-                  </label>
-                </div>
-              </div>
-            </section>
-
-            {/* Section B: Parent / Guardian Information */}
-            <section className="gov-form-section">
-              <div className="gov-section-header">
-                <div className="gov-section-icon">
-                  <Users size={20} />
-                </div>
-                <div>
-                  <h3>{t.sectionParent}</h3>
-                  <p>{t.sectionParentDesc}</p>
-                </div>
-              </div>
-
-              <div className="gov-grid-2">
-                {/* Guardian Name */}
-                <div className="gov-field-group">
-                  <label htmlFor="guardianName" className="gov-field-label">
-                    <span className="gov-label-text">{t.guardianName}</span>
-                    <span className="required-star">*</span>
-                  </label>
-                  <input
-                    id="guardianName"
-                    type="text"
-                    required
-                    maxLength={fieldMaxLength("guardianName")}
-                    className={`gov-input ${
-                      fieldErrors.guardianName ? "is-invalid" : ""
-                    }`}
-                    value={form.guardianName}
-                    placeholder={t.guardianNamePlaceholder}
-                    onChange={(e) =>
-                      updateField("guardianName", e.target.value)
-                    }
-                    onBlur={(e) =>
-                      handleBlurField("guardianName", e.target.value)
-                    }
-                  />
-                  {fieldErrors.guardianName && (
-                    <span className="gov-field-error">
-                      <AlertCircle size={14} /> {fieldErrors.guardianName}
-                    </span>
-                  )}
-                </div>
-
-                {/* Guardian Mobile */}
-                <div className="gov-field-group">
-                  <label htmlFor="guardianPhone" className="gov-field-label">
-                    <span className="gov-label-text">{t.guardianPhone}</span>
-                    <span className="required-star">*</span>
-                  </label>
-                  <input
-                    id="guardianPhone"
-                    type="tel"
-                    inputMode="numeric"
-                    required
-                    maxLength={fieldMaxLength("guardianPhone")}
-                    className={`gov-input ${
-                      fieldErrors.guardianPhone ? "is-invalid" : ""
-                    }`}
-                    value={form.guardianPhone}
-                    placeholder={t.guardianPhonePlaceholder}
-                    onChange={(e) =>
-                      updateField("guardianPhone", e.target.value)
-                    }
-                    onBlur={(e) =>
-                      handleBlurField("guardianPhone", e.target.value)
-                    }
-                  />
-                  {fieldErrors.guardianPhone ? (
-                    <span className="gov-field-error">
-                      <AlertCircle size={14} /> {fieldErrors.guardianPhone}
-                    </span>
                   ) : (
-                    <span className="gov-field-help">
-                      {t.guardianPhoneHelp}
-                    </span>
-                  )}
-                </div>
-
-                {/* Guardian Email */}
-                <div className="gov-field-group">
-                  <label htmlFor="email" className="gov-field-label">
-                    <span className="gov-label-text">{t.email}</span>
-                    <span className="required-star">*</span>
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    required
-                    maxLength={fieldMaxLength("email")}
-                    className={`gov-input ${
-                      fieldErrors.email ? "is-invalid" : ""
-                    }`}
-                    value={form.email}
-                    placeholder={t.emailPlaceholder}
-                    onChange={(e) => updateField("email", e.target.value)}
-                    onBlur={(e) => handleBlurField("email", e.target.value)}
-                  />
-                  {fieldErrors.email ? (
-                    <span className="gov-field-error">
-                      <AlertCircle size={14} /> {fieldErrors.email}
-                    </span>
-                  ) : (
-                    <span className="gov-field-help">{t.emailHelp}</span>
-                  )}
-                </div>
-
-                {/* Email Verification Security Notice */}
-                <div className="gov-field-group">
-                  <div className="gov-otp-notice-pill">
-                    <ShieldCheck size={28} />
-                    <div>
-                      <strong>
-                        {lang === "hi"
-                          ? "ईमेल OTP सत्यापन"
-                          : "Email OTP Verification"}
-                      </strong>
-                      <p>
-                        {lang === "hi"
-                          ? "आवेदन की पुष्टि के लिए चरण 2 में इस ईमेल पर 6 अंकों का OTP भेजा जाएगा।"
-                          : "A 6-digit verification code will be sent to this email in Step 2."}
-                      </p>
+                    <div className="gov-photo-compact-thumb">
+                      <Upload size={16} />
                     </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* Section C: Postal Address */}
-            <section className="gov-form-section">
-              <div className="gov-section-header">
-                <div className="gov-section-icon">
-                  <FileText size={20} />
-                </div>
-                <div>
-                  <h3>{t.sectionAddress}</h3>
-                  <p>{t.sectionAddressDesc}</p>
-                </div>
-              </div>
-
-              <div className="gov-grid-2">
-                {/* Village / Town / City */}
-                <div className="gov-field-group">
-                  <label htmlFor="city" className="gov-field-label">
-                    <span className="gov-label-text">{t.city}</span>
-                    <span className="required-star">*</span>
-                  </label>
-                  <input
-                    id="city"
-                    type="text"
-                    required
-                    maxLength={fieldMaxLength("city")}
-                    className={`gov-input ${
-                      fieldErrors.city ? "is-invalid" : ""
-                    }`}
-                    value={form.city}
-                    placeholder={t.cityPlaceholder}
-                    onChange={(e) => updateField("city", e.target.value)}
-                    onBlur={(e) => handleBlurField("city", e.target.value)}
-                  />
-                  {fieldErrors.city ? (
-                    <span className="gov-field-error">
-                      <AlertCircle size={14} /> {fieldErrors.city}
-                    </span>
-                  ) : (
-                    <span className="gov-field-help">{t.cityHelp}</span>
                   )}
-                </div>
-
-                {/* District */}
-                <div className="gov-field-group">
-                  <label htmlFor="district" className="gov-field-label">
-                    <span className="gov-label-text">{t.district}</span>
-                    <span className="required-star">*</span>
-                  </label>
-                  <input
-                    id="district"
-                    type="text"
-                    required
-                    maxLength={fieldMaxLength("district")}
-                    className={`gov-input ${
-                      fieldErrors.district ? "is-invalid" : ""
-                    }`}
-                    value={form.district}
-                    placeholder={t.districtPlaceholder}
-                    onChange={(e) => updateField("district", e.target.value)}
-                    onBlur={(e) => handleBlurField("district", e.target.value)}
-                  />
-                  {fieldErrors.district && (
-                    <span className="gov-field-error">
-                      <AlertCircle size={14} /> {fieldErrors.district}
-                    </span>
-                  )}
-                </div>
-
-                {/* State */}
-                <div className="gov-field-group">
-                  <label htmlFor="state" className="gov-field-label">
-                    <span className="gov-label-text">{t.state}</span>
-                    <span className="required-star">*</span>
-                  </label>
-                  <input
-                    id="state"
-                    type="text"
-                    required
-                    maxLength={fieldMaxLength("state")}
-                    className="gov-input"
-                    value={form.state}
-                    onChange={(e) => updateField("state", e.target.value)}
-                  />
-                </div>
-
-                {/* PIN Code */}
-                <div className="gov-field-group">
-                  <label htmlFor="pincode" className="gov-field-label">
-                    <span className="gov-label-text">{t.pincode}</span>
-                    <span className="required-star">*</span>
-                  </label>
-                  <input
-                    id="pincode"
-                    type="tel"
-                    inputMode="numeric"
-                    required
-                    maxLength={fieldMaxLength("pincode")}
-                    className={`gov-input ${
-                      fieldErrors.pincode ? "is-invalid" : ""
-                    }`}
-                    value={form.pincode}
-                    placeholder={t.pincodePlaceholder}
-                    onChange={(e) => updateField("pincode", e.target.value)}
-                    onBlur={(e) => handleBlurField("pincode", e.target.value)}
-                  />
-                  {fieldErrors.pincode && (
-                    <span className="gov-field-error">
-                      <AlertCircle size={14} /> {fieldErrors.pincode}
-                    </span>
-                  )}
-                </div>
-
-                {/* Purpose of Participation (Optional) */}
-                <div className="gov-field-group gov-span-2">
-                  <label htmlFor="purpose" className="gov-field-label">
-                    <span className="gov-label-text">{t.purpose}</span>
-                  </label>
-                  <select
-                    id="purpose"
-                    className="gov-select"
-                    value={form.purpose}
-                    onChange={(e) => updateField("purpose", e.target.value)}
-                  >
-                    <option value="">{t.purposePlaceholder}</option>
-                    {participationPurposes.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <span className="gov-photo-compact-text">
+                    {photo
+                      ? photo.name
+                      : registration?.photoUploaded
+                        ? t.photoUploadedBadge
+                        : lang === "hi"
+                          ? "फोटो चुनें (JPG/PNG, अधिकतम 5MB)"
+                          : "Upload Photo (JPG/PNG, max 5MB)"}
+                  </span>
+                  <span className="gov-photo-compact-btn">
+                    {photo || registration?.photoUploaded
+                      ? lang === "hi"
+                        ? "बदलें"
+                        : "Change"
+                      : lang === "hi"
+                        ? "ब्राउज़"
+                        : "Browse"}
+                  </span>
+                </label>
               </div>
-            </section>
+            </div>
+
+            {/* Group 2: Parent / Guardian Details */}
+            <div className="form-group-heading">
+              <span className="group-heading-icon">
+                <Users size={16} />
+              </span>
+              <h4>{lang === "hi" ? "अभिभावक विवरण" : "Parent / Guardian Details"}</h4>
+            </div>
+
+            <div className="gov-grid-2">
+              {/* Guardian Name */}
+              <div className="gov-field-group">
+                <label htmlFor="guardianName" className="gov-field-label">
+                  <span className="gov-label-text">{t.guardianName}</span>
+                  <span className="required-star">*</span>
+                </label>
+                <input
+                  id="guardianName"
+                  type="text"
+                  required
+                  maxLength={fieldMaxLength("guardianName")}
+                  className={`gov-input ${
+                    fieldErrors.guardianName ? "is-invalid" : ""
+                  }`}
+                  value={form.guardianName}
+                  placeholder={t.guardianNamePlaceholder}
+                  onChange={(e) =>
+                    updateField("guardianName", e.target.value)
+                  }
+                  onBlur={(e) =>
+                    handleBlurField("guardianName", e.target.value)
+                  }
+                />
+                {fieldErrors.guardianName && (
+                  <span className="gov-field-error">
+                    <AlertCircle size={14} /> {fieldErrors.guardianName}
+                  </span>
+                )}
+              </div>
+
+              {/* Guardian Mobile */}
+              <div className="gov-field-group">
+                <label htmlFor="guardianPhone" className="gov-field-label">
+                  <span className="gov-label-text">{t.guardianPhone}</span>
+                  <span className="required-star">*</span>
+                </label>
+                <input
+                  id="guardianPhone"
+                  type="tel"
+                  inputMode="numeric"
+                  required
+                  maxLength={fieldMaxLength("guardianPhone")}
+                  className={`gov-input ${
+                    fieldErrors.guardianPhone ? "is-invalid" : ""
+                  }`}
+                  value={form.guardianPhone}
+                  placeholder={t.guardianPhonePlaceholder}
+                  onChange={(e) =>
+                    updateField("guardianPhone", e.target.value)
+                  }
+                  onBlur={(e) =>
+                    handleBlurField("guardianPhone", e.target.value)
+                  }
+                />
+                {fieldErrors.guardianPhone && (
+                  <span className="gov-field-error">
+                    <AlertCircle size={14} /> {fieldErrors.guardianPhone}
+                  </span>
+                )}
+              </div>
+
+              {/* Guardian Email */}
+              <div className="gov-field-group gov-span-2">
+                <label htmlFor="email" className="gov-field-label">
+                  <span className="gov-label-text">{t.email}</span>
+                  <span className="required-star">*</span>
+                  <span className="gov-label-hint">
+                    ({lang === "hi"
+                      ? "OTP सत्यापन कोड इसी ईमेल पर भेजा जाएगा"
+                      : "OTP verification code will be sent to this email"})
+                  </span>
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  maxLength={fieldMaxLength("email")}
+                  className={`gov-input ${
+                    fieldErrors.email ? "is-invalid" : ""
+                  }`}
+                  value={form.email}
+                  placeholder={t.emailPlaceholder}
+                  onChange={(e) => updateField("email", e.target.value)}
+                  onBlur={(e) => handleBlurField("email", e.target.value)}
+                />
+                {fieldErrors.email && (
+                  <span className="gov-field-error">
+                    <AlertCircle size={14} /> {fieldErrors.email}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Group 3: Address & Location Details */}
+            <div className="form-group-heading">
+              <span className="group-heading-icon">
+                <MapPin size={16} />
+              </span>
+              <h4>{lang === "hi" ? "स्थान एवं पता" : "Address & Location"}</h4>
+            </div>
+
+            <div className="gov-grid-2">
+              {/* Village / Town / City */}
+              <div className="gov-field-group">
+                <label htmlFor="city" className="gov-field-label">
+                  <span className="gov-label-text">{t.city}</span>
+                  <span className="required-star">*</span>
+                </label>
+                <input
+                  id="city"
+                  type="text"
+                  required
+                  maxLength={fieldMaxLength("city")}
+                  className={`gov-input ${
+                    fieldErrors.city ? "is-invalid" : ""
+                  }`}
+                  value={form.city}
+                  placeholder={t.cityPlaceholder}
+                  onChange={(e) => updateField("city", e.target.value)}
+                  onBlur={(e) => handleBlurField("city", e.target.value)}
+                />
+                {fieldErrors.city && (
+                  <span className="gov-field-error">
+                    <AlertCircle size={14} /> {fieldErrors.city}
+                  </span>
+                )}
+              </div>
+
+              {/* District */}
+              <div className="gov-field-group">
+                <label htmlFor="district" className="gov-field-label">
+                  <span className="gov-label-text">{t.district}</span>
+                  <span className="required-star">*</span>
+                </label>
+                <input
+                  id="district"
+                  type="text"
+                  required
+                  maxLength={fieldMaxLength("district")}
+                  className={`gov-input ${
+                    fieldErrors.district ? "is-invalid" : ""
+                  }`}
+                  value={form.district}
+                  placeholder={t.districtPlaceholder}
+                  onChange={(e) => updateField("district", e.target.value)}
+                  onBlur={(e) => handleBlurField("district", e.target.value)}
+                />
+                {fieldErrors.district && (
+                  <span className="gov-field-error">
+                    <AlertCircle size={14} /> {fieldErrors.district}
+                  </span>
+                )}
+              </div>
+
+              {/* PIN Code */}
+              <div className="gov-field-group">
+                <label htmlFor="pincode" className="gov-field-label">
+                  <span className="gov-label-text">{t.pincode}</span>
+                  <span className="required-star">*</span>
+                </label>
+                <input
+                  id="pincode"
+                  type="tel"
+                  inputMode="numeric"
+                  required
+                  maxLength={fieldMaxLength("pincode")}
+                  className={`gov-input ${
+                    fieldErrors.pincode ? "is-invalid" : ""
+                  }`}
+                  value={form.pincode}
+                  placeholder={t.pincodePlaceholder}
+                  onChange={(e) => updateField("pincode", e.target.value)}
+                  onBlur={(e) => handleBlurField("pincode", e.target.value)}
+                />
+                {fieldErrors.pincode && (
+                  <span className="gov-field-error">
+                    <AlertCircle size={14} /> {fieldErrors.pincode}
+                  </span>
+                )}
+              </div>
+
+              {/* State */}
+              <div className="gov-field-group">
+                <label htmlFor="state" className="gov-field-label">
+                  <span className="gov-label-text">{t.state}</span>
+                  <span className="required-star">*</span>
+                </label>
+                <input
+                  id="state"
+                  type="text"
+                  required
+                  maxLength={fieldMaxLength("state")}
+                  className="gov-input"
+                  value={form.state}
+                  onChange={(e) => updateField("state", e.target.value)}
+                />
+              </div>
+            </div>
 
             {/* Consent Checkbox */}
             <label className="gov-consent-box">
@@ -2032,16 +1942,14 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                 <span className="gov-confirm-label">{t.confirmClass}</span>
                 <span className="gov-confirm-value">
                   {lang === "hi"
-                    ? `कक्षा ${registration?.studentClass}${
-                        registration?.studentClass === "11" && registration?.course
-                          ? ` (${registration.course})`
-                          : ""
-                      }`
-                    : `Class ${registration?.studentClass}${
-                        registration?.studentClass === "11" && registration?.course
-                          ? ` (${registration.course})`
-                          : ""
-                      }`}
+                    ? `कक्षा ${registration?.studentClass}${registration?.studentClass === "11" && registration?.course
+                      ? ` (${registration.course})`
+                      : ""
+                    }`
+                    : `Class ${registration?.studentClass}${registration?.studentClass === "11" && registration?.course
+                      ? ` (${registration.course})`
+                      : ""
+                    }`}
                 </span>
               </div>
               <div className="gov-confirm-row">
