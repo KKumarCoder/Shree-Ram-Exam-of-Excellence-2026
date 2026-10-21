@@ -146,31 +146,15 @@ const getOwn = async (req) => {
   const s = await Registration.findById(req.viewer.sub);
   if (!s) throw notFound();
   assertDraft(s);
-  if (
-    s.status === "OTP_VERIFIED" &&
-    (!s.verifiedEmail ||
-      s.verifiedEmail !== s.email ||
-      !s.verificationExpiresAt ||
-      s.verificationExpiresAt <= new Date() ||
-      (s.verificationDevMode && !otpDevMode()))
-  ) {
-    const reset = await Registration.findOneAndUpdate(
-      {
-        _id: s._id,
-        status: "OTP_VERIFIED",
-        verificationExpiresAt: s.verificationExpiresAt || null,
-      },
-      {
-        $set: {
-          status: "DRAFT",
-          verifiedAt: null,
-          verificationExpiresAt: null,
-          verificationDevMode: false,
-        },
-      },
-      { new: true },
-    );
-    return reset || Registration.findById(s._id);
+  // Auto-verify application drafts so OTP verification is not required
+  if (s.status === "DRAFT" || !s.verifiedAt || !s.verifiedEmail || s.verifiedEmail !== s.email) {
+    const now = new Date();
+    s.status = "OTP_VERIFIED";
+    s.verifiedAt = now;
+    s.verifiedEmail = s.email;
+    s.verificationStatus = "verified";
+    s.verificationExpiresAt = new Date(now.getTime() + 10800000);
+    await s.save();
   }
   return s;
 };
@@ -258,10 +242,16 @@ r.post("/registrations/start", async (req, res) => {
     }
 
     // Incomplete application: seamlessly restore draft without creating duplicate
-    if (!existing.draftExpiresAt || existing.draftExpiresAt <= new Date()) {
-      existing.draftExpiresAt = new Date(Date.now() + 10800000);
-      await existing.save();
-    }
+    const now = new Date();
+    const directExpiry = new Date(now.getTime() + 10800000);
+    existing.draftExpiresAt = directExpiry;
+    existing.status = "OTP_VERIFIED";
+    existing.verifiedAt = now;
+    existing.verifiedEmail = existing.email;
+    existing.verificationExpiresAt = directExpiry;
+    existing.verificationStatus = "verified";
+    await existing.save();
+
     return res.status(201).json({
       message:
         "An existing application was found for this student. Restoring your session.",
@@ -272,24 +262,30 @@ r.post("/registrations/start", async (req, res) => {
     });
   }
 
+  const now = new Date();
+  const directExpiry = new Date(now.getTime() + 10800000);
   const values = {
     ...data,
     course: data.studentClass === "11" ? data.course || "" : "",
     studentIdentityHash,
-    verificationStatus: "pending",
-    applicationStatus: "draft",
+    status: "OTP_VERIFIED",
+    verifiedAt: now,
+    verifiedEmail: data.email,
+    verificationStatus: "verified",
+    verificationExpiresAt: directExpiry,
+    applicationStatus: "awaiting_payment",
     paymentStatus: "not_submitted",
     statusHistory: [
       {
         from: "NONE",
-        to: "DRAFT",
+        to: "OTP_VERIFIED",
         axis: "legacy",
-        changedAt: new Date(),
-        reason: "Initial application draft created",
+        changedAt: now,
+        reason: "Registration created - direct to payment",
         actor: "guardian",
       },
     ],
-    draftExpiresAt: new Date(Date.now() + 10800000),
+    draftExpiresAt: directExpiry,
     applicationRef: `APP-${crypto.randomBytes(5).toString("hex").toUpperCase()}`,
   };
   const hash = crypto
@@ -325,6 +321,15 @@ r.post("/registrations/start", async (req, res) => {
           status: { $ne: "CANCELLED" },
         });
         if (conflict) {
+          const now = new Date();
+          const directExpiry = new Date(now.getTime() + 10800000);
+          conflict.draftExpiresAt = directExpiry;
+          conflict.status = "OTP_VERIFIED";
+          conflict.verifiedAt = now;
+          conflict.verifiedEmail = conflict.email;
+          conflict.verificationExpiresAt = directExpiry;
+          conflict.verificationStatus = "verified";
+          await conflict.save();
           return res.status(200).json({
             message: "An existing application was found for this student. Restoring your session.",
             duplicate: true,

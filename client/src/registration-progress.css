@@ -1873,39 +1873,187 @@
   line-height: 1.5;
 }
 
+/* Modern Payment Gateway Methods Grid with Brand Badges */
 .gov-pay-methods-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
-  margin-bottom: 20px;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 22px;
 }
 
-.gov-pay-method-item {
+.gov-pay-method-card {
   background: #FFFFFF;
-  border: 1px solid #E2E8F0;
-  border-radius: 10px;
-  padding: 12px 14px;
-  text-align: center;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  transition: transform 0.15s ease, border-color 0.15s ease;
+  gap: 12px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-.gov-pay-method-item:hover {
-  transform: translateY(-2px);
+.gov-pay-method-card:hover {
   border-color: #087EB8;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(8, 126, 184, 0.08);
 }
 
-.gov-pay-method-item strong {
-  font-size: 0.95rem;
+.gov-pay-method-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.gov-pay-method-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.96rem;
+  font-weight: 700;
   color: #1E293B;
 }
 
-.gov-pay-method-item span {
-  font-size: 0.75rem;
+.gov-pay-method-card-title svg {
+  color: #087EB8;
+}
+
+.gov-pay-method-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #E0F2FE;
+  color: #0369A1;
+  padding: 2px 8px;
+  border-radius: 12px;
+  letter-spacing: 0.02em;
+}
+
+.gov-pay-method-tag.popular {
+  background: #DCFCE7;
+  color: #15803D;
+  border: 1px solid #86EFAC;
+}
+
+.gov-pay-method-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Individual Brand Logo Pills */
+.brand-logo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #334155;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.brand-logo-pill:hover {
+  background: #FFFFFF;
+  border-color: #94A3B8;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.brand-logo-pill.phonepe-pill {
+  border-color: #DDD6FE;
+  background: #FAF5FF;
+}
+.brand-logo-pill.phonepe-pill span {
+  color: #5B21B6;
+}
+
+.brand-logo-pill.gpay-pill {
+  border-color: #E2E8F0;
+  background: #FFFFFF;
+}
+
+.brand-logo-pill.paytm-pill {
+  border-color: #BAE6FD;
+  background: #F0F9FF;
+}
+
+.brand-logo-pill.upi-pill {
+  border-color: #FED7AA;
+  background: #FFF7ED;
+}
+.brand-logo-pill.upi-pill span {
+  color: #9A3412;
+}
+
+.brand-logo-pill.rupay-pill {
+  border-color: #BAE6FD;
+  background: #F0F9FF;
+}
+
+.brand-logo-pill.visa-pill {
+  border-color: #C7D2FE;
+  background: #EEF2FF;
+}
+.brand-logo-pill.visa-pill span {
+  color: #1E1B4B;
+}
+
+.brand-logo-pill.mastercard-pill {
+  border-color: #FECDD3;
+  background: #FFF1F2;
+}
+
+.brand-logo-pill.bank-pill {
+  padding: 4px 8px;
+}
+
+.bank-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  color: #FFFFFF;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.brand-more-pill {
+  font-size: 0.74rem;
+  font-weight: 600;
   color: #64748B;
-  line-height: 1.3;
+  padding: 3px 6px;
+}
+
+/* Security Assurance Box */
+.gov-trust-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed #E2E8F0;
+  font-size: 0.8rem;
+  color: #64748B;
+}
+
+.gov-trust-footer-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gov-trust-footer-item svg {
+  color: #10B981;
 }
 
 /* Dark Mode Overrides */
@@ -1939,16 +2087,32 @@
   color: #94A3B8;
 }
 
-[data-theme="dark"] .gov-pay-method-item {
+[data-theme="dark"] .gov-pay-method-card {
   background: #152336;
   border-color: #22374E;
 }
 
-[data-theme="dark"] .gov-pay-method-item strong {
+[data-theme="dark"] .gov-pay-method-card:hover {
+  border-color: #38BDF8;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .gov-pay-method-card-title {
   color: #F8FAFC;
 }
 
-[data-theme="dark"] .gov-pay-method-item span {
+[data-theme="dark"] .brand-logo-pill {
+  background: #1E293B;
+  border-color: #334155;
+  color: #E2E8F0;
+}
+
+[data-theme="dark"] .brand-logo-pill:hover {
+  background: #334155;
+}
+
+[data-theme="dark"] .gov-trust-footer {
+  border-color: #22374E;
   color: #94A3B8;
 }
 
@@ -1957,7 +2121,7 @@
     grid-template-columns: 1fr;
   }
   .gov-pay-methods-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
 }
 

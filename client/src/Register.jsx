@@ -26,7 +26,20 @@ import {
   ExternalLink,
   CreditCard,
   Zap,
+  Landmark,
+  Wallet,
+  Lock,
 } from "lucide-react";
+import {
+  PhonePeBadge,
+  GooglePayBadge,
+  PaytmBadge,
+  UpiBadge,
+  RuPayBadge,
+  VisaBadge,
+  MastercardBadge,
+  BankIcon,
+} from "./PaymentLogos.jsx";
 import { notify } from "./notifications.js";
 import { formatPublicDate } from "./publicDisplay.js";
 import {
@@ -193,33 +206,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
     return () => window.clearInterval(timer);
   }, [resendAt]);
 
-  // Email verification expiration timer
-  useEffect(() => {
-    if (
-      registration?.status !== "OTP_VERIFIED" ||
-      !registration.verificationExpiresAt
-    )
-      return undefined;
-    const timer = window.setTimeout(
-      () => {
-        setRegistration((s) => ({ ...s, status: "DRAFT", verified: false }));
-        setWizardStep(registration.photoUploaded ? 2 : 1);
-        setOtp("");
-        notify.error(
-          lang === "hi"
-            ? "ईमेल सत्यापन समाप्त हो गया। कृपया पुनः सत्यापित करें।"
-            : "Email verification expired. Please verify your email again."
-        );
-      },
-      Math.max(0, Date.parse(registration.verificationExpiresAt) - Date.now())
-    );
-    return () => window.clearTimeout(timer);
-  }, [
-    registration?.status,
-    registration?.verificationExpiresAt,
-    registration?.photoUploaded,
-    lang,
-  ]);
+  // Session countdown active check
 
   // Restore current session if active token exists in localStorage
   useEffect(() => {
@@ -251,19 +238,13 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
             consent: true,
           });
 
-          // Determine current wizard step
+          // Determine current wizard step (2-step flow)
           if (
             reg.status === "CONFIRMED" ||
             reg.status === "PAYMENT_UNDER_VERIFICATION"
           ) {
             setWizardStep(5);
-          } else if (
-            reg.status === "OTP_VERIFIED" ||
-            reg.status === "PAYMENT_PENDING" ||
-            reg.status === "PAYMENT_REJECTED"
-          ) {
-            setWizardStep(3);
-          } else if (reg.photoUploaded) {
+          } else if (reg.photoUploaded || ["OTP_VERIFIED", "PAYMENT_PENDING", "PAYMENT_REJECTED"].includes(reg.status)) {
             setWizardStep(2);
           } else {
             setWizardStep(1);
@@ -484,27 +465,12 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         setRegistration(current);
       }
 
-      // If already OTP verified, jump to payment step 3
-      if (current.status !== "DRAFT") {
-        setWizardStep(3);
-        notify.success(
-          lang === "hi" ? "विद्यार्थी विवरण सुरक्षित है।" : "Student details verified."
-        );
-        return;
-      }
-
-      // Otherwise send OTP and advance to Step 2
+      // Direct 2-step flow: Advance directly to Step 2 (Payment)
       setWizardStep(2);
-      setOtpAction("send");
-      const sent = await api.post(
-        "/registrations/otp/send",
-        {},
-        { headers: draftHeaders() }
-      );
-      notify.success(sent.data.message || t.otpSub);
-      setResendAt(
-        Date.parse(sent.data.resendAvailableAt) ||
-        Date.now() + (sent.data.cooldownSeconds || 60) * 1000
+      notify.success(
+        lang === "hi"
+          ? "विद्यार्थी विवरण सुरक्षित है। कृपया ऑनलाइन शुल्क भुगतान करें।"
+          : "Student details saved. Please complete your registration fee payment."
       );
     });
 
@@ -838,13 +804,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         reg.status === "PAYMENT_UNDER_VERIFICATION"
       ) {
         setWizardStep(5);
-      } else if (
-        reg.status === "OTP_VERIFIED" ||
-        reg.status === "PAYMENT_PENDING" ||
-        reg.status === "PAYMENT_REJECTED"
-      ) {
-        setWizardStep(3);
-      } else if (reg.photoUploaded) {
+      } else if (reg.photoUploaded || ["OTP_VERIFIED", "PAYMENT_PENDING", "PAYMENT_REJECTED"].includes(reg.status)) {
         setWizardStep(2);
       } else {
         setWizardStep(1);
@@ -903,13 +863,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         reg.status === "PAYMENT_UNDER_VERIFICATION"
       ) {
         setWizardStep(5);
-      } else if (
-        reg.status === "OTP_VERIFIED" ||
-        reg.status === "PAYMENT_PENDING" ||
-        reg.status === "PAYMENT_REJECTED"
-      ) {
-        setWizardStep(3);
-      } else if (reg.photoUploaded) {
+      } else if (reg.photoUploaded || ["OTP_VERIFIED", "PAYMENT_PENDING", "PAYMENT_REJECTED"].includes(reg.status)) {
         setWizardStep(2);
       } else {
         setWizardStep(1);
@@ -1027,20 +981,33 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
               {(settings?.paymentMode === "razorpay" ||
               (settings?.paymentMode === "both" && paymentTab === "online")
                 ? [
-                    { num: 1, title: t.step1Title, sub: t.step1Short },
-                    { num: 2, title: t.step2Title, sub: t.step2Short },
                     {
-                      num: 3,
-                      title:
-                        lang === "hi" ? "ऑनलाइन भुगतान" : "Online Payment",
-                      sub: lang === "hi" ? "Razorpay" : "Instant Pay",
+                      num: 1,
+                      title: lang === "hi" ? "विद्यार्थी एवं अभिभावक विवरण" : "Student & Parent Details",
+                      sub: lang === "hi" ? "फॉर्म एवं फोटो" : "Details & Photo",
+                    },
+                    {
+                      num: 2,
+                      title: lang === "hi" ? "ऑनलाइन शुल्क भुगतान" : "Online Payment",
+                      sub: lang === "hi" ? "Razorpay (तत्काल प्रवेश पत्र)" : "Razorpay Gateway",
                     },
                   ]
                 : [
-                    { num: 1, title: t.step1Title, sub: t.step1Short },
-                    { num: 2, title: t.step2Title, sub: t.step2Short },
-                    { num: 3, title: t.step3Title, sub: t.step3Short },
-                    { num: 4, title: t.step4Title, sub: t.step4Short },
+                    {
+                      num: 1,
+                      title: lang === "hi" ? "विद्यार्थी एवं अभिभावक विवरण" : "Student & Parent Details",
+                      sub: lang === "hi" ? "फॉर्म एवं फोटो" : "Details & Photo",
+                    },
+                    {
+                      num: 2,
+                      title: lang === "hi" ? "शुल्क भुगतान" : "Registration Fee",
+                      sub: lang === "hi" ? "स्कूल UPI QR" : "Official UPI QR",
+                    },
+                    {
+                      num: 3,
+                      title: lang === "hi" ? "रसीद अपलोड" : "Upload Receipt",
+                      sub: lang === "hi" ? "स्क्रीनशॉट" : "Payment Proof",
+                    },
                   ]
               ).map((s) => {
                 const isCompleted = s.num < wizardStep;
@@ -1069,29 +1036,19 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
               const isOnline =
                 settings?.paymentMode === "razorpay" ||
                 (settings?.paymentMode === "both" && paymentTab === "online");
-              const totalSteps = isOnline ? 3 : 4;
+              const totalSteps = isOnline ? 2 : 3;
               const stepTitle =
                 wizardStep === 1
-                  ? t.step1Title
+                  ? (lang === "hi" ? "विद्यार्थी विवरण" : "Student Details")
                   : wizardStep === 2
-                    ? t.step2Title
-                    : wizardStep === 3
-                      ? isOnline
-                        ? lang === "hi"
-                          ? "ऑनलाइन भुगतान"
-                          : "Online Payment"
-                        : t.step3Title
-                      : t.step4Title;
+                    ? (lang === "hi" ? "ऑनलाइन भुगतान" : "Online Payment")
+                    : (lang === "hi" ? "रसीद अपलोड" : "Upload Receipt");
               const stepShort =
                 wizardStep === 1
-                  ? t.step1Short
+                  ? (lang === "hi" ? "फॉर्म व फोटो" : "Form & Photo")
                   : wizardStep === 2
-                    ? t.step2Short
-                    : wizardStep === 3
-                      ? isOnline
-                        ? "Razorpay"
-                        : t.step3Short
-                      : t.step4Short;
+                    ? (lang === "hi" ? "Razorpay" : "Instant Pay")
+                    : (lang === "hi" ? "रसीद" : "Receipt");
               return (
                 <div className="gov-stepper-mobile">
                   <div className="gov-mobile-step-header">
@@ -1646,138 +1603,9 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         )}
 
         {/* ===================================================================
-            5. MAIN FORM CARD: STEP 2 (VERIFY EMAIL OTP)
+            5. MAIN FORM CARD: STEP 2 (PAY REGISTRATION FEE VIA RAZORPAY / UPI)
             =================================================================== */}
         {wizardStep === 2 && (
-          <div className="gov-form-card">
-            {editingEmail ? (
-              /* Inline Edit Email Box */
-              <div className="gov-otp-card">
-                <h2>{t.editEmailTitle}</h2>
-                <div className="gov-field-group" style={{ textAlign: "left", marginTop: "16px" }}>
-                  <label htmlFor="edit-email-input" className="gov-field-label">
-                    <span className="gov-label-text">{t.email}</span>
-                  </label>
-                  <input
-                    id="edit-email-input"
-                    type="email"
-                    autoFocus
-                    required
-                    value={emailInput}
-                    className="gov-input"
-                    onChange={(e) => setEmailInput(e.target.value.trim())}
-                  />
-                </div>
-                <div className="gov-actions-row" style={{ marginTop: "16px" }}>
-                  <button
-                    type="button"
-                    className="gov-btn-primary"
-                    disabled={busy || !emailInput.trim()}
-                    onClick={handleSaveEmail}
-                  >
-                    {t.saveEmailBtn}
-                  </button>
-                  <button
-                    type="button"
-                    className="gov-btn-secondary"
-                    onClick={() => setEditingEmail(false)}
-                  >
-                    {t.cancelBtn}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              /* OTP Verification Form */
-              <div className="gov-otp-card">
-                <div className="gov-otp-icon-wrap">
-                  <ShieldCheck size={36} />
-                </div>
-                <h2>{t.otpHeading}</h2>
-                <p className="gov-otp-sub">
-                  {t.otpSub}
-                  <br />
-                  <span className="gov-masked-email-badge">
-                    {registration?.email || form.email}
-                  </span>
-                </p>
-
-                <div className="gov-field-group" style={{ alignItems: "center" }}>
-                  <label htmlFor="otp-input" className="gov-field-label">
-                    <span className="gov-label-text">{t.otpLabel}</span>
-                  </label>
-                  <input
-                    id="otp-input"
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    autoComplete="one-time-code"
-                    autoFocus
-                    placeholder="123456"
-                    className="gov-otp-input-field"
-                    value={otp}
-                    onChange={(e) =>
-                      setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && otp.length === 6 && !busy) {
-                        handleVerifyOtp();
-                      }
-                    }}
-                  />
-                  <span className="gov-field-help">{t.otpHelp}</span>
-                </div>
-
-                <div className="gov-otp-actions-col">
-                  <button
-                    type="button"
-                    className="gov-btn-primary"
-                    disabled={busy || otp.length !== 6}
-                    onClick={handleVerifyOtp}
-                  >
-                    {otpAction === "verify" ? t.btnVerifying : t.btnVerifyOtp}{" "}
-                    <ArrowRight size={18} />
-                  </button>
-
-                  <button
-                    type="button"
-                    className="gov-btn-secondary"
-                    disabled={busy || resendSeconds > 0}
-                    onClick={handleSendOtp}
-                  >
-                    {resendSeconds > 0
-                      ? t.btnResendCountdown(resendSeconds)
-                      : t.btnResendOtp}
-                  </button>
-
-                  <button
-                    type="button"
-                    className="gov-btn-secondary"
-                    disabled={busy}
-                    onClick={() => {
-                      setEmailInput(registration?.email || form.email);
-                      setEditingEmail(true);
-                    }}
-                  >
-                    ✏️ {t.btnEditEmail}
-                  </button>
-
-                  <button
-                    type="button"
-                    className="gov-btn-secondary"
-                    onClick={() => setWizardStep(1)}
-                  >
-                    <ArrowLeft size={16} /> {t.btnBack}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ===================================================================
-            6. MAIN FORM CARD: STEP 3 (PAY REGISTRATION FEE VIA UPI QR)
-            =================================================================== */}
-        {wizardStep === 3 && (
           <div className="gov-form-card">
             {/* Student & Fee Header Strip */}
             <div className="gov-payment-summary-strip">
@@ -1823,10 +1651,10 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                 <div className="gov-razorpay-header">
                   <div className="gov-razorpay-badge-row">
                     <span className="gov-instant-pill">
-                      <Zap size={14} /> {lang === "hi" ? "तत्काल एडमिट कार्ड जारी" : "Instant Admit Card Issued"}
+                      <Zap size={14} /> {lang === "hi" ? "तत्काल प्रवेश पत्र (Admit Card) जारी" : "Instant Admit Card Issued"}
                     </span>
                     <span className="gov-security-pill">
-                      <ShieldCheck size={14} /> {lang === "hi" ? "Razorpay 256-बिट सुरक्षित गेटवे" : "Razorpay 256-Bit Secure Gateway"}
+                      <ShieldCheck size={14} /> {lang === "hi" ? "Razorpay 256-बिट सुरक्षित पेमेंट गेटवे" : "Razorpay 256-Bit Secure Gateway"}
                     </span>
                   </div>
                   <h3>{t.onlinePaymentTitle || "Online Payment via Razorpay Gateway"}</h3>
@@ -1836,24 +1664,104 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   </p>
                 </div>
 
-                {/* Accepted Payment Methods Badges */}
+                {/* Accepted Payment Methods with Authentic Brand Logos */}
                 <div className="gov-pay-methods-grid">
-                  <div className="gov-pay-method-item">
-                    <strong>UPI Apps</strong>
-                    <span>Google Pay, PhonePe, Paytm, BHIM</span>
+                  {/* Method 1: UPI Apps */}
+                  <div className="gov-pay-method-card">
+                    <div className="gov-pay-method-card-header">
+                      <div className="gov-pay-method-card-title">
+                        <Zap size={18} />
+                        <span>{lang === "hi" ? "UPI ऐप्स (तत्काल)" : "UPI Instant Pay"}</span>
+                      </div>
+                      <span className="gov-pay-method-tag popular">
+                        {lang === "hi" ? "सर्वाधिक लोकप्रिय" : "Most Popular"}
+                      </span>
+                    </div>
+                    <div className="gov-pay-method-pills">
+                      <PhonePeBadge />
+                      <GooglePayBadge />
+                      <PaytmBadge />
+                      <UpiBadge />
+                    </div>
                   </div>
-                  <div className="gov-pay-method-item">
-                    <strong>ATM / Cards</strong>
-                    <span>RuPay, Visa, MasterCard</span>
+
+                  {/* Method 2: ATM / Debit / Credit Cards */}
+                  <div className="gov-pay-method-card">
+                    <div className="gov-pay-method-card-header">
+                      <div className="gov-pay-method-card-title">
+                        <CreditCard size={18} />
+                        <span>{lang === "hi" ? "ATM / डेबिट एवं क्रेडिट कार्ड" : "ATM / Debit & Credit Cards"}</span>
+                      </div>
+                      <span className="gov-pay-method-tag">
+                        {lang === "hi" ? "सभी कार्ड" : "All Cards"}
+                      </span>
+                    </div>
+                    <div className="gov-pay-method-pills">
+                      <RuPayBadge />
+                      <VisaBadge />
+                      <MastercardBadge />
+                    </div>
                   </div>
-                  <div className="gov-pay-method-item">
-                    <strong>Net Banking</strong>
-                    <span>SBI, HDFC, ICICI, Axis & 50+ Banks</span>
+
+                  {/* Method 3: Net Banking */}
+                  <div className="gov-pay-method-card">
+                    <div className="gov-pay-method-card-header">
+                      <div className="gov-pay-method-card-title">
+                        <Landmark size={18} />
+                        <span>{lang === "hi" ? "नेट बैंकिंग" : "Net Banking"}</span>
+                      </div>
+                      <span className="gov-pay-method-tag">
+                        {lang === "hi" ? "50+ भारतीय बैंक" : "50+ Banks"}
+                      </span>
+                    </div>
+                    <div className="gov-pay-method-pills">
+                      <BankIcon name="SBI" code="SBI" color="#0084CA" />
+                      <BankIcon name="HDFC" code="HDFC" color="#004C8F" />
+                      <BankIcon name="ICICI" code="ICICI" color="#B02A30" />
+                      <BankIcon name="Axis" code="AXIS" color="#97144D" />
+                      <span className="brand-more-pill">
+                        {lang === "hi" ? "+ अन्य बैंक" : "+ More"}
+                      </span>
+                    </div>
                   </div>
-                  <div className="gov-pay-method-item">
-                    <strong>Wallets</strong>
-                    <span>Paytm, Mobikwik & more</span>
+
+                  {/* Method 4: Wallets & Others */}
+                  <div className="gov-pay-method-card">
+                    <div className="gov-pay-method-card-header">
+                      <div className="gov-pay-method-card-title">
+                        <Wallet size={18} />
+                        <span>{lang === "hi" ? "वॉलेट्स एवं अन्य" : "Wallets & More"}</span>
+                      </div>
+                      <span className="gov-pay-method-tag">
+                        {lang === "hi" ? "आसान चेकआउट" : "Fast Checkout"}
+                      </span>
+                    </div>
+                    <div className="gov-pay-method-pills">
+                      <PaytmBadge />
+                      <span className="brand-logo-pill">
+                        <span>Mobikwik</span>
+                      </span>
+                      <span className="brand-logo-pill">
+                        <span>Amazon Pay</span>
+                      </span>
+                    </div>
                   </div>
+                </div>
+
+                {/* Security Trust Badges */}
+                <div className="gov-trust-footer">
+                  <span className="gov-trust-footer-item">
+                    <ShieldCheck size={16} />
+                    <span>{lang === "hi" ? "भारतीय रिजर्व बैंक (RBI) अधिकृत गेटवे" : "RBI Authorized Gateway"}</span>
+                  </span>
+                  <span className="gov-trust-footer-item">
+                    <Lock size={16} />
+                    <span>{lang === "hi" ? "256-बिट SSL सुरक्षित एन्क्रिप्शन" : "256-Bit SSL Encrypted"}</span>
+                  </span>
+                  <span className="gov-trust-footer-item">
+                    <Zap size={16} />
+                    <span>{lang === "hi" ? "भुगतान के तुरंत बाद प्रवेश पत्र (Admit Card) प्राप्त करें" : "Instant Admit Card PDF"}</span>
+                  </span>
                 </div>
 
                 {/* Terms & Guardian Consent Checkbox */}
@@ -1879,7 +1787,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   <button
                     type="button"
                     className="gov-btn-secondary"
-                    onClick={() => setWizardStep(2)}
+                    onClick={() => setWizardStep(1)}
                     disabled={busy}
                   >
                     <ArrowLeft size={16} /> {t.btnBack}
@@ -1914,7 +1822,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   <button
                     type="button"
                     className="gov-btn-amber"
-                    onClick={() => setWizardStep(4)}
+                    onClick={() => setWizardStep(3)}
                   >
                     {lang === "hi"
                       ? "हाँ, मैंने भुगतान कर दिया है (रसीद अपलोड करें) →"
@@ -1977,14 +1885,14 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   <button
                     type="button"
                     className="gov-btn-secondary"
-                    onClick={() => setWizardStep(2)}
+                    onClick={() => setWizardStep(1)}
                   >
                     <ArrowLeft size={16} /> {t.btnBack}
                   </button>
                   <button
                     type="button"
                     className="gov-btn-primary"
-                    onClick={() => setWizardStep(4)}
+                    onClick={() => setWizardStep(3)}
                   >
                     {lang === "hi"
                       ? "भुगतान रसीद अपलोड करें"
@@ -1998,9 +1906,9 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         )}
 
         {/* ===================================================================
-            7. MAIN FORM CARD: STEP 4 (SUBMIT PAYMENT DETAILS & UTR)
+            7. MAIN FORM CARD: STEP 3 (SUBMIT PAYMENT DETAILS & UTR)
             =================================================================== */}
-        {wizardStep === 4 && (
+        {wizardStep === 3 && (
           <form
             className="gov-form-card"
             onSubmit={(e) => {
@@ -2141,7 +2049,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                 type="button"
                 className="gov-btn-secondary"
                 disabled={busy}
-                onClick={() => setWizardStep(3)}
+                onClick={() => setWizardStep(2)}
               >
                 <ArrowLeft size={16} /> {t.btnBack}
               </button>
