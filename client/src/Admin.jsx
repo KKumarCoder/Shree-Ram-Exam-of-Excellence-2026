@@ -699,7 +699,8 @@ export function Admin() {
                   }
                 >
                   <option value="manual">Manual UPI & Receipt Verification</option>
-                  <option value="razorpay">Razorpay Verified Gateway</option>
+                  <option value="razorpay">Razorpay Verified Gateway (Instant)</option>
+                  <option value="both">Both (Student Chooses Online or Manual QR)</option>
                 </select>
               </label>
             </div>

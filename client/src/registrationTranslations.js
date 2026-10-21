@@ -151,6 +151,16 @@ export const translations = {
     upiStep5: "Upload the payment screenshot or receipt in the next step to complete registration.",
     alreadyPaidNotice: "Already paid? Do not make a second payment. Click the button below to upload your payment receipt.",
 
+    // Online Payment (Razorpay)
+    onlinePaymentTitle: "Online Payment via Razorpay Gateway",
+    onlinePaymentSub: "Pay securely using UPI, Credit/Debit Cards, or Netbanking. Instant admit card issued upon payment.",
+    onlinePayBtn: (fee) => `Pay ₹${fee} via Razorpay Secure Gateway`,
+    onlinePayInstantBadge: "Instant Confirmation & Immediate Admit Card Generation",
+    onlinePayMethods: "UPI Apps (GPay, PhonePe, Paytm, BHIM) • RuPay / Visa / Mastercard • 50+ Banks Netbanking",
+    paymentChoiceTitle: "Choose Payment Method",
+    paymentChoiceOnline: "Pay Online via Razorpay (Instant Admit Card)",
+    paymentChoiceManual: "Pay via UPI QR (Manual Receipt Upload)",
+
     // Step 4: Submit Payment Details
     submitHeading: "Upload Payment Screenshot / Receipt",
     submitSub: "Upload the screenshot or receipt of your completed UPI payment.",
@@ -384,6 +394,16 @@ export const translations = {
     upiStep4: "भुगतान सफल होने के बाद स्क्रीनशॉट (रसीद) अपने फोन में सुरक्षित रखें।",
     upiStep5: "अगले चरण में भुगतान का स्क्रीनशॉट या रसीद अपलोड करें।",
     alreadyPaidNotice: "यदि आप पहले ही शुल्क ट्रांसफर कर चुके हैं, तो दोबारा भुगतान न करें। नीचे दिए गए बटन पर क्लिक करके भुगतान रसीद अपलोड करें।",
+
+    // Online Payment (Razorpay)
+    onlinePaymentTitle: "Razorpay सिक्योर गेटवे द्वारा ऑनलाइन भुगतान",
+    onlinePaymentSub: "UPI, डेबिट/क्रेडिट कार्ड या नेट बैंकिंग से सुरक्षित भुगतान करें। भुगतान के तुरंत बाद प्रवेश पत्र प्राप्त करें।",
+    onlinePayBtn: (fee) => `Razorpay द्वारा ₹${fee} का ऑनलाइन भुगतान करें`,
+    onlinePayInstantBadge: "तुरंत सीट कन्फर्मेशन और प्रवेश पत्र (Admit Card) जनरेशन",
+    onlinePayMethods: "UPI ऐप्स (गूगल पे, फोनपे, पेटीएम) • रुपे / वीजा / मास्टरकार्ड • सभी प्रमुख बैंकों की नेट बैंकिंग",
+    paymentChoiceTitle: "भुगतान का माध्यम चुनें",
+    paymentChoiceOnline: "Razorpay से तुरंत ऑनलाइन भुगतान करें (तत्काल एडमिट कार्ड)",
+    paymentChoiceManual: "स्कूल UPI QR कोड स्कैन करके रसीद अपलोड करें",
 
     // Step 4: Submit Payment Details
     submitHeading: "भुगतान रसीद / स्क्रीनशॉट अपलोड करें",

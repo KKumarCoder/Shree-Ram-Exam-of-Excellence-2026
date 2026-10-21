@@ -497,17 +497,17 @@ r.post(
     const data = parse(manualSchema, req.body);
     const s = await getOwn(req);
     const settings = await publicSettings();
-    if (settings.paymentMode !== "manual")
+    if (settings.paymentMode !== "manual" && settings.paymentMode !== "both")
       return res
         .status(400)
         .json({ error: "Manual payment mode is disabled." });
     if (
       !s.verifiedAt ||
-      !["OTP_VERIFIED", "PAYMENT_REJECTED"].includes(s.status)
+      !["OTP_VERIFIED", "PAYMENT_PENDING", "PAYMENT_REJECTED"].includes(s.status)
     )
       return res.status(409).json({
         error:
-          "Mobile must be verified and registration must be eligible for payment.",
+          "Mobile/Email must be verified and registration must be eligible for payment.",
       });
     assertAuthorization(s);
     if (!s.photo?.publicId)
@@ -558,6 +558,7 @@ r.post(
               status: "OTP_VERIFIED",
               verificationExpiresAt: { $gt: now },
             },
+            { status: "PAYMENT_PENDING" },
             { status: "PAYMENT_REJECTED" },
           ],
         },
@@ -641,10 +642,13 @@ async function rzFetch(route, init = {}) {
     },
     signal: AbortSignal.timeout(15000),
   });
-  if (!response.ok)
-    throw Object.assign(new Error("Payment provider rejected the request."), {
+  if (!response.ok) {
+    const errText = await response.text().catch(() => "");
+    console.error("Razorpay API error:", response.status, errText);
+    throw Object.assign(new Error("Payment provider rejected the request: " + (errText || response.statusText)), {
       status: 502,
     });
+  }
   return response.json();
 }
 r.post(
@@ -653,15 +657,15 @@ r.post(
   async (req, res) => {
     const s = await getOwn(req),
       settings = await publicSettings();
-    if (settings.paymentMode !== "razorpay")
+    if (settings.paymentMode !== "razorpay" && settings.paymentMode !== "both")
       return res
         .status(400)
         .json({ error: "Online gateway mode is disabled." });
     if (
       !s.verifiedAt ||
-      !["OTP_VERIFIED", "PAYMENT_PENDING"].includes(s.status)
+      !["OTP_VERIFIED", "PAYMENT_PENDING", "PAYMENT_REJECTED"].includes(s.status)
     )
-      return res.status(409).json({ error: "Verify mobile before payment." });
+      return res.status(409).json({ error: "Verify mobile/email before payment." });
     assertAuthorization(s);
     if (!s.photo?.publicId)
       return res.status(400).json({
@@ -946,8 +950,8 @@ r.post(
     // Extend draft window so parent can complete payment & photo upload
     const now = new Date();
     target.draftExpiresAt = new Date(now.getTime() + 10800000);
-    if (target.status === "OTP_VERIFIED") {
-      target.verificationExpiresAt = new Date(now.getTime() + 1800000);
+    if (["OTP_VERIFIED", "PAYMENT_PENDING"].includes(target.status)) {
+      target.verificationExpiresAt = new Date(now.getTime() + 10800000);
     }
     await target.save();
 

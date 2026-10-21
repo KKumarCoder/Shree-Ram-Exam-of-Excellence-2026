@@ -537,6 +537,11 @@ r.patch("/registrations/:id", writable, async (req, res) => {
       reg.paymentStatus = "rejected";
     } else if (["OTP_VERIFIED", "PAYMENT_PENDING"].includes(newStatus)) {
       reg.applicationStatus = "awaiting_payment_proof";
+      const now = new Date();
+      reg.draftExpiresAt = new Date(now.getTime() + 10800000);
+      reg.verificationExpiresAt = new Date(now.getTime() + 10800000);
+      if (!reg.verifiedAt) reg.verifiedAt = now;
+      if (!reg.verifiedEmail && reg.email) reg.verifiedEmail = reg.email;
     } else if (newStatus === "DRAFT") {
       reg.applicationStatus = "draft";
     } else if (newStatus === "CANCELLED") {
@@ -805,7 +810,7 @@ r.patch("/settings", writable, async (req, res) => {
       reportingTime: z.string().max(80).optional(),
       examTime: z.string().max(80).optional(),
       venue: z.string().max(300).optional(),
-      paymentMode: z.enum(["manual", "razorpay"]).optional(),
+      paymentMode: z.enum(["manual", "razorpay", "both"]).optional(),
       upiId: z.string().max(100).optional(),
       payeeName: z.string().max(120).optional(),
       contactPhone: z.string().max(20).optional(),
@@ -822,14 +827,14 @@ r.patch("/settings", writable, async (req, res) => {
   if (effective.registrationOpen) {
     const mode = effective.paymentMode;
     if (
-      mode === "manual" &&
+      (mode === "manual" || mode === "both") &&
       (!effective.upiId?.trim() || !effective.payeeName?.trim())
     )
       return res.status(400).json({
         error: "Configure official UPI ID before opening manual registrations.",
       });
     if (
-      mode === "razorpay" &&
+      (mode === "razorpay" || mode === "both") &&
       (!process.env.RAZORPAY_KEY_ID ||
         !process.env.RAZORPAY_KEY_SECRET ||
         !process.env.RAZORPAY_WEBHOOK_SECRET)

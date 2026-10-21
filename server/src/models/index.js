@@ -269,7 +269,7 @@ export const Settings = model(
       },
       paymentMode: {
         type: String,
-        enum: ["manual", "razorpay"],
+        enum: ["manual", "razorpay", "both"],
         default: "manual",
       },
       upiId: { type: String, default: "" },

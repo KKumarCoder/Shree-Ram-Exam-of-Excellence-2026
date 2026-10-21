@@ -24,6 +24,8 @@ import {
   HelpCircle,
   Check,
   ExternalLink,
+  CreditCard,
+  Zap,
 } from "lucide-react";
 import { notify } from "./notifications.js";
 import { formatPublicDate } from "./publicDisplay.js";
@@ -102,6 +104,17 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
   const [editingEmail, setEditingEmail] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [showUtrGuide, setShowUtrGuide] = useState(false);
+  const [paymentTab, setPaymentTab] = useState(
+    settings?.paymentMode === "manual" ? "manual" : "online"
+  );
+
+  useEffect(() => {
+    if (settings?.paymentMode === "manual") {
+      setPaymentTab("manual");
+    } else {
+      setPaymentTab("online");
+    }
+  }, [settings?.paymentMode]);
 
   // Resume Registration modal states
   const [resumeOpen, setResumeOpen] = useState(false);
@@ -594,6 +607,113 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
       );
     });
 
+  // Dynamically load Razorpay SDK
+  const loadRazorpayScript = () =>
+    new Promise((resolve) => {
+      if (window.Razorpay) return resolve(true);
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+
+  // STEP 3 (ONLINE): PAY VIA RAZORPAY GATEWAY
+  const handleRazorpayPayment = () =>
+    execute(async () => {
+      if (!termsAccepted) {
+        throw new Error(
+          lang === "hi"
+            ? "कृपया ऑनलाइन भुगतान करने से पहले अभिभावक सहमति और नियम-शर्तें स्वीकार करें।"
+            : "Please accept the terms and guardian declaration before payment."
+        );
+      }
+
+      const loaded = await loadRazorpayScript();
+      if (!loaded) {
+        throw new Error(
+          lang === "hi"
+            ? "Razorpay गेटवे लोड नहीं हो सका। कृपया अपना इंटरनेट कनेक्शन जांचें।"
+            : "Failed to load Razorpay payment gateway. Please check your internet connection."
+        );
+      }
+
+      const { data } = await api.post(
+        "/registrations/razorpay/order",
+        { termsAccepted: true },
+        { headers: draftHeaders() }
+      );
+
+      const studentName = registration?.studentName || form.studentName;
+      const studentEmail = registration?.email || form.email;
+      const guardianPhone =
+        registration?.guardianPhone || form.guardianPhone || form.phone;
+
+      const options = {
+        key: data.key,
+        amount: data.amount,
+        currency: data.currency || "INR",
+        name: settings?.eventName || "SHREE 2027 OLYMPIAD",
+        description: `Olympiad Registration Fee — ${studentName}`,
+        image: "/favicon.ico",
+        order_id: data.orderId,
+        prefill: {
+          name: studentName,
+          email: studentEmail,
+          contact: guardianPhone,
+        },
+        theme: {
+          color: "#073657",
+        },
+        modal: {
+          backdropclose: false,
+          escape: false,
+          ondismiss: () => {
+            notify.info(
+              lang === "hi"
+                ? "भुगतान विंडो बंद कर दी गई। आप दोबारा प्रयास कर सकते हैं।"
+                : "Payment window closed. You can retry whenever you are ready."
+            );
+          },
+        },
+        handler: async (response) => {
+          try {
+            setBusy(true);
+            const verifyRes = await api.post(
+              "/registrations/razorpay/verify",
+              {
+                orderId: response.razorpay_order_id,
+                paymentId: response.razorpay_payment_id,
+                signature: response.razorpay_signature,
+              },
+              { headers: draftHeaders() }
+            );
+
+            setRegistration(verifyRes.data.registration);
+            setWizardStep(5);
+            notify.success(
+              lang === "hi"
+                ? "भुगतान सफल रहा! आपका पंजीकरण सफलतापूर्वक पूरा हुआ।"
+                : "Payment successful! Your registration has been confirmed."
+            );
+          } catch (err) {
+            notify.error(err.message || "Payment verification failed.");
+          } finally {
+            setBusy(false);
+          }
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", (response) => {
+        const desc =
+          response.error?.description || "Payment failed. Please try again.";
+        notify.error(desc);
+      });
+      rzp.open();
+    });
+
   // Download application receipt
   const handleDownloadReceipt = () =>
     execute(async () => {
@@ -904,19 +1024,33 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
           <nav className="gov-stepper-card" aria-label="Registration Progress">
             {/* Desktop Stepper */}
             <div className="gov-stepper-grid">
-              {[
-                { num: 1, title: t.step1Title, sub: t.step1Short },
-                { num: 2, title: t.step2Title, sub: t.step2Short },
-                { num: 3, title: t.step3Title, sub: t.step3Short },
-                { num: 4, title: t.step4Title, sub: t.step4Short },
-              ].map((s) => {
+              {(settings?.paymentMode === "razorpay" ||
+              (settings?.paymentMode === "both" && paymentTab === "online")
+                ? [
+                    { num: 1, title: t.step1Title, sub: t.step1Short },
+                    { num: 2, title: t.step2Title, sub: t.step2Short },
+                    {
+                      num: 3,
+                      title:
+                        lang === "hi" ? "ऑनलाइन भुगतान" : "Online Payment",
+                      sub: lang === "hi" ? "Razorpay" : "Instant Pay",
+                    },
+                  ]
+                : [
+                    { num: 1, title: t.step1Title, sub: t.step1Short },
+                    { num: 2, title: t.step2Title, sub: t.step2Short },
+                    { num: 3, title: t.step3Title, sub: t.step3Short },
+                    { num: 4, title: t.step4Title, sub: t.step4Short },
+                  ]
+              ).map((s) => {
                 const isCompleted = s.num < wizardStep;
                 const isActive = s.num === wizardStep;
                 return (
                   <div
                     key={s.num}
-                    className={`gov-step-item ${isActive ? "active" : ""} ${isCompleted ? "completed" : ""
-                      }`}
+                    className={`gov-step-item ${isActive ? "active" : ""} ${
+                      isCompleted ? "completed" : ""
+                    }`}
                   >
                     <div className="gov-step-num">
                       {isCompleted ? <Check size={18} /> : s.num}
@@ -931,38 +1065,52 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
             </div>
 
             {/* Mobile Stepper View */}
-            <div className="gov-stepper-mobile">
-              <div className="gov-mobile-step-header">
-                <span>
-                  {wizardStep === 1
-                    ? t.step1Title
-                    : wizardStep === 2
-                      ? t.step2Title
-                      : wizardStep === 3
-                        ? t.step3Title
-                        : t.step4Title}
-                </span>
-                <span className="gov-mobile-step-pill">
-                  {t.stepIndicatorMobile(
-                    wizardStep,
-                    4,
-                    wizardStep === 1
-                      ? t.step1Short
-                      : wizardStep === 2
-                        ? t.step2Short
-                        : wizardStep === 3
-                          ? t.step3Short
-                          : t.step4Short
-                  )}
-                </span>
-              </div>
-              <div className="gov-mobile-progress-bar">
-                <div
-                  className="gov-mobile-progress-fill"
-                  style={{ width: `${(wizardStep / 4) * 100}%` }}
-                />
-              </div>
-            </div>
+            {(() => {
+              const isOnline =
+                settings?.paymentMode === "razorpay" ||
+                (settings?.paymentMode === "both" && paymentTab === "online");
+              const totalSteps = isOnline ? 3 : 4;
+              const stepTitle =
+                wizardStep === 1
+                  ? t.step1Title
+                  : wizardStep === 2
+                    ? t.step2Title
+                    : wizardStep === 3
+                      ? isOnline
+                        ? lang === "hi"
+                          ? "ऑनलाइन भुगतान"
+                          : "Online Payment"
+                        : t.step3Title
+                      : t.step4Title;
+              const stepShort =
+                wizardStep === 1
+                  ? t.step1Short
+                  : wizardStep === 2
+                    ? t.step2Short
+                    : wizardStep === 3
+                      ? isOnline
+                        ? "Razorpay"
+                        : t.step3Short
+                      : t.step4Short;
+              return (
+                <div className="gov-stepper-mobile">
+                  <div className="gov-mobile-step-header">
+                    <span>{stepTitle}</span>
+                    <span className="gov-mobile-step-pill">
+                      {t.stepIndicatorMobile(wizardStep, totalSteps, stepShort)}
+                    </span>
+                  </div>
+                  <div className="gov-mobile-progress-bar">
+                    <div
+                      className="gov-mobile-progress-fill"
+                      style={{
+                        width: `${Math.min(100, (wizardStep / totalSteps) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
           </nav>
         )}
 
@@ -1647,93 +1795,205 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
               </div>
             </div>
 
-            {/* Already Paid Alert Banner */}
-            <div className="gov-already-paid-card">
-              <div className="gov-already-paid-text">
-                <strong>⚡ {t.btnAlreadyPaid}</strong>
-                <p>{t.alreadyPaidNotice}</p>
+            {/* If Both Modes are Enabled: Choice Tabs */}
+            {settings?.paymentMode === "both" && (
+              <div className="gov-payment-mode-tabs">
+                <button
+                  type="button"
+                  className={`gov-pay-tab-btn ${paymentTab === "online" ? "active" : ""}`}
+                  onClick={() => setPaymentTab("online")}
+                >
+                  <CreditCard size={18} />
+                  <span>{t.paymentChoiceOnline || "Pay Online via Razorpay (Instant Admit Card)"}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`gov-pay-tab-btn ${paymentTab === "manual" ? "active" : ""}`}
+                  onClick={() => setPaymentTab("manual")}
+                >
+                  <IndianRupee size={18} />
+                  <span>{t.paymentChoiceManual || "Pay via UPI QR (Manual Receipt Upload)"}</span>
+                </button>
               </div>
-              <button
-                type="button"
-                className="gov-btn-amber"
-                onClick={() => setWizardStep(4)}
-              >
-                {lang === "hi"
-                  ? "हाँ, मैंने भुगतान कर दिया है (रसीद अपलोड करें) →"
-                  : "Proceed to Upload Receipt →"}
-              </button>
-            </div>
+            )}
 
-            {/* Official UPI QR Layout */}
-            <div className="gov-qr-layout">
-              <div className="gov-qr-box">
-                <img
-                  src="/images/school-upi-qr.png"
-                  alt="Official School Payment UPI QR Code"
-                  className="gov-qr-image"
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = "/api/payment-qr";
-                  }}
-                />
-                <span className="gov-qr-caption">
-                  {t.payeeNameLabel}:{" "}
-                  <strong>
-                    {settings.payeeName || "Shree Ram Public School"}
-                  </strong>
-                  <br />
-                  {t.payeeUpiLabel}:{" "}
-                  <strong>{settings.upiId || "srpskanhra@okaxis"}</strong>
-                </span>
+            {/* TAB 1: RAZORPAY ONLINE GATEWAY */}
+            {(settings?.paymentMode === "razorpay" || (settings?.paymentMode === "both" && paymentTab === "online")) ? (
+              <div className="gov-razorpay-layout">
+                <div className="gov-razorpay-header">
+                  <div className="gov-razorpay-badge-row">
+                    <span className="gov-instant-pill">
+                      <Zap size={14} /> {lang === "hi" ? "तत्काल एडमिट कार्ड जारी" : "Instant Admit Card Issued"}
+                    </span>
+                    <span className="gov-security-pill">
+                      <ShieldCheck size={14} /> {lang === "hi" ? "Razorpay 256-बिट सुरक्षित गेटवे" : "Razorpay 256-Bit Secure Gateway"}
+                    </span>
+                  </div>
+                  <h3>{t.onlinePaymentTitle || "Online Payment via Razorpay Gateway"}</h3>
+                  <p>
+                    {t.onlinePaymentSub ||
+                      "Pay securely using UPI (Google Pay, PhonePe, Paytm), Debit/Credit Cards, or Netbanking. Your official Admit Card will be generated immediately."}
+                  </p>
+                </div>
+
+                {/* Accepted Payment Methods Badges */}
+                <div className="gov-pay-methods-grid">
+                  <div className="gov-pay-method-item">
+                    <strong>UPI Apps</strong>
+                    <span>Google Pay, PhonePe, Paytm, BHIM</span>
+                  </div>
+                  <div className="gov-pay-method-item">
+                    <strong>ATM / Cards</strong>
+                    <span>RuPay, Visa, MasterCard</span>
+                  </div>
+                  <div className="gov-pay-method-item">
+                    <strong>Net Banking</strong>
+                    <span>SBI, HDFC, ICICI, Axis & 50+ Banks</span>
+                  </div>
+                  <div className="gov-pay-method-item">
+                    <strong>Wallets</strong>
+                    <span>Paytm, Mobikwik & more</span>
+                  </div>
+                </div>
+
+                {/* Terms & Guardian Consent Checkbox */}
+                <div className="gov-terms-box" style={{ marginTop: "24px" }}>
+                  <label className="gov-checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={termsAccepted}
+                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                    />
+                    <span>
+                      <strong>
+                        {lang === "hi" ? "अभिभावक घोषणा एवं सहमति:" : "Guardian Declaration & Consent:"}{" "}
+                      </strong>
+                      {settings.terms ||
+                        "I confirm the information submitted is correct. I am a parent or authorized guardian and consent to the school processing the student information for this Olympiad. Payment and award eligibility are subject to the school’s published terms."}
+                    </span>
+                  </label>
+                </div>
+
+                {/* Actions Row */}
+                <div className="gov-actions-row" style={{ marginTop: "28px" }}>
+                  <button
+                    type="button"
+                    className="gov-btn-secondary"
+                    onClick={() => setWizardStep(2)}
+                    disabled={busy}
+                  >
+                    <ArrowLeft size={16} /> {t.btnBack}
+                  </button>
+                  <button
+                    type="button"
+                    className="gov-btn-primary"
+                    onClick={handleRazorpayPayment}
+                    disabled={busy || !termsAccepted}
+                    style={{
+                      background: termsAccepted ? "#087EB8" : "#94A3B8",
+                      cursor: termsAccepted && !busy ? "pointer" : "not-allowed",
+                    }}
+                  >
+                    <CreditCard size={18} />
+                    {busy
+                      ? lang === "hi" ? "कृपया प्रतीक्षा करें..." : "Connecting Gateway..."
+                      : (t.onlinePayBtn ? t.onlinePayBtn(settings.fee || 149) : `Pay ₹${settings.fee || 149} via Razorpay`)}
+                    <ArrowRight size={18} />
+                  </button>
+                </div>
               </div>
+            ) : (
+              /* TAB 2: MANUAL SCHOOL UPI QR FLOW */
+              <>
+                {/* Already Paid Alert Banner */}
+                <div className="gov-already-paid-card">
+                  <div className="gov-already-paid-text">
+                    <strong>⚡ {t.btnAlreadyPaid}</strong>
+                    <p>{t.alreadyPaidNotice}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="gov-btn-amber"
+                    onClick={() => setWizardStep(4)}
+                  >
+                    {lang === "hi"
+                      ? "हाँ, मैंने भुगतान कर दिया है (रसीद अपलोड करें) →"
+                      : "Proceed to Upload Receipt →"}
+                  </button>
+                </div>
 
-              <div className="gov-qr-instructions">
-                <h4>{t.upiStepsTitle}</h4>
-                <ul className="gov-qr-step-list">
-                  <li className="gov-qr-step-item">
-                    <span className="gov-qr-step-num">1</span>
-                    <span>{t.upiStep1}</span>
-                  </li>
-                  <li className="gov-qr-step-item">
-                    <span className="gov-qr-step-num">2</span>
-                    <span>{t.upiStep2}</span>
-                  </li>
-                  <li className="gov-qr-step-item">
-                    <span className="gov-qr-step-num">3</span>
-                    <span>{t.upiStep3}</span>
-                  </li>
-                  <li className="gov-qr-step-item">
-                    <span className="gov-qr-step-num">4</span>
-                    <span>{t.upiStep4}</span>
-                  </li>
-                  <li className="gov-qr-step-item">
-                    <span className="gov-qr-step-num">5</span>
-                    <span>{t.upiStep5}</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
+                {/* Official UPI QR Layout */}
+                <div className="gov-qr-layout">
+                  <div className="gov-qr-box">
+                    <img
+                      src="/images/school-upi-qr.png"
+                      alt="Official School Payment UPI QR Code"
+                      className="gov-qr-image"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = "/api/payment-qr";
+                      }}
+                    />
+                    <span className="gov-qr-caption">
+                      {t.payeeNameLabel}:{" "}
+                      <strong>
+                        {settings.payeeName || "Shree Ram Public School"}
+                      </strong>
+                      <br />
+                      {t.payeeUpiLabel}:{" "}
+                      <strong>{settings.upiId || "srpskanhra@okaxis"}</strong>
+                    </span>
+                  </div>
 
-            {/* Actions Row */}
-            <div className="gov-actions-row">
-              <button
-                type="button"
-                className="gov-btn-secondary"
-                onClick={() => setWizardStep(2)}
-              >
-                <ArrowLeft size={16} /> {t.btnBack}
-              </button>
-              <button
-                type="button"
-                className="gov-btn-primary"
-                onClick={() => setWizardStep(4)}
-              >
-                {lang === "hi"
-                  ? "भुगतान रसीद अपलोड करें"
-                  : "Upload Payment Receipt"}{" "}
-                <ArrowRight size={18} />
-              </button>
-            </div>
+                  <div className="gov-qr-instructions">
+                    <h4>{t.upiStepsTitle}</h4>
+                    <ul className="gov-qr-step-list">
+                      <li className="gov-qr-step-item">
+                        <span className="gov-qr-step-num">1</span>
+                        <span>{t.upiStep1}</span>
+                      </li>
+                      <li className="gov-qr-step-item">
+                        <span className="gov-qr-step-num">2</span>
+                        <span>{t.upiStep2}</span>
+                      </li>
+                      <li className="gov-qr-step-item">
+                        <span className="gov-qr-step-num">3</span>
+                        <span>{t.upiStep3}</span>
+                      </li>
+                      <li className="gov-qr-step-item">
+                        <span className="gov-qr-step-num">4</span>
+                        <span>{t.upiStep4}</span>
+                      </li>
+                      <li className="gov-qr-step-item">
+                        <span className="gov-qr-step-num">5</span>
+                        <span>{t.upiStep5}</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Actions Row */}
+                <div className="gov-actions-row">
+                  <button
+                    type="button"
+                    className="gov-btn-secondary"
+                    onClick={() => setWizardStep(2)}
+                  >
+                    <ArrowLeft size={16} /> {t.btnBack}
+                  </button>
+                  <button
+                    type="button"
+                    className="gov-btn-primary"
+                    onClick={() => setWizardStep(4)}
+                  >
+                    {lang === "hi"
+                      ? "भुगतान रसीद अपलोड करें"
+                      : "Upload Payment Receipt"}{" "}
+                    <ArrowRight size={18} />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -1909,13 +2169,41 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
             <p>{t.confirmSub}</p>
 
             {/* Review Status Alert Box */}
-            <div className="gov-review-notice-box">
-              <div className="gov-review-badge">
-                ⏳ {t.reviewBadge}
+            {registration?.status === "CONFIRMED" ? (
+              <div
+                className="gov-review-notice-box"
+                style={{
+                  background: "#ECFDF5",
+                  borderColor: "#A7F3D0",
+                  color: "#065F46",
+                }}
+              >
+                <div
+                  className="gov-review-badge"
+                  style={{ background: "#10B981", color: "#FFFFFF" }}
+                >
+                  ✓ {lang === "hi" ? "सीट एवं भुगतान कन्फर्म" : "Registration Confirmed"}
+                </div>
+                <strong style={{ color: "#065F46" }}>
+                  {lang === "hi"
+                    ? "आपका भुगतान सत्यापित हो चुका है और प्रवेश पत्र (Admit Card) जारी कर दिया गया है!"
+                    : "Payment Verified & Official Admit Card Issued Successfully!"}
+                </strong>
+                <p style={{ color: "#047857" }}>
+                  {lang === "hi"
+                    ? "आपका आधिकारिक पंजीकरण नंबर नीचे दिया गया है। आप अपना प्रवेश पत्र (Admit Card) और भुगतान रसीद तुरंत डाउनलोड कर सकते हैं।"
+                    : "Your permanent registration number has been assigned. You can now download your Admit Card and Payment Receipt below."}
+                </p>
               </div>
-              <strong>{t.reviewNoticeTitle}</strong>
-              <p>{t.reviewNoticeBody}</p>
-            </div>
+            ) : (
+              <div className="gov-review-notice-box">
+                <div className="gov-review-badge">
+                  ⏳ {t.reviewBadge}
+                </div>
+                <strong>{t.reviewNoticeTitle}</strong>
+                <p>{t.reviewNoticeBody}</p>
+              </div>
+            )}
 
             {/* Confirmation Summary Details Table */}
             <div className="gov-confirm-table">

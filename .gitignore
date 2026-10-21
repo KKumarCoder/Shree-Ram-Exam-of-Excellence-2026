@@ -1,7 +1,11 @@
 node_modules/
 dist/
 
+.env
+.env.*
 .env.local
+server/.env
+client/.env
 *.log
 .DS_Store
 server/private-uploads/
