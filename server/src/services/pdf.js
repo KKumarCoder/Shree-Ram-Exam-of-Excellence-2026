@@ -18,7 +18,7 @@ export async function applicationReceiptPdf(res, student, payment) {
     "/status",
     process.env.PUBLIC_BASE_URL ||
       process.env.FRONTEND_URL ||
-      "https://olympiad.srpskanhra.com",
+      "https://shreeolympiad.srpskanhra.com",
   );
   const qr = await QRCode.toBuffer(statusUrl.href, { margin: 1, width: 420 });
   const doc = new PDFDocument({

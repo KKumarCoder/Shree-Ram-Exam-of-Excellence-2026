@@ -9,7 +9,7 @@ const logo = fileURLToPath(
 export async function admitPdf(res, student, settings) {
   const photo = await studentPhoto(student);
   const qr = await QRCode.toBuffer(
-    `${process.env.PUBLIC_BASE_URL || "https://olympiad.srpskanhra.com"}/api/verify/${student.admitToken}`,
+    `${process.env.PUBLIC_BASE_URL || "https://shreeolympiad.srpskanhra.com"}/api/verify/${student.admitToken}`,
     { width: 400, margin: 1, errorCorrectionLevel: "M" },
   );
   const doc = new PDFDocument({
