@@ -41,6 +41,9 @@ import {
   areRemindersEnabled,
   getReminderIntervals,
 } from "../services/reminderScheduler.js";
+import { generateCertificatePdfStream } from "../services/certificatePdf.js";
+import { sendCertificateEmail } from "../services/certificateEmail.js";
+import { processEligibleCertificates } from "../services/certificateWorker.js";
 const r = express.Router();
 const writable = adminRoles("SUPER_ADMIN", "ADMIN");
 const verifier = adminRoles("SUPER_ADMIN", "ADMIN", "PAYMENT_VERIFIER");
@@ -733,6 +736,48 @@ r.get("/admit-card/:id", examiner, async (req, res) => {
       .status(403)
       .json({ error: "Only approved registrations with verified payments have admit cards." });
   await admitPdf(res, student, await publicSettings());
+});
+r.get("/certificate/preview/:id", examiner, async (req, res) => {
+  const student = await Registration.findById(req.params.id);
+  if (!student) return res.status(404).json({ error: "Registration not found." });
+  const inline = req.query.download !== "1";
+  await generateCertificatePdfStream(res, student, await publicSettings(), inline);
+});
+r.post("/certificate/send/:id", examiner, async (req, res) => {
+  const student = await Registration.findById(req.params.id);
+  if (!student) return res.status(404).json({ error: "Registration not found." });
+  if (student.status !== "CONFIRMED") {
+    return res.status(400).json({ error: "Only confirmed registrations can receive certificates." });
+  }
+
+  if (!student.checkInAt) {
+    student.checkInAt = new Date();
+    await student.save();
+  }
+
+  const result = await sendCertificateEmail(student, await publicSettings());
+  const updated = await Registration.findById(student._id);
+
+  await Audit.create({
+    actor: String(req.admin._id),
+    action: "CERTIFICATE_MANUAL_DISPATCH",
+    registrationId: student._id,
+    details: { result },
+  });
+
+  res.json({
+    message: `Certificate successfully sent to ${updated.certificateSentTo || student.email}.`,
+    registration: safeRegistration(updated),
+  });
+});
+r.post("/certificate/process-eligible", examiner, async (req, res) => {
+  const result = await processEligibleCertificates();
+  await Audit.create({
+    actor: String(req.admin._id),
+    action: "CERTIFICATE_BATCH_RUN",
+    details: result,
+  });
+  res.json(result);
 });
 r.get("/check-in/:id/photo", examiner, async (req, res) => {
   const student = await Registration.findOne({

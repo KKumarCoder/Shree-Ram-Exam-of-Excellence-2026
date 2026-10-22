@@ -97,17 +97,20 @@ export const translations = {
     purposePlaceholder: "-- Select purpose (optional) --",
 
     consentLabel: "I am the parent/authorized guardian and consent to the processing of this student's information for the SHREE 2027 Olympiad.",
+    consentLabelShort: "I am the parent/authorized guardian and consent...",
+    seeMore: "See More",
+    seeLess: "See Less",
 
     // Instructions
-    instructionsTitle: "Important Instructions Before You Begin",
-    inst1: "Keep student's passport-size photo ready (JPEG/PNG, max 5 MB).",
-    inst2: "Parents can register multiple children (siblings) using the same email and mobile number.",
-    inst3: "A 6-digit verification code (OTP) will be sent to your email in Step 2.",
-    inst4: "Registration fee is ₹149 per student to be paid via official UPI QR code in Step 3.",
-    inst5: "Save your payment screenshot or receipt to upload in Step 4.",
+    instructionsTitle: "Important Guidelines",
+    inst1: "Keep student's passport-size photo ready (optional, JPEG/PNG up to 5 MB).",
+    inst2: "Parents can register multiple children (siblings) using the same mobile number.",
+    inst3: "A quick 6-digit OTP verification is completed directly within the form.",
+    inst4: "Registration fee can be paid safely via UPI (PhonePe, GPay, Paytm), Cards or Net Banking.",
+    inst5: "Download your official registration receipt and admit card immediately after payment.",
 
     // Buttons
-    btnSaveDraft: "Save & Continue to Email Verification",
+    btnSaveDraft: "Submit & Pay",
     btnSaving: "Saving Details...",
     btnVerifyOtp: "Verify OTP & Continue",
     btnVerifying: "Verifying...",
@@ -123,7 +126,20 @@ export const translations = {
     btnDownloadAdmit: "Download Admit Card (PDF)",
     btnCheckStatus: "Check Application Status",
     btnRegisterSibling: "Register Another Child (Sibling)",
-    btnStartNew: "Start Another Fresh Registration",
+    // Inline Email OTP
+    inlineVerifyTitle: "Verify Email OTP",
+    inlineSendOtp: "Send OTP",
+    inlineSendingOtp: "Sending...",
+    inlineVerifyBtn: "Verify OTP",
+    inlineVerifyingBtn: "Verifying...",
+    inlineVerified: "Verified",
+    inlineChangeEmail: "Change",
+    inlineEnterOtpPlaceholder: "Enter 6-digit OTP",
+    inlineClickSendFirst: "Click 'Send OTP' first",
+    inlineVerifiedPlaceholder: "Verified ✓",
+    inlineOtpHint: "Enter 6-digit OTP sent to your email inbox/spam.",
+    inlineVerifiedSuccess: "Email address verified successfully.",
+    inlineOtpRequiredError: "Please verify your email address using the OTP verification box before submitting.",
 
     // Step 2: OTP
     otpHeading: "Verify Your Email Address",
@@ -341,17 +357,20 @@ export const translations = {
     purposePlaceholder: "-- उद्देश्य चुनें (वैकल्पिक) --",
 
     consentLabel: "मैं विद्यार्थी का माता-पिता/अधिकृत अभिभावक हूँ और श्री 2027 ओलंपियाड के लिए यह जानकारी देने की सहमति देता हूँ।",
+    consentLabelShort: "मैं विद्यार्थी का माता-पिता/अधिकृत अभिभावक हूँ...",
+    seeMore: "और पढ़ें (See More)",
+    seeLess: "कम दिखाएं (See Less)",
 
     // Instructions
-    instructionsTitle: "आवेदन शुरू करने से पहले आवश्यक दिशा-निर्देश",
-    inst1: "विद्यार्थी का पासपोर्ट साइज फोटो तैयार रखें (JPEG/PNG, अधिकतम 5 MB)।",
-    inst2: "माता-पिता एक ही ईमेल और मोबाइल से अपने कई बच्चों (भाई-बहनों) का अलग-अलग पंजीकरण कर सकते हैं।",
-    inst3: "चरण 2 में आपके ईमेल पर 6 अंकों का सत्यापन कोड (OTP) भेजा जाएगा।",
-    inst4: "पंजीकरण शुल्क ₹149 प्रति विद्यार्थी है, जिसे चरण 3 में स्कूल के UPI QR कोड पर जमा करना है।",
-    inst5: "भुगतान का स्क्रीनशॉट या रसीद सेव रखें जिसे चरण 4 में अपलोड करना होगा।",
+    instructionsTitle: "महत्वपूर्ण दिशानिर्देश (Guidelines)",
+    inst1: "विद्यार्थी का पासपोर्ट साइज फोटो (वैकल्पिक / JPEG, PNG, अधिकतम 5 MB) अपलोड कर सकते हैं।",
+    inst2: "अभिभावक एक ही मोबाइल नंबर से अपने कई बच्चों (भाई-बहनों) का अलग-अलग पंजीकरण कर सकते हैं।",
+    inst3: "ईमेल सत्यापन के लिए फॉर्म में ही तुरंत 6 अंकों का OTP प्राप्त होगा।",
+    inst4: "पंजीकरण शुल्क UPI (PhonePe, GPay, Paytm), कार्ड या नेट बैंकिंग से सुरक्षित जमा करें।",
+    inst5: "भुगतान पूर्ण होते ही पंजीकरण रसीद और पुष्टि पत्र तुरंत डाउनलोड करें।",
 
     // Buttons
-    btnSaveDraft: "सुरक्षित करें और ईमेल सत्यापन पर जाएँ",
+    btnSaveDraft: "सबमिट और भुगतान करें (Submit & Pay)",
     btnSaving: "जानकारी सुरक्षित हो रही है...",
     btnVerifyOtp: "OTP सत्यापित करें और भुगतान पर जाएँ",
     btnVerifying: "सत्यापन हो रहा है...",
@@ -368,6 +387,21 @@ export const translations = {
     btnCheckStatus: "आवेदन की स्थिति जांचें (Check Status)",
     btnRegisterSibling: "दूसरे बच्चे का पंजीकरण करें (Register Sibling)",
     btnStartNew: "नया आवेदन शुरू करें",
+
+    // Inline Email OTP
+    inlineVerifyTitle: "ईमेल OTP सत्यापन",
+    inlineSendOtp: "OTP भेजें",
+    inlineSendingOtp: "भेज रहे हैं...",
+    inlineVerifyBtn: "सत्यापित करें",
+    inlineVerifyingBtn: "जांच रहे हैं...",
+    inlineVerified: "सत्यापित",
+    inlineChangeEmail: "बदलें",
+    inlineEnterOtpPlaceholder: "6 अंकों का OTP दर्ज करें",
+    inlineClickSendFirst: "पहले 'OTP भेजें' पर क्लिक करें",
+    inlineVerifiedPlaceholder: "सत्यापित है ✓",
+    inlineOtpHint: "ईमेल इनबॉक्स / स्पैम में भेजा गया 6 अंकों का कोड दर्ज करें।",
+    inlineVerifiedSuccess: "ईमेल सफलतापूर्वक सत्यापित हो गया है।",
+    inlineOtpRequiredError: "कृपया फॉर्म सबमिट करने से पहले ईमेल के सामने दिए गए OTP विकल्प से ईमेल सत्यापित करें।",
 
     // Step 2: OTP
     otpHeading: "अपना ईमेल सत्यापित करें",

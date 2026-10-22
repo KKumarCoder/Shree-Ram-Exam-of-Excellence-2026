@@ -28,6 +28,7 @@ import { maskEmail } from "../services/email.js";
 import { sendOtp, verifyOtp } from "../services/notifications.js";
 import { confirmRegistration } from "../services/confirm.js";
 import { admitPdf, applicationReceiptPdf } from "../services/pdf.js";
+import { generateCertificatePdfStream } from "../services/certificatePdf.js";
 import {
   assertDraft,
   assertAuthorization,
@@ -38,13 +39,15 @@ import {
 import { Challenge } from "../models/index.js";
 import { hashRecoveryToken } from "../services/recoveryToken.js";
 import { markRemindersCompleted } from "../services/reminderScheduler.js";
+import { sendEmailOtp, verifyEmailOtp } from "../services/emailOtp.js";
 const r = express.Router();
 // Serialize mutations of a draft across processes, including payment initiation.
 r.use("/registrations", async (req, res, next) => {
   if (
     req.path === "/start" ||
     req.path.startsWith("/resume") ||
-    req.path.startsWith("/recovery")
+    req.path.startsWith("/recovery") ||
+    req.path.startsWith("/email-otp")
   )
     return next();
   return authenticate("draft")(req, res, () => {
@@ -131,6 +134,9 @@ const safeRegistration = (s) => ({
   seat: s.seat,
   room: s.room,
   checkInAt: s.checkInAt,
+  certificateNumber: s.certificateNumber || null,
+  certificateIssuedAt: s.certificateIssuedAt || null,
+  certificateStatus: s.certificateStatus || "NOT_ELIGIBLE",
   submittedAt: s.submittedAt || null,
   approvedAt: s.approvedAt || null,
   studentIdentityHash: s.studentIdentityHash || null,
@@ -347,6 +353,28 @@ r.post("/registrations/start", async (req, res) => {
     registration: safeRegistration(s),
   });
 });
+
+// Standalone Email OTP Verification (Inline registration form)
+r.post("/registrations/email-otp/send", async (req, res, next) => {
+  try {
+    const { email } = req.body || {};
+    const result = await sendEmailOtp(email);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+r.post("/registrations/email-otp/verify", async (req, res, next) => {
+  try {
+    const { email, otp } = req.body || {};
+    const result = await verifyEmailOtp(email, otp);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
 r.post(
   ["/registrations/otp/send", "/registrations/otp/resend"],
   authenticate("draft"),
@@ -1200,6 +1228,44 @@ r.get("/verify/:token", async (req, res) => {
     seat: s.seat,
     checkedIn: !!s.checkInAt,
   });
+});
+r.get("/certificate/download/:token", async (req, res) => {
+  const raw = String(req.params.token || "").trim();
+  const s = await Registration.findOne({
+    status: "CONFIRMED",
+    $or: [
+      { admitToken: raw },
+      { registrationNumber: raw },
+      { applicationRef: raw },
+      { certificateNumber: raw },
+    ],
+  });
+
+  if (!s) {
+    return res.status(404).json({ error: "No confirmed registration found for this ID." });
+  }
+
+  if (!s.checkInAt) {
+    return res.status(403).json({
+      error: "Participation certificates are issued only to students who attended the exam on 12 January 2027.",
+    });
+  }
+
+  const inline = req.query.download !== "1";
+  await generateCertificatePdfStream(res, s, await publicSettings(), inline);
+});
+r.get("/certificate", authenticate("student"), async (req, res) => {
+  const s = await Registration.findById(req.registration._id);
+  if (!s || s.status !== "CONFIRMED") {
+    return res.status(404).json({ error: "Registration not found." });
+  }
+  if (!s.checkInAt) {
+    return res.status(403).json({
+      error: "Certificate of Participation is issued after attending the exam on 12 January 2027.",
+    });
+  }
+  const inline = req.query.download !== "1";
+  await generateCertificatePdfStream(res, s, await publicSettings(), inline);
 });
 export const webhook = async (req, res) => {
   const secret = requireConfigured(

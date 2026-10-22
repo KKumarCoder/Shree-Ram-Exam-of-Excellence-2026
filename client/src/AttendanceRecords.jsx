@@ -9,6 +9,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  Award,
+  Send,
+  Eye,
+  CheckCircle2,
+  Clock3,
 } from "lucide-react";
 import { api, downloadBlob } from "./api.js";
 import { notify } from "./notifications.js";
@@ -61,9 +66,52 @@ export function AttendanceRecords({
   const [time, setTime] = useState(""),
     [saving, setSaving] = useState(false),
     [saveError, setSaveError] = useState("");
+  const [sendingCertId, setSendingCertId] = useState("");
+  const [runningWorker, setRunningWorker] = useState(false);
   const dialog = useRef(null),
     saveLock = useRef(false),
     exportLock = useRef(false);
+
+  async function sendCertificate(studentId) {
+    if (sendingCertId) return;
+    setSendingCertId(studentId);
+    try {
+      const res = await api.post(`/admin/certificate/send/${studentId}`);
+      notify.success(res.data.message || "Certificate sent successfully!");
+      setRevision((v) => v + 1);
+      onChanged?.();
+    } catch (err) {
+      notify.error(err.message || "Failed to send certificate.");
+    } finally {
+      setSendingCertId("");
+    }
+  }
+
+  async function triggerWorker() {
+    if (runningWorker) return;
+    setRunningWorker(true);
+    try {
+      const res = await api.post("/admin/certificate/process-eligible");
+      if (res.data.processed > 0) {
+        notify.success(
+          `Dispatched ${res.data.successCount} certificate(s) for eligible attendees (4h cutoff).`
+        );
+      } else {
+        notify.info(
+          res.data.message || "No students have currently reached the 4-hour mark."
+        );
+      }
+      setRevision((v) => v + 1);
+    } catch (err) {
+      notify.error(err.message || "Failed to trigger certificate batch.");
+    } finally {
+      setRunningWorker(false);
+    }
+  }
+
+  function previewCertificate(studentId) {
+    window.open(`/api/admin/certificate/preview/${studentId}`, "_blank");
+  }
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
@@ -274,7 +322,22 @@ export function AttendanceRecords({
             ? "Loading attendance…"
             : `${data.total} matching students · exports include all matching pages`}
         </span>
-        <div>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <button
+            type="button"
+            className="btn light"
+            disabled={loading || runningWorker}
+            onClick={triggerWorker}
+            title="Scan attendance & dispatch certificates to students who checked in over 4 hours ago"
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+          >
+            {runningWorker ? (
+              <Loader2 size={16} className="admin-spin" />
+            ) : (
+              <Award size={16} />
+            )}
+            Process 4h Certificates
+          </button>
           {["xlsx", "pdf"].map((format) => (
             <button
               key={format}
@@ -312,6 +375,7 @@ export function AttendanceRecords({
               <th>Class</th>
               <th>Attendance</th>
               <th>Check-in (IST)</th>
+              <th>Certificate (Auto 4h)</th>
               {canEdit && <th>Actions</th>}
             </tr>
           </thead>
@@ -332,6 +396,107 @@ export function AttendanceRecords({
                   </span>
                 </td>
                 <td>{dateLabel(student.checkInAt)}</td>
+                <td>
+                  {student.certificateIssuedAt ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                      <span
+                        className="status-pill present"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          width: "fit-content",
+                        }}
+                      >
+                        <CheckCircle2 size={12} /> Issued & Emailed
+                      </span>
+                      <small style={{ color: "var(--muted)", fontSize: "11px" }}>
+                        {student.certificateNumber || "Official Cert"}
+                      </small>
+                      <div style={{ display: "flex", gap: "6px", marginTop: "2px" }}>
+                        <button
+                          type="button"
+                          className="btn light"
+                          style={{ padding: "2px 8px", fontSize: "11px", height: "auto" }}
+                          onClick={() => previewCertificate(student.id)}
+                          title="Preview or download Certificate PDF"
+                        >
+                          <Eye size={12} /> Preview
+                        </button>
+                        {canEdit && (
+                          <button
+                            type="button"
+                            className="btn light"
+                            style={{ padding: "2px 8px", fontSize: "11px", height: "auto" }}
+                            disabled={sendingCertId === student.id}
+                            onClick={() => sendCertificate(student.id)}
+                            title="Resend certificate email"
+                          >
+                            {sendingCertId === student.id ? (
+                              <Loader2 size={12} className="admin-spin" />
+                            ) : (
+                              <Send size={12} />
+                            )}{" "}
+                            Resend
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ) : student.checkInAt ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                      <span
+                        className="status-pill"
+                        style={{
+                          background: "#fef3c7",
+                          color: "#92400e",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          width: "fit-content",
+                        }}
+                      >
+                        <Clock3 size={12} /> Pending (Auto 4h)
+                      </span>
+                      <small style={{ color: "var(--muted)", fontSize: "11px" }}>
+                        {new Date(student.checkInAt).getTime() + 4 * 3600000 <= Date.now()
+                          ? "Due for auto-dispatch"
+                          : `Auto-send at ${new Date(new Date(student.checkInAt).getTime() + 4 * 3600000).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })}`}
+                      </small>
+                      <div style={{ display: "flex", gap: "6px", marginTop: "2px" }}>
+                        <button
+                          type="button"
+                          className="btn light"
+                          style={{ padding: "2px 8px", fontSize: "11px", height: "auto" }}
+                          onClick={() => previewCertificate(student.id)}
+                          title="Preview Certificate PDF"
+                        >
+                          <Eye size={12} /> Preview
+                        </button>
+                        {canEdit && (
+                          <button
+                            type="button"
+                            className="btn gold"
+                            style={{ padding: "2px 8px", fontSize: "11px", height: "auto" }}
+                            disabled={sendingCertId === student.id}
+                            onClick={() => sendCertificate(student.id)}
+                            title="Send certificate right now without waiting 4 hours"
+                          >
+                            {sendingCertId === student.id ? (
+                              <Loader2 size={12} className="admin-spin" />
+                            ) : (
+                              <Send size={12} />
+                            )}{" "}
+                            Send Now
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <span style={{ color: "var(--muted)", fontSize: "12px" }}>
+                      Awaiting exam check-in
+                    </span>
+                  )}
+                </td>
                 {canEdit && (
                   <td>
                     <div className="record-actions">

@@ -16,6 +16,7 @@ import {
   Mail,
   Loader2,
   CheckCircle,
+  IndianRupee,
 } from "lucide-react";
 import { api } from "../api.js";
 import { notify } from "../notifications.js";
@@ -118,15 +119,15 @@ export function DashboardOverview({
       onClick: () => onNavigate?.("reminders"),
     },
     {
-      id: "duplicates",
-      title: "Suspected Duplicates",
-      value: (stats?.suspectedDuplicatesCount ?? 0).toLocaleString("en-IN"),
-      icon: CopyCheck,
-      accentColor: "#FB923C",
-      bgColor: "#FFF0E3",
-      note: "Flagged for admin audit",
-      dotColor: "#FB923C",
-      onClick: () => onNavigate?.("duplicates"),
+      id: "collection",
+      title: "Total Collection Amount",
+      value: `₹${(stats?.revenue != null ? stats.revenue : (stats?.confirmed || 0) * 149).toLocaleString("en-IN")}`,
+      icon: IndianRupee,
+      accentColor: "#10B981",
+      bgColor: "#E6FBF2",
+      note: "Total approved fees",
+      dotColor: "#10B981",
+      onClick: () => onNavigate?.("payments"),
     },
     {
       id: "admit_cards",
@@ -146,12 +147,10 @@ export function DashboardOverview({
   const confirmedCount = stats?.confirmed || 0;
   const reviewCount = stats?.review || 0;
   const incompleteCount = stats?.incomplete ?? stats?.pending ?? 0;
-  const duplicateCount = stats?.suspectedDuplicatesCount || 0;
 
   const confirmedPct = Math.round((confirmedCount / totalCount) * 100);
   const reviewPct = Math.round((reviewCount / totalCount) * 100);
-  const incompletePct = Math.round((incompleteCount / totalCount) * 100);
-  const duplicatePct = Math.min(100 - (confirmedPct + reviewPct + incompletePct), Math.round((duplicateCount / totalCount) * 100));
+  const incompletePct = Math.max(0, 100 - (confirmedPct + reviewPct));
 
   return (
     <div className="erp-dashboard-overview">
@@ -261,11 +260,6 @@ export function DashboardOverview({
                 style={{ width: `${incompletePct}%`, background: "#FB923C" }}
                 title={`Incomplete Drafts: ${incompleteCount} (${incompletePct}%)`}
               />
-              <div
-                className="erp-donut-segment"
-                style={{ width: `${duplicatePct}%`, background: "#EC4899" }}
-                title={`Duplicate Audit: ${duplicateCount} (${duplicatePct}%)`}
-              />
             </div>
 
             {/* Status Legend List */}
@@ -296,10 +290,12 @@ export function DashboardOverview({
 
               <div className="erp-status-legend-item">
                 <div className="erp-legend-label-group">
-                  <span className="erp-legend-color-dot" style={{ background: "#EC4899" }} />
-                  <span className="erp-legend-text">Suspected Duplicates</span>
+                  <span className="erp-legend-color-dot" style={{ background: "#10B981" }} />
+                  <span className="erp-legend-text">Total Collection</span>
                 </div>
-                <span className="erp-legend-count">{duplicateCount}</span>
+                <span className="erp-legend-count" style={{ color: "#10B981", fontWeight: 800 }}>
+                  ₹{(stats?.revenue != null ? stats.revenue : (stats?.confirmed || 0) * 149).toLocaleString("en-IN")}
+                </span>
               </div>
             </div>
           </div>
@@ -336,8 +332,8 @@ export function DashboardOverview({
               name: "PCM",
               desc: "Physics, Chem, Mathematics",
               color: "#0284C7",
-              bg: "#F0F9FF",
-              border: "#BAE6FD",
+              bg: "rgba(2, 132, 199, 0.08)",
+              border: "rgba(56, 189, 248, 0.3)",
               data: stats?.class11Streams?.PCM || { total: 0, confirmed: 0 },
             },
             {
@@ -345,8 +341,8 @@ export function DashboardOverview({
               name: "PCB",
               desc: "Physics, Chem, Biology",
               color: "#16A34A",
-              bg: "#F0FDF4",
-              border: "#BBF7D0",
+              bg: "rgba(34, 197, 94, 0.08)",
+              border: "rgba(74, 222, 128, 0.3)",
               data: stats?.class11Streams?.PCB || { total: 0, confirmed: 0 },
             },
             {
@@ -354,8 +350,8 @@ export function DashboardOverview({
               name: "ARTS",
               desc: "Humanities / Arts",
               color: "#D97706",
-              bg: "#FFFBEB",
-              border: "#FDE68A",
+              bg: "rgba(245, 158, 11, 0.08)",
+              border: "rgba(251, 191, 36, 0.3)",
               data: stats?.class11Streams?.ARTS || { total: 0, confirmed: 0 },
             },
             {
@@ -363,19 +359,18 @@ export function DashboardOverview({
               name: "COMMERCE",
               desc: "Commerce & Business",
               color: "#7C3AED",
-              bg: "#FAF5FF",
-              border: "#E9D5FF",
+              bg: "rgba(168, 85, 247, 0.08)",
+              border: "rgba(192, 132, 252, 0.3)",
               data: stats?.class11Streams?.COMMERCE || { total: 0, confirmed: 0 },
             },
           ].map((stream) => (
             <div
               key={stream.id}
+              className="erp-stream-card"
               onClick={() => onNavigate?.("registrations")}
               role="button"
               tabIndex={0}
               style={{
-                background: stream.bg,
-                border: `1.5px solid ${stream.border}`,
                 borderRadius: "14px",
                 padding: "16px",
                 cursor: "pointer",
@@ -383,14 +378,8 @@ export function DashboardOverview({
                 display: "flex",
                 flexDirection: "column",
                 gap: "8px",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.boxShadow = `0 6px 18px ${stream.color}22`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "none";
-                e.currentTarget.style.boxShadow = "none";
+                border: `1.5px solid ${stream.border}`,
+                background: stream.bg,
               }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -398,11 +387,11 @@ export function DashboardOverview({
                   {stream.name}
                 </span>
                 <span
+                  className="erp-stream-badge"
                   style={{
                     fontSize: "0.72rem",
                     fontWeight: 700,
                     color: stream.color,
-                    background: "#FFFFFF",
                     padding: "2px 8px",
                     borderRadius: "6px",
                     border: `1px solid ${stream.border}`,
@@ -412,14 +401,14 @@ export function DashboardOverview({
                 </span>
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
-                <span style={{ fontSize: "1.75rem", fontWeight: 800, color: "#0F172A" }}>
+                <span className="erp-stream-count" style={{ fontSize: "1.75rem", fontWeight: 800 }}>
                   {stream.data.total}
                 </span>
-                <span style={{ fontSize: "0.8rem", color: "#64748B" }}>
+                <span className="erp-stream-label" style={{ fontSize: "0.8rem" }}>
                   candidates
                 </span>
               </div>
-              <div style={{ fontSize: "0.76rem", color: "#64748B" }}>
+              <div className="erp-stream-desc" style={{ fontSize: "0.76rem" }}>
                 {stream.desc}
               </div>
             </div>

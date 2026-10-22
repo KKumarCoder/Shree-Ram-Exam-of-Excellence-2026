@@ -12,6 +12,7 @@ import { otpHashSecret } from "./services/otpCode.js";
 import { validateEmailEnvironment } from "./services/email.js";
 import { startNotificationWorker } from "./services/notifications.js";
 import { startReminderWorker } from "./services/reminderScheduler.js";
+import { startCertificateWorker } from "./services/certificateWorker.js";
 import { OtpBucket, OtpLock, Challenge, Registration, MediaAsset, ReminderLog } from "./models/index.js";
 import publicRoutes, { webhook } from "./routes/public.js";
 import adminRoutes from "./routes/admin.js";
@@ -144,6 +145,7 @@ try {
   startNotificationWorker();
   startReminderWorker();
   startMediaWorker();
+  startCertificateWorker();
   const port = Number(process.env.PORT || 5000);
   app.listen(port, () =>
     console.log(`Shree Olympiad API listening on ${port}`),

@@ -135,7 +135,7 @@ function CheckInResultDialog({ result, onClose }) {
           <p className="checkin-result-message">
             {result.alreadyCheckedIn
               ? "This admit card was scanned earlier. No duplicate check-in was added."
-              : "Student has been marked present."}
+              : "Student marked present! Participation certificate will be automatically emailed 4 hours after check-in."}
           </p>
           <button
             type="button"

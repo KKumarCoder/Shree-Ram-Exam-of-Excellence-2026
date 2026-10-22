@@ -156,8 +156,17 @@ export const Registration = model(
       photo: { type: mediaSchema, default: null },
       admitToken: { type: String, unique: true, sparse: true },
       seat: { type: String, default: "" },
-      room: { type: String, default: "" },
-      checkInAt: { type: Date, default: null },
+      checkInAt: { type: Date, default: null, index: true },
+      certificateNumber: { type: String, unique: true, sparse: true },
+      certificateIssuedAt: { type: Date, default: null, index: true },
+      certificateStatus: {
+        type: String,
+        enum: ["NOT_ELIGIBLE", "ELIGIBLE", "SENT", "FAILED"],
+        default: "NOT_ELIGIBLE",
+        index: true,
+      },
+      certificateSentTo: { type: String, default: "" },
+      certificateError: { type: String, default: "" },
       notificationStatus: { type: String, default: "" },
       notificationAttempts: { type: Number, default: 0 },
       notificationNextAttemptAt: { type: Date },
@@ -220,6 +229,26 @@ Challenge.schema.index({ expiresAt: 1 }, { expireAfterSeconds: 3600 });
 Challenge.schema.index({ registrationId: 1, purpose: 1 });
 Challenge.schema.index({ phone: 1, createdAt: -1 });
 Challenge.schema.index({ recipient: 1, createdAt: -1 });
+
+export const EmailOtpChallenge = model(
+  "EmailOtpChallenge",
+  new Schema(
+    {
+      recipient: { type: String, required: true, lowercase: true, trim: true, index: true },
+      codeHash: { type: String, required: true, select: false },
+      salt: { type: String, required: true },
+      attempts: { type: Number, default: 0 },
+      expiresAt: { type: Date, required: true },
+      resendAvailableAt: { type: Date, required: true },
+      verified: { type: Boolean, default: false },
+      verifiedAt: { type: Date, default: null },
+    },
+    opts,
+  ),
+);
+EmailOtpChallenge.schema.index({ expiresAt: 1 }, { expireAfterSeconds: 600 });
+EmailOtpChallenge.schema.index({ recipient: 1, createdAt: -1 });
+
 export const Payment = model(
   "Payment",
   new Schema(

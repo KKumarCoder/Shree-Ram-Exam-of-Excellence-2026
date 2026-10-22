@@ -7,6 +7,7 @@ import {
   Download,
   CheckCircle2,
   Clock3,
+  Award,
 } from "lucide-react";
 import { api, downloadBlob, img } from "./api.js";
 import { ApplicationStatusTimeline } from "./PortalComponents.jsx";
@@ -110,6 +111,18 @@ export function Status() {
         responseType: "blob",
       });
       downloadBlob(r.data, `${record.registrationNumber}-admit-card.pdf`);
+    });
+  }
+  function downloadCertificate() {
+    run(async () => {
+      const r = await api.get("/certificate", {
+        headers: { Authorization: `Bearer ${access}` },
+        responseType: "blob",
+      });
+      downloadBlob(
+        r.data,
+        `Certificate-${(record.studentName || "Student").replace(/[^a-zA-Z0-9]/g, "_")}-${record.registrationNumber || "2027"}.pdf`,
+      );
     });
   }
   return (
@@ -272,13 +285,69 @@ export function Status() {
                 </button>
               )}
               {record.status === "CONFIRMED" ? (
-                <button
-                  className="btn primary wide"
-                  disabled={busy}
-                  onClick={download}
-                >
-                  <Download size={17} /> Download admit card PDF
-                </button>
+                <>
+                  <button
+                    className="btn primary wide"
+                    disabled={busy}
+                    onClick={download}
+                  >
+                    <Download size={17} /> Download admit card PDF
+                  </button>
+                  {record.checkInAt && (
+                    <div
+                      style={{
+                        marginTop: "16px",
+                        padding: "16px",
+                        background: "var(--surface-soft, #f8fafc)",
+                        border: "1.5px solid #0284c7",
+                        borderRadius: "12px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          color: "#0369a1",
+                          fontWeight: 700,
+                          fontSize: "14px",
+                        }}
+                      >
+                        <Award size={18} /> Official Certificate of Participation
+                      </div>
+                      <p
+                        style={{
+                          margin: "8px 0 14px",
+                          fontSize: "13px",
+                          color: "var(--text-muted, #475569)",
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {record.certificateIssuedAt
+                          ? `Your certificate (ID: ${record.certificateNumber}) has been issued and sent to your email. You can also download it below.`
+                          : "Exam attendance recorded! Your official Certificate of Participation is scheduled to be automatically generated and emailed 4 hours after check-in."}
+                      </p>
+                      <button
+                        type="button"
+                        className="btn wide"
+                        style={{
+                          background: "#0e4b66",
+                          color: "#ffffff",
+                          borderColor: "#0e4b66",
+                          fontWeight: 600,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "8px",
+                        }}
+                        disabled={busy}
+                        onClick={downloadCertificate}
+                      >
+                        <Download size={17} /> Download Certificate of Participation PDF
+                      </button>
+                    </div>
+                  )}
+                </>
               ) : (
                 <>
                   <div className="notice">

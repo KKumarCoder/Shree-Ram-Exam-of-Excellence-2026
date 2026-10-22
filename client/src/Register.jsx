@@ -15,7 +15,6 @@ import {
   Users,
   User,
   MapPin,
-  RotateCcw,
   Phone,
   Mail,
   Calendar,
@@ -29,6 +28,8 @@ import {
   Landmark,
   Wallet,
   Lock,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import {
   PhonePeBadge,
@@ -120,6 +121,27 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
   const [paymentTab, setPaymentTab] = useState(
     settings?.paymentMode === "manual" ? "manual" : "online"
   );
+
+  // Inline Email Verification states
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [emailOtpCode, setEmailOtpCode] = useState("");
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpSentOnce, setOtpSentOnce] = useState(false);
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const [emailOtpError, setEmailOtpError] = useState("");
+  const [otpSentMessage, setOtpSentMessage] = useState("");
+  const [emailVerificationToken, setEmailVerificationToken] = useState("");
+  const [consentExpanded, setConsentExpanded] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
+
+  useEffect(() => {
+    if (otpCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setOtpCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpCooldown]);
 
   useEffect(() => {
     if (settings?.paymentMode === "manual") {
@@ -412,6 +434,23 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         return;
       }
 
+      // Check email OTP verification requirement
+      if (!emailVerified) {
+        setEmailOtpError(
+          lang === "hi"
+            ? "कृपया पहले अपने ईमेल पर OTP भेजकर सत्यापित करें।"
+            : "Please verify your email with OTP before proceeding."
+        );
+        notify.error(
+          lang === "hi"
+            ? "कृपया फॉर्म सबमिट करने से पहले ईमेल के सामने दिए गए OTP विकल्प से ईमेल सत्यापित करें।"
+            : "Please verify your email address using the OTP verification box before submitting."
+        );
+        const otpEl = document.getElementById("emailOtp") || document.getElementById("email");
+        if (otpEl) otpEl.focus();
+        return;
+      }
+
       // Check photo requirement
       if (!registration?.photoUploaded && !photo) {
         throw new Error(t.errorPhotoRequired);
@@ -473,6 +512,86 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
           : "Student details saved. Please complete your registration fee payment."
       );
     });
+
+  // ==========================================
+  // INLINE EMAIL OTP HANDLERS (STEP 1)
+  // ==========================================
+  const handleSendInlineOtp = async () => {
+    const emailErr = registrationFieldError("email", form.email, lang);
+    if (emailErr) {
+      setFieldErrors((prev) => ({ ...prev, email: emailErr }));
+      notify.error(emailErr);
+      return;
+    }
+    setOtpSending(true);
+    setEmailOtpError("");
+    try {
+      const res = await api.post("/registrations/email-otp/send", {
+        email: form.email,
+      });
+      setOtpSentOnce(true);
+      setOtpCooldown(res.data.cooldownSeconds || 45);
+      setOtpSentMessage(
+        res.data.message ||
+          (lang === "hi"
+            ? "OTP आपके ईमेल पर भेजा गया है।"
+            : "OTP sent to your email.")
+      );
+      notify.success(
+        res.data.message ||
+          (lang === "hi"
+            ? "सत्यापन कोड भेजा गया।"
+            : "Verification code sent.")
+      );
+    } catch (err) {
+      const msg =
+        err.response?.data?.error ||
+        err.message ||
+        (lang === "hi" ? "OTP भेजने में विफल।" : "Failed to send OTP.");
+      setEmailOtpError(msg);
+      notify.error(msg);
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handleVerifyInlineOtp = async () => {
+    if (!emailOtpCode || emailOtpCode.trim().length !== 6) {
+      const msg =
+        lang === "hi"
+          ? "कृपया 6 अंकों का OTP दर्ज करें।"
+          : "Please enter a 6-digit OTP.";
+      setEmailOtpError(msg);
+      notify.error(msg);
+      return;
+    }
+    setOtpVerifying(true);
+    setEmailOtpError("");
+    try {
+      const res = await api.post("/registrations/email-otp/verify", {
+        email: form.email,
+        otp: emailOtpCode.trim(),
+      });
+      setEmailVerified(true);
+      setEmailVerificationToken(res.data.verificationToken || "verified");
+      setOtpSentMessage("");
+      notify.success(
+        res.data.message ||
+          (lang === "hi"
+            ? "ईमेल सफलतापूर्वक सत्यापित हो गया।"
+            : "Email address verified successfully.")
+      );
+    } catch (err) {
+      const msg =
+        err.response?.data?.error ||
+        err.message ||
+        (lang === "hi" ? "अमान्य OTP कोड।" : "Invalid OTP code.");
+      setEmailOtpError(msg);
+      notify.error(msg);
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
 
   // ==========================================
   // STEP 2: EMAIL OTP HANDLERS
@@ -893,58 +1012,34 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
     <main className="register-page">
       <div className="registration-container">
         {/* ===================================================================
-            1. COMPACT OFFICIAL HEADER
+            1. MODERN PORTAL HERO BANNER
             =================================================================== */}
-        <div className="gov-header-card gov-compact-bar">
-          <div className="gov-info-strip">
-            <div className="gov-info-pill">
-              <IndianRupee size={16} />
-              <span>
-                {t.badgeFee}: <strong>₹{settings.fee || 149}</strong>
-              </span>
-            </div>
-            <div className="gov-info-pill">
-              <Calendar size={16} />
-              <span>
-                {t.badgeDate}:{" "}
-                <strong>
-                  {formatPublicDate(settings.examDate) || t.badgeDateValue}
-                </strong>
-              </span>
-            </div>
-            <div className="gov-info-pill">
-              <GraduationCap size={16} />
-              <span>
-                {t.badgeClasses}: <strong>{t.badgeClassesValue}</strong>
-              </span>
-            </div>
+        <header className="gov-portal-hero">
+          <div className="gov-hero-badge-wrap">
+            <span className="gov-hero-pill-kicker">
+              <ShieldCheck size={14} /> {lang === "hi" ? "श्री 2027 ओलंपियाड पंजीकरण" : "SHREE Olympiad 2027"}
+            </span>
           </div>
-
-          {/* Actions: Resume Previous Application & Language Switcher */}
-          <div className="gov-top-actions">
-            <button
-              type="button"
-              className="gov-resume-compact-btn"
-              onClick={() => {
-                setResumeOpen(true);
-                setResumeStep("input");
-              }}
-              title={t.resumeBannerTitle}
-            >
-              <RotateCcw size={14} /> <span>{t.resumeBtn}</span>
-            </button>
-            <button
-              type="button"
-              className="lang-switcher-btn"
-              onClick={toggleLanguage}
-              title="Change Language / भाषा बदलें"
-              aria-label="Toggle language between English and Hindi"
-            >
-              🌐 <strong>{t.langToggle}</strong>
-            </button>
+          <h1 className="gov-hero-title">
+            {lang === "hi" ? "विद्यार्थी पंजीकरण फॉर्म" : "Student Registration Form"}
+          </h1>
+          <p className="gov-hero-subtitle">
+            {lang === "hi"
+              ? "कृपया विद्यार्थी एवं अभिभावक की जानकारी सही-सही भरें।"
+              : "Complete the simple details below to register the student."}
+          </p>
+          <div className="gov-hero-pills">
+            <span className="gov-hero-pill">
+              <IndianRupee size={15} /> <strong>{t.badgeFee}: ₹{settings.fee || 149}</strong>
+            </span>
+            <span className="gov-hero-pill">
+              <Calendar size={15} /> <strong>{t.badgeDate}: {formatPublicDate(settings.examDate) || t.badgeDateValue}</strong>
+            </span>
+            <span className="gov-hero-pill">
+              <GraduationCap size={15} /> <strong>{t.badgeClasses}: {t.badgeClassesValue}</strong>
+            </span>
           </div>
-        </div>
-
+        </header>
 
         {/* Settings Error / Warning */}
         {settingsError && (
@@ -972,102 +1067,73 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         )}
 
         {/* ===================================================================
-            3. FOUR-STEP WIZARD STEPPER
+            2. MODERN COMPACT STEPPER
             =================================================================== */}
         {wizardStep <= 4 && (
-          <nav className="gov-stepper-card" aria-label="Registration Progress">
-            {/* Desktop Stepper */}
-            <div className="gov-stepper-grid">
-              {(settings?.paymentMode === "razorpay" ||
-              (settings?.paymentMode === "both" && paymentTab === "online")
-                ? [
-                    {
-                      num: 1,
-                      title: lang === "hi" ? "विद्यार्थी एवं अभिभावक विवरण" : "Student & Parent Details",
-                      sub: lang === "hi" ? "फॉर्म एवं फोटो" : "Details & Photo",
-                    },
-                    {
-                      num: 2,
-                      title: lang === "hi" ? "ऑनलाइन शुल्क भुगतान" : "Online Payment",
-                      sub: lang === "hi" ? "Razorpay (तत्काल प्रवेश पत्र)" : "Razorpay Gateway",
-                    },
-                  ]
-                : [
-                    {
-                      num: 1,
-                      title: lang === "hi" ? "विद्यार्थी एवं अभिभावक विवरण" : "Student & Parent Details",
-                      sub: lang === "hi" ? "फॉर्म एवं फोटो" : "Details & Photo",
-                    },
-                    {
-                      num: 2,
-                      title: lang === "hi" ? "शुल्क भुगतान" : "Registration Fee",
-                      sub: lang === "hi" ? "स्कूल UPI QR" : "Official UPI QR",
-                    },
-                    {
-                      num: 3,
-                      title: lang === "hi" ? "रसीद अपलोड" : "Upload Receipt",
-                      sub: lang === "hi" ? "स्क्रीनशॉट" : "Payment Proof",
-                    },
-                  ]
-              ).map((s) => {
-                const isCompleted = s.num < wizardStep;
-                const isActive = s.num === wizardStep;
-                return (
-                  <div
-                    key={s.num}
-                    className={`gov-step-item ${isActive ? "active" : ""} ${
-                      isCompleted ? "completed" : ""
-                    }`}
-                  >
-                    <div className="gov-step-num">
-                      {isCompleted ? <Check size={18} /> : s.num}
-                    </div>
-                    <div className="gov-step-info">
-                      <span className="gov-step-title">{s.title}</span>
-                      <span className="gov-step-sub">{s.sub}</span>
-                    </div>
-                  </div>
-                );
-              })}
+          <nav className="gov-modern-stepper" aria-label="Registration Progress">
+            <div
+              className={`gov-modern-step ${
+                wizardStep === 1 ? "active" : ""
+              } ${wizardStep > 1 ? "completed" : ""}`}
+            >
+              <div className="gov-modern-step-circle">
+                {wizardStep > 1 ? <Check size={14} /> : "1"}
+              </div>
+              <div className="gov-modern-step-text">
+                <span className="step-label">{lang === "hi" ? "चरण 1" : "Step 1"}</span>
+                <span className="step-title">
+                  {lang === "hi" ? "विद्यार्थी विवरण" : "Student Details"}
+                </span>
+              </div>
             </div>
 
-            {/* Mobile Stepper View */}
-            {(() => {
-              const isOnline =
-                settings?.paymentMode === "razorpay" ||
-                (settings?.paymentMode === "both" && paymentTab === "online");
-              const totalSteps = isOnline ? 2 : 3;
-              const stepTitle =
-                wizardStep === 1
-                  ? (lang === "hi" ? "विद्यार्थी विवरण" : "Student Details")
-                  : wizardStep === 2
-                    ? (lang === "hi" ? "ऑनलाइन भुगतान" : "Online Payment")
-                    : (lang === "hi" ? "रसीद अपलोड" : "Upload Receipt");
-              const stepShort =
-                wizardStep === 1
-                  ? (lang === "hi" ? "फॉर्म व फोटो" : "Form & Photo")
-                  : wizardStep === 2
-                    ? (lang === "hi" ? "Razorpay" : "Instant Pay")
-                    : (lang === "hi" ? "रसीद" : "Receipt");
-              return (
-                <div className="gov-stepper-mobile">
-                  <div className="gov-mobile-step-header">
-                    <span>{stepTitle}</span>
-                    <span className="gov-mobile-step-pill">
-                      {t.stepIndicatorMobile(wizardStep, totalSteps, stepShort)}
+            <div
+              className={`gov-modern-step-divider ${
+                wizardStep > 1 ? "completed" : ""
+              }`}
+            />
+
+            <div
+              className={`gov-modern-step ${
+                wizardStep === 2 ? "active" : ""
+              } ${wizardStep > 2 ? "completed" : ""}`}
+            >
+              <div className="gov-modern-step-circle">
+                {wizardStep > 2 ? <Check size={14} /> : "2"}
+              </div>
+              <div className="gov-modern-step-text">
+                <span className="step-label">{lang === "hi" ? "चरण 2" : "Step 2"}</span>
+                <span className="step-title">
+                  {lang === "hi" ? "सबमिट एवं भुगतान" : "Submit & Pay"}
+                </span>
+              </div>
+            </div>
+
+            {(settings?.paymentMode === "manual" ||
+              (settings?.paymentMode === "both" && paymentTab === "manual")) && (
+              <>
+                <div
+                  className={`gov-modern-step-divider ${
+                    wizardStep > 2 ? "completed" : ""
+                  }`}
+                />
+                <div
+                  className={`gov-modern-step ${
+                    wizardStep === 3 ? "active" : ""
+                  } ${wizardStep > 3 ? "completed" : ""}`}
+                >
+                  <div className="gov-modern-step-circle">
+                    {wizardStep > 3 ? <Check size={14} /> : "3"}
+                  </div>
+                  <div className="gov-modern-step-text">
+                    <span className="step-label">{lang === "hi" ? "चरण 3" : "Step 3"}</span>
+                    <span className="step-title">
+                      {lang === "hi" ? "रसीद अपलोड" : "Upload Receipt"}
                     </span>
                   </div>
-                  <div className="gov-mobile-progress-bar">
-                    <div
-                      className="gov-mobile-progress-fill"
-                      style={{
-                        width: `${Math.min(100, (wizardStep / totalSteps) * 100)}%`,
-                      }}
-                    />
-                  </div>
                 </div>
-              );
-            })()}
+              </>
+            )}
           </nav>
         )}
 
@@ -1084,10 +1150,8 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
           >
             {/* Group 1: Student Information */}
             <div className="form-group-heading">
-              <span className="group-heading-icon">
-                <User size={16} />
-              </span>
-              <h4>{lang === "hi" ? "विद्यार्थी विवरण" : "Student Details"}</h4>
+              <span className="group-heading-badge">1</span>
+              <h4>{lang === "hi" ? "विद्यार्थी विवरण" : "Student Information"}</h4>
             </div>
 
             <div className="gov-grid-2">
@@ -1103,9 +1167,8 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   required
                   autoFocus
                   maxLength={fieldMaxLength("studentName")}
-                  className={`gov-input ${
-                    fieldErrors.studentName ? "is-invalid" : ""
-                  }`}
+                  className={`gov-input ${fieldErrors.studentName ? "is-invalid" : ""
+                    }`}
                   value={form.studentName}
                   placeholder={t.studentNamePlaceholder}
                   onChange={(e) =>
@@ -1134,9 +1197,8 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   required
                   min="1995-01-01"
                   max={new Date().toLocaleDateString("en-CA")}
-                  className={`gov-input ${
-                    fieldErrors.dob ? "is-invalid" : ""
-                  }`}
+                  className={`gov-input ${fieldErrors.dob ? "is-invalid" : ""
+                    }`}
                   value={form.dob}
                   onChange={(e) => updateField("dob", e.target.value)}
                   onBlur={(e) => handleBlurField("dob", e.target.value)}
@@ -1157,9 +1219,8 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                 <select
                   id="gender"
                   required
-                  className={`gov-select ${
-                    fieldErrors.gender ? "is-invalid" : ""
-                  }`}
+                  className={`gov-select ${fieldErrors.gender ? "is-invalid" : ""
+                    }`}
                   value={form.gender}
                   onChange={(e) => updateField("gender", e.target.value)}
                   onBlur={(e) => handleBlurField("gender", e.target.value)}
@@ -1184,9 +1245,8 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                 <select
                   id="studentClass"
                   required
-                  className={`gov-select ${
-                    fieldErrors.studentClass ? "is-invalid" : ""
-                  }`}
+                  className={`gov-select ${fieldErrors.studentClass ? "is-invalid" : ""
+                    }`}
                   value={form.studentClass}
                   onChange={(e) => {
                     const nextClass = e.target.value;
@@ -1230,9 +1290,8 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   <select
                     id="course"
                     required
-                    className={`gov-select ${
-                      fieldErrors.course ? "is-invalid" : ""
-                    }`}
+                    className={`gov-select ${fieldErrors.course ? "is-invalid" : ""
+                      }`}
                     value={form.course}
                     onChange={(e) => {
                       updateField("course", e.target.value);
@@ -1273,9 +1332,8 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   type="text"
                   required
                   maxLength={fieldMaxLength("currentSchool")}
-                  className={`gov-input ${
-                    fieldErrors.currentSchool ? "is-invalid" : ""
-                  }`}
+                  className={`gov-input ${fieldErrors.currentSchool ? "is-invalid" : ""
+                    }`}
                   value={form.currentSchool}
                   placeholder={t.currentSchoolPlaceholder}
                   onChange={(e) =>
@@ -1360,10 +1418,8 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
 
             {/* Group 2: Parent / Guardian Details */}
             <div className="form-group-heading">
-              <span className="group-heading-icon">
-                <Users size={16} />
-              </span>
-              <h4>{lang === "hi" ? "अभिभावक विवरण" : "Parent / Guardian Details"}</h4>
+              <span className="group-heading-badge">2</span>
+              <h4>{lang === "hi" ? "अभिभावक विवरण एवं सत्यापन" : "Parent & Contact Details"}</h4>
             </div>
 
             <div className="gov-grid-2">
@@ -1378,9 +1434,8 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   type="text"
                   required
                   maxLength={fieldMaxLength("guardianName")}
-                  className={`gov-input ${
-                    fieldErrors.guardianName ? "is-invalid" : ""
-                  }`}
+                  className={`gov-input ${fieldErrors.guardianName ? "is-invalid" : ""
+                    }`}
                   value={form.guardianName}
                   placeholder={t.guardianNamePlaceholder}
                   onChange={(e) =>
@@ -1409,9 +1464,8 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   inputMode="numeric"
                   required
                   maxLength={fieldMaxLength("guardianPhone")}
-                  className={`gov-input ${
-                    fieldErrors.guardianPhone ? "is-invalid" : ""
-                  }`}
+                  className={`gov-input ${fieldErrors.guardianPhone ? "is-invalid" : ""
+                    }`}
                   value={form.guardianPhone}
                   placeholder={t.guardianPhonePlaceholder}
                   onChange={(e) =>
@@ -1428,33 +1482,155 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                 )}
               </div>
 
-              {/* Guardian Email */}
-              <div className="gov-field-group gov-span-2">
+              {/* Guardian Email (Left Column) */}
+              <div className="gov-field-group">
                 <label htmlFor="email" className="gov-field-label">
                   <span className="gov-label-text">{t.email}</span>
                   <span className="required-star">*</span>
-                  <span className="gov-label-hint">
-                    ({lang === "hi"
-                      ? "OTP सत्यापन कोड इसी ईमेल पर भेजा जाएगा"
-                      : "OTP verification code will be sent to this email"})
-                  </span>
+                  {emailVerified && (
+                    <span className="gov-verified-pill">
+                      <CheckCircle2 size={13} /> {t.inlineVerified || (lang === "hi" ? "सत्यापित" : "Verified")}
+                    </span>
+                  )}
                 </label>
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  maxLength={fieldMaxLength("email")}
-                  className={`gov-input ${
-                    fieldErrors.email ? "is-invalid" : ""
-                  }`}
-                  value={form.email}
-                  placeholder={t.emailPlaceholder}
-                  onChange={(e) => updateField("email", e.target.value)}
-                  onBlur={(e) => handleBlurField("email", e.target.value)}
-                />
+                <div className="gov-input-action-wrapper">
+                  <input
+                    id="email"
+                    type="email"
+                    required
+                    disabled={emailVerified}
+                    maxLength={fieldMaxLength("email")}
+                    className={`gov-input ${
+                      fieldErrors.email ? "is-invalid" : ""
+                    } ${emailVerified ? "is-verified" : ""}`}
+                    value={form.email}
+                    placeholder={t.emailPlaceholder}
+                    onChange={(e) => {
+                      updateField("email", e.target.value);
+                      if (emailVerified) setEmailVerified(false);
+                      if (otpSentOnce) setOtpSentOnce(false);
+                      setEmailOtpError("");
+                      setOtpSentMessage("");
+                    }}
+                    onBlur={(e) => handleBlurField("email", e.target.value)}
+                  />
+                  {!emailVerified ? (
+                    <button
+                      type="button"
+                      className="gov-input-action-btn btn-send"
+                      disabled={
+                        otpSending ||
+                        otpCooldown > 0 ||
+                        !form.email ||
+                        !!registrationFieldError("email", form.email, lang)
+                      }
+                      onClick={handleSendInlineOtp}
+                    >
+                      {otpSending
+                        ? (t.inlineSendingOtp || (lang === "hi" ? "भेज रहे हैं..." : "Sending..."))
+                        : otpCooldown > 0
+                          ? `${otpCooldown}s`
+                          : otpSentOnce
+                            ? (t.btnResendOtp || (lang === "hi" ? "पुनः भेजें" : "Resend OTP"))
+                            : (t.inlineSendOtp || (lang === "hi" ? "OTP भेजें" : "Send OTP"))}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="gov-input-action-btn btn-edit"
+                      onClick={() => {
+                        setEmailVerified(false);
+                        setOtpSentOnce(false);
+                        setEmailOtpCode("");
+                        setOtpSentMessage("");
+                      }}
+                      title={t.inlineChangeEmail || (lang === "hi" ? "ईमेल बदलें" : "Change Email")}
+                    >
+                      {t.inlineChangeEmail || (lang === "hi" ? "बदलें" : "Change")}
+                    </button>
+                  )}
+                </div>
                 {fieldErrors.email && (
                   <span className="gov-field-error">
                     <AlertCircle size={14} /> {fieldErrors.email}
+                  </span>
+                )}
+                {otpSentMessage && !emailVerified && (
+                  <span className="gov-field-hint-success">
+                    <Mail size={13} /> {otpSentMessage}
+                  </span>
+                )}
+              </div>
+
+              {/* Verify Email OTP (Right Column) */}
+              <div className="gov-field-group">
+                <label htmlFor="emailOtp" className="gov-field-label">
+                  <span className="gov-label-text">
+                    {t.inlineVerifyTitle || (lang === "hi" ? "ईमेल OTP सत्यापन" : "Verify Email OTP")}
+                  </span>
+                  <span className="required-star">*</span>
+                </label>
+                <div className="gov-input-action-wrapper">
+                  <input
+                    id="emailOtp"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    disabled={emailVerified || !otpSentOnce}
+                    className={`gov-input ${
+                      emailOtpError ? "is-invalid" : ""
+                    } ${emailVerified ? "is-verified" : ""}`}
+                    value={emailVerified ? "••••••" : emailOtpCode}
+                    placeholder={
+                      emailVerified
+                        ? (t.inlineVerifiedPlaceholder || (lang === "hi" ? "सत्यापित है ✓" : "Verified ✓"))
+                        : otpSentOnce
+                          ? (t.inlineEnterOtpPlaceholder || (lang === "hi" ? "6 अंकों का OTP दर्ज करें" : "Enter 6-digit OTP"))
+                          : (t.inlineClickSendFirst || (lang === "hi" ? "पहले 'OTP भेजें' पर क्लिक करें" : "Click 'Send OTP' first"))
+                    }
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                      setEmailOtpCode(val);
+                      setEmailOtpError("");
+                    }}
+                  />
+                  {!emailVerified ? (
+                    <button
+                      type="button"
+                      className="gov-input-action-btn btn-verify"
+                      disabled={
+                        otpVerifying ||
+                        !otpSentOnce ||
+                        emailOtpCode.trim().length !== 6
+                      }
+                      onClick={handleVerifyInlineOtp}
+                    >
+                      {otpVerifying
+                        ? (t.inlineVerifyingBtn || (lang === "hi" ? "जांच रहे हैं..." : "Verifying..."))
+                        : (t.inlineVerifyBtn || (lang === "hi" ? "सत्यापित करें" : "Verify OTP"))}
+                    </button>
+                  ) : (
+                    <span className="gov-verified-check-badge">
+                      <CheckCircle2 size={16} /> {t.inlineVerified || (lang === "hi" ? "सत्यापित" : "Verified")}
+                    </span>
+                  )}
+                </div>
+                {emailOtpError && (
+                  <span className="gov-field-error">
+                    <AlertCircle size={14} /> {emailOtpError}
+                  </span>
+                )}
+                {!emailOtpError && !emailVerified && otpSentOnce && (
+                  <span className="gov-field-hint">
+                    {t.inlineOtpHint || (lang === "hi"
+                      ? "ईमेल इनबॉक्स / स्पैम में भेजा गया 6 अंकों का कोड भरें।"
+                      : "Enter 6-digit OTP sent to your email inbox/spam.")}
+                  </span>
+                )}
+                {emailVerified && (
+                  <span className="gov-field-hint-success">
+                    <CheckCircle2 size={13} /> {t.inlineVerifiedSuccess || (lang === "hi" ? "ईमेल सफलतापूर्वक सत्यापित हो गया है।" : "Email has been successfully verified.")}
                   </span>
                 )}
               </div>
@@ -1462,10 +1638,8 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
 
             {/* Group 3: Address & Location Details */}
             <div className="form-group-heading">
-              <span className="group-heading-icon">
-                <MapPin size={16} />
-              </span>
-              <h4>{lang === "hi" ? "स्थान एवं पता" : "Address & Location"}</h4>
+              <span className="group-heading-badge">3</span>
+              <h4>{lang === "hi" ? "स्थान एवं पता विवरण" : "Address & Location"}</h4>
             </div>
 
             <div className="gov-grid-2">
@@ -1480,9 +1654,8 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   type="text"
                   required
                   maxLength={fieldMaxLength("city")}
-                  className={`gov-input ${
-                    fieldErrors.city ? "is-invalid" : ""
-                  }`}
+                  className={`gov-input ${fieldErrors.city ? "is-invalid" : ""
+                    }`}
                   value={form.city}
                   placeholder={t.cityPlaceholder}
                   onChange={(e) => updateField("city", e.target.value)}
@@ -1506,9 +1679,8 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   type="text"
                   required
                   maxLength={fieldMaxLength("district")}
-                  className={`gov-input ${
-                    fieldErrors.district ? "is-invalid" : ""
-                  }`}
+                  className={`gov-input ${fieldErrors.district ? "is-invalid" : ""
+                    }`}
                   value={form.district}
                   placeholder={t.districtPlaceholder}
                   onChange={(e) => updateField("district", e.target.value)}
@@ -1533,9 +1705,8 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   inputMode="numeric"
                   required
                   maxLength={fieldMaxLength("pincode")}
-                  className={`gov-input ${
-                    fieldErrors.pincode ? "is-invalid" : ""
-                  }`}
+                  className={`gov-input ${fieldErrors.pincode ? "is-invalid" : ""
+                    }`}
                   value={form.pincode}
                   placeholder={t.pincodePlaceholder}
                   onChange={(e) => updateField("pincode", e.target.value)}
@@ -1567,17 +1738,42 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
             </div>
 
             {/* Consent Checkbox */}
-            <label className="gov-consent-box">
+            <div
+              className="gov-consent-box"
+              onClick={() => setForm((f) => ({ ...f, consent: !f.consent }))}
+            >
               <input
+                id="consentCheckbox"
                 type="checkbox"
                 required
                 checked={form.consent}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, consent: e.target.checked }))
-                }
+                onChange={(e) => {
+                  e.stopPropagation();
+                  setForm((f) => ({ ...f, consent: e.target.checked }));
+                }}
               />
-              <span>{t.consentLabel}</span>
-            </label>
+              <label
+                htmlFor="consentCheckbox"
+                style={{ cursor: "pointer", margin: 0, display: "inline" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span>
+                  {consentExpanded ? t.consentLabel : t.consentLabelShort}
+                  <button
+                    type="button"
+                    className="gov-see-more-link"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setConsentExpanded((prev) => !prev);
+                    }}
+                    aria-expanded={consentExpanded}
+                  >
+                    {consentExpanded ? t.seeLess : t.seeMore}
+                  </button>
+                </span>
+              </label>
+            </div>
             {fieldErrors.consent && (
               <p className="gov-field-error" style={{ marginBottom: "14px" }}>
                 <AlertCircle size={14} /> {fieldErrors.consent}
@@ -1596,7 +1792,11 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   !settings.registrationOpen
                 }
               >
-                {busy ? t.btnSaving : t.btnSaveDraft} <ArrowRight size={18} />
+                {busy
+                  ? t.btnSaving
+                  : (lang === "hi"
+                      ? `सबमिट और भुगतान करें (₹${settings.fee || 149})`
+                      : `Submit & Pay ₹${settings.fee || 149}`)} <ArrowRight size={18} />
               </button>
             </div>
           </form>
@@ -2233,41 +2433,62 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
           </div>
         )}
 
-        {/* Important Instructions Card (shown at bottom) */}
-        <aside className="gov-instructions-card" style={{ marginTop: "24px" }}>
-          <div className="gov-instructions-head">
-            <Info size={18} />
-            <span>{t.instructionsTitle}</span>
-          </div>
-          <ul className="gov-instructions-list">
-            <li>{t.inst1}</li>
-            <li>{t.inst2}</li>
-            <li>{t.inst3}</li>
-            <li>{t.inst4}</li>
-            <li>{t.inst5}</li>
-          </ul>
-        </aside>
+        {/* Collapsible Guidelines Accordion */}
+        <div className="gov-guidelines-accordion" style={{ marginTop: "24px" }}>
+          <button
+            type="button"
+            className="gov-guidelines-toggle"
+            onClick={() => setShowInstructions((prev) => !prev)}
+            aria-expanded={showInstructions}
+          >
+            <span className="gov-guidelines-toggle-left">
+              <Info size={16} />
+              {t.instructionsTitle || (lang === "hi" ? "महत्वपूर्ण दिशानिर्देश" : "Important Guidelines")}
+            </span>
+            <span className="gov-guidelines-toggle-right" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+              {showInstructions ? (
+                <>
+                  <span>{lang === "hi" ? "छिपाएं" : "Hide"}</span>
+                  <ChevronUp size={15} />
+                </>
+              ) : (
+                <>
+                  <span>{lang === "hi" ? "देखें" : "View"}</span>
+                  <ChevronDown size={15} />
+                </>
+              )}
+            </span>
+          </button>
+          {showInstructions && (
+            <div className="gov-guidelines-body">
+              <ul>
+                <li>{t.inst1}</li>
+                <li>{t.inst2}</li>
+                <li>{t.inst3}</li>
+                <li>{t.inst4}</li>
+                <li>{t.inst5}</li>
+              </ul>
+            </div>
+          )}
+        </div>
 
-        {/* ===================================================================
-            9. SUPPORT & HELPDESK FOOTER CARD
-            =================================================================== */}
-        <footer className="gov-help-card">
-          <div className="gov-help-content">
-            <h4>{t.helpTitle}</h4>
-            <p>{t.helpSubtitle}</p>
-            <p style={{ marginTop: "4px", fontSize: "0.78rem", color: "#64748B" }}>
-              {t.helpHours}
-            </p>
+        {/* Minimal Support & Helpdesk Strip */}
+        <footer className="gov-help-strip">
+          <div className="gov-help-strip-left">
+            <HelpCircle size={16} style={{ color: "#0284C7" }} />
+            <span>{t.helpTitle || (lang === "hi" ? "सहायता केंद्र" : "Helpdesk Support")}</span>
+            <span className="gov-help-hours">
+              ({t.helpHours || (lang === "hi" ? "सोम - शनि: 9:00 AM - 5:00 PM" : "Mon - Sat: 9:00 AM - 5:00 PM")})
+            </span>
           </div>
-
-          <div className="gov-help-contacts">
-            <a href="tel:8199991081" className="gov-help-pill">
-              <Phone size={16} />
-              <span>{t.helpPhone}</span>
+          <div className="gov-help-strip-right">
+            <a href="tel:8199991081" className="gov-help-pill-compact">
+              <Phone size={14} />
+              <span>8199991081</span>
             </a>
-            <a href="mailto:srpskanhra@gmail.com" className="gov-help-pill">
-              <Mail size={16} />
-              <span>{t.helpEmail}</span>
+            <a href="mailto:srpskanhra@gmail.com" className="gov-help-pill-compact">
+              <Mail size={14} />
+              <span>srpskanhra@gmail.com</span>
             </a>
           </div>
         </footer>

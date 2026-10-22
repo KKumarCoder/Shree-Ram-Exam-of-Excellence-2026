@@ -25,7 +25,8 @@ export async function listAttendance(req, res) {
   const { match, page, limit } = attendanceFilters(req.query);
   const [result] = await Registration.aggregate([{ $match: match }, { $facet: {
     items: [{ $sort: order }, { $skip: (page - 1) * limit }, { $limit: limit }, { $project: {
-      studentName: 1, guardianName: 1, studentClass: 1, registrationNumber: 1, applicationRef: 1, checkInAt: 1,
+      studentName: 1, guardianName: 1, studentClass: 1, registrationNumber: 1, applicationRef: 1, checkInAt: 1, email: 1,
+      certificateNumber: 1, certificateIssuedAt: 1, certificateStatus: 1, certificateSentTo: 1, certificateError: 1,
     } }],
     counts: [{ $group: { _id: null, total: { $sum: 1 }, present: { $sum: { $cond: [{ $ne: [{ $ifNull: ['$checkInAt', null] }, null] }, 1, 0] } } } }],
   } }]);
