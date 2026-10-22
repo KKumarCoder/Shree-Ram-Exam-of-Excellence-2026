@@ -23,6 +23,7 @@ export const defaults = {
   eligibleClasses: supportedClasses,
   portal: {},
   fee: 149,
+  certificateDelayHours: 4,
   registrationOpen: false,
   examDate: '',
   venue: 'Shree Ram Public School, Kanhra-Badhra Road, Charkhi Dadri, Haryana 127306',

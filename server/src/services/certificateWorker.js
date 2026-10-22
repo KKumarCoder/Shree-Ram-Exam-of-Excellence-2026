@@ -1,4 +1,5 @@
-import { Registration } from "../models/index.js";
+import mongoose from "mongoose";
+import { Registration, Settings } from "../models/index.js";
 import { sendCertificateEmail } from "./certificateEmail.js";
 
 let workerInterval = null;
@@ -6,9 +7,18 @@ let isProcessing = false;
 
 /**
  * Returns the delay hours required after check-in before certificate is issued.
- * Defaults to 4 hours as requested by user.
+ * Reads configured certificateDelayHours from event Settings if available,
+ * otherwise falls back to CERTIFICATE_HOURS_DELAY env or 4 hours default.
  */
-export function getCertificateDelayHours() {
+export async function getCertificateDelayHours() {
+  if (mongoose.connection?.readyState === 1) {
+    try {
+      const s = await Settings.findById("primary").lean();
+      if (s && Number.isFinite(s.certificateDelayHours) && s.certificateDelayHours >= 0) {
+        return s.certificateDelayHours;
+      }
+    } catch {}
+  }
   const envVal = Number(process.env.CERTIFICATE_HOURS_DELAY);
   if (Number.isFinite(envVal) && envVal >= 0) {
     return envVal;
@@ -17,7 +27,7 @@ export function getCertificateDelayHours() {
 }
 
 /**
- * Scans database for students who marked attendance at least 4 hours ago
+ * Scans database for students who marked attendance at least configured hours ago
  * and dispatches their official participation certificate via email.
  */
 export async function processEligibleCertificates() {
@@ -25,7 +35,7 @@ export async function processEligibleCertificates() {
   isProcessing = true;
 
   try {
-    const delayHours = getCertificateDelayHours();
+    const delayHours = await getCertificateDelayHours();
     const cutoffDate = new Date(Date.now() - delayHours * 60 * 60 * 1000);
 
     // Find candidates who checked in on or before cutoff date, but haven't received certificate yet

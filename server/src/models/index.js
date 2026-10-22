@@ -287,6 +287,7 @@ export const Settings = model(
       eventName: { type: String, default: branding.eventName },
       portal: { type: Schema.Types.Mixed, default: () => ({}) },
       fee: { type: Number, default: 149 },
+      certificateDelayHours: { type: Number, default: 4, min: 0, max: 168 },
       registrationOpen: { type: Boolean, default: false },
       examDate: { type: String, default: "" },
       reportingTime: { type: String, default: "" },

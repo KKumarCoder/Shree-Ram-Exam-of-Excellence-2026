@@ -851,6 +851,7 @@ r.patch("/settings", writable, async (req, res) => {
     .object({
       registrationOpen: z.boolean().optional(),
       fee: z.number().int().min(1).max(10000).optional(),
+      certificateDelayHours: z.number().min(0).max(168).optional(),
       examDate: z.string().max(80).optional(),
       reportingTime: z.string().max(80).optional(),
       examTime: z.string().max(80).optional(),

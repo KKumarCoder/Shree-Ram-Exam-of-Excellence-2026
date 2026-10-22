@@ -18,11 +18,11 @@ test("formatCertificateNumber formats certificate ID correctly", () => {
   assert.equal(formatCertificateNumber(s3), "CERT-2027-543210");
 });
 
-test("getCertificateDelayHours defaults to 4 hours", () => {
+test("getCertificateDelayHours defaults to 4 hours", async () => {
   const orig = process.env.CERTIFICATE_HOURS_DELAY;
   delete process.env.CERTIFICATE_HOURS_DELAY;
   try {
-    assert.equal(getCertificateDelayHours(), 4);
+    assert.equal(await getCertificateDelayHours(), 4);
   } finally {
     if (orig !== undefined) process.env.CERTIFICATE_HOURS_DELAY = orig;
   }

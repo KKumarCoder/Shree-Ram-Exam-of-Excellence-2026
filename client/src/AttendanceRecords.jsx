@@ -47,7 +47,9 @@ export function AttendanceRecords({
   canEdit,
   onUnauthorized,
   onChanged,
+  delayHours: propDelayHours,
 }) {
+  const [delayHours, setDelayHours] = useState(propDelayHours ?? 4);
   const [filters, setFilters] = useState(initial),
     [search, setSearch] = useState("");
   const [data, setData] = useState({
@@ -57,6 +59,21 @@ export function AttendanceRecords({
     notCheckedIn: 0,
     pages: 0,
   });
+
+  useEffect(() => {
+    if (propDelayHours != null) {
+      setDelayHours(propDelayHours);
+    } else {
+      api
+        .get("/settings")
+        .then((r) => {
+          if (r.data?.certificateDelayHours != null) {
+            setDelayHours(r.data.certificateDelayHours);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [propDelayHours, refreshKey]);
   const [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
     [revision, setRevision] = useState(0);
@@ -328,7 +345,7 @@ export function AttendanceRecords({
             className="btn light"
             disabled={loading || runningWorker}
             onClick={triggerWorker}
-            title="Scan attendance & dispatch certificates to students who checked in over 4 hours ago"
+            title={`Scan attendance & dispatch certificates to students who checked in over ${delayHours} hour(s) ago`}
             style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
           >
             {runningWorker ? (
@@ -336,7 +353,7 @@ export function AttendanceRecords({
             ) : (
               <Award size={16} />
             )}
-            Process 4h Certificates
+            Process {delayHours}h Certificates
           </button>
           {["xlsx", "pdf"].map((format) => (
             <button
@@ -375,7 +392,7 @@ export function AttendanceRecords({
               <th>Class</th>
               <th>Attendance</th>
               <th>Check-in (IST)</th>
-              <th>Certificate (Auto 4h)</th>
+              <th>Certificate (Auto {delayHours}h)</th>
               {canEdit && <th>Actions</th>}
             </tr>
           </thead>
@@ -455,12 +472,12 @@ export function AttendanceRecords({
                           width: "fit-content",
                         }}
                       >
-                        <Clock3 size={12} /> Pending (Auto 4h)
+                        <Clock3 size={12} /> Pending (Auto {delayHours}h)
                       </span>
                       <small style={{ color: "var(--muted)", fontSize: "11px" }}>
-                        {new Date(student.checkInAt).getTime() + 4 * 3600000 <= Date.now()
+                        {new Date(student.checkInAt).getTime() + delayHours * 3600000 <= Date.now()
                           ? "Due for auto-dispatch"
-                          : `Auto-send at ${new Date(new Date(student.checkInAt).getTime() + 4 * 3600000).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })}`}
+                          : `Auto-send at ${new Date(new Date(student.checkInAt).getTime() + delayHours * 3600000).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })}`}
                       </small>
                       <div style={{ display: "flex", gap: "6px", marginTop: "2px" }}>
                         <button

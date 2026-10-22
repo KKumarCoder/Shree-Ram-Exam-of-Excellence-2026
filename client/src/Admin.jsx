@@ -282,6 +282,7 @@ export function Admin() {
       const payload = {
         registrationOpen: settings.registrationOpen,
         fee: Number(settings.fee),
+        certificateDelayHours: Number(settings.certificateDelayHours ?? 4),
         examDate: settings.examDate,
         reportingTime: settings.reportingTime,
         examTime: settings.examTime,
@@ -669,6 +670,7 @@ export function Admin() {
             <div className="crud-form-grid" style={{ marginBottom: "20px" }}>
               {[
                 ["fee", "Registration Fee (₹)", "number"],
+                ["certificateDelayHours", "Certificate Issue Delay (Hours after check-in)", "number"],
                 ["examDate", "Exam Date / Label"],
                 ["reportingTime", "Reporting Time"],
                 ["examTime", "Exam Time"],
@@ -836,6 +838,7 @@ export function Admin() {
               <AttendanceRecords
                 refreshKey={recordsRefresh}
                 canEdit={canSet}
+                delayHours={settings?.certificateDelayHours}
                 onUnauthorized={() => setMe(null)}
                 onChanged={() => setScanResult(null)}
               />
