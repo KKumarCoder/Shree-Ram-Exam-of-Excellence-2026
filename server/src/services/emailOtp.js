@@ -88,10 +88,9 @@ export async function verifyEmailOtp(email, code) {
     }
 
     const expectedHash = hashEmailCode(cleanCode, challenge.salt);
-    const isMatch = crypto.timingSafeEqual(
-      Buffer.from(challenge.codeHash, "hex"),
-      Buffer.from(expectedHash, "hex")
-    );
+    const bufA = Buffer.from(challenge.codeHash || "", "hex");
+    const bufB = Buffer.from(expectedHash, "hex");
+    const isMatch = bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
 
     if (!isMatch) {
       challenge.attempts += 1;

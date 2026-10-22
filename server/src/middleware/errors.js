@@ -7,6 +7,7 @@ export function errorHandler(err, req, res, next) {
   else if (err.code === 'LIMIT_FILE_SIZE') { status = 413; message = 'File is too large. Photos: maximum 5 MB; receipts: maximum 3 MB.'; }
   else if (err.name === 'MulterError') { status = 400; message = 'Invalid upload. Select one file in the expected field.'; }
   else if (err.name === 'CastError') { status = 400; message = 'Invalid record identifier.'; }
+  else if (err.name === 'ValidationError') { status = 400; message = err.message; }
   else if (err.message === 'Origin not allowed by CORS') { status = 403; message = 'Origin not allowed by CORS.'; }
   if (!Number.isInteger(status) || status < 400 || status > 599) status = 500;
   if (status >= 500) {

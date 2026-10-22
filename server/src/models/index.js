@@ -235,8 +235,8 @@ export const EmailOtpChallenge = model(
   new Schema(
     {
       recipient: { type: String, required: true, lowercase: true, trim: true, index: true },
-      codeHash: { type: String, required: true, select: false },
-      salt: { type: String, required: true },
+      codeHash: { type: String, default: "", select: false },
+      salt: { type: String, default: "" },
       attempts: { type: Number, default: 0 },
       expiresAt: { type: Date, required: true },
       resendAvailableAt: { type: Date, required: true },
