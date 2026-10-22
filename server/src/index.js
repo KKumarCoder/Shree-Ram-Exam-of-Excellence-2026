@@ -103,6 +103,7 @@ app.use(express.json({ limit: "100kb" }));
 app.use("/api", (req, res, next) => { res.set("Cache-Control", "no-store"); next(); });
 const limiter = persistentLimiter('api', 120, 900);
 const sensitive = persistentLimiter('sensitive', setting('OTP_IP_LIMIT', 30), 900);
+const adminLoginLimiter = persistentLimiter('admin_login', isDev ? 1000 : setting('ADMIN_LOGIN_LIMIT', 30), 900);
 app.get("/api/health", (req, res) =>
   res.json({
     ok: mongoose.connection.readyState === 1,
@@ -115,7 +116,7 @@ app.use("/api/registrations/resume", sensitive);
 app.use("/api/registrations/recovery", sensitive);
 app.use("/api/status/request", sensitive);
 app.use("/api/status/verify", sensitive);
-app.use("/api/admin/login", sensitive);
+app.use("/api/admin/login", adminLoginLimiter);
 // Enforce same-origin on cookie-authenticated state changes, also protected by SameSite strict.
 app.use("/api/admin", (req, res, next) => {
   if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
