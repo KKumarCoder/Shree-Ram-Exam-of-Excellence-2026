@@ -497,7 +497,7 @@ export function Admin() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@shree.local"
+                placeholder="srpskanhra2012@gmail.com"
                 style={{
                   background: "#FFFFFF",
                   padding: "12px 14px",
