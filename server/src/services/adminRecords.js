@@ -29,6 +29,9 @@ export function recordFilters(query, payments = false) {
   const course = String(query.course || "").trim().toUpperCase();
   if (course && !["PCM", "PCB", "ARTS", "COMMERCE"].includes(course))
     throw invalid("Choose a valid course/stream.");
+  const mode = String(query.mode || "").trim().toLowerCase();
+  if (mode && !["manual", "razorpay"].includes(mode))
+    throw invalid("Choose a valid payment mode.");
   const date = {};
   for (const [field, op] of [
     ["from", "$gte"],
@@ -59,6 +62,7 @@ export function recordFilters(query, payments = false) {
     status,
     studentClass,
     course,
+    mode,
     date,
     page,
     limit,
@@ -118,8 +122,11 @@ export function registrationQuery(filters) {
   return q;
 }
 export function paymentPipeline(filters) {
-  const { status, date, search, studentClass } = filters;
-  const q = { mode: "manual", status: status || { $in: paymentStatuses } };
+  const { status, date, search, studentClass, mode } = filters;
+  const q = { status: status || { $in: paymentStatuses } };
+  if (mode && ["manual", "razorpay"].includes(mode)) {
+    q.mode = mode;
+  }
   if (Object.keys(date).length) q.createdAt = date;
   const pipeline = [
     { $match: q },
@@ -141,6 +148,8 @@ export function paymentPipeline(filters) {
       $match: {
         $or: [
           "utr",
+          "providerPaymentId",
+          "providerOrderId",
           "student.studentName",
           "student.applicationRef",
           "student.registrationNumber",
@@ -152,8 +161,11 @@ export function paymentPipeline(filters) {
   pipeline.push({
     $project: {
       _id: 1,
+      mode: 1,
       amount: 1,
       utr: 1,
+      providerPaymentId: 1,
+      providerOrderId: 1,
       status: 1,
       createdAt: 1,
       verifiedAt: 1,
@@ -434,7 +446,9 @@ export async function getStudentDetailWithHistory(registrationId) {
   if (!student) return null;
 
   const [payment, auditLog, siblings, reminderLogs] = await Promise.all([
-    student.paymentId ? Payment.findById(student.paymentId).lean() : null,
+    student.paymentId
+      ? Payment.findById(student.paymentId).lean()
+      : Payment.findOne({ registrationId: student._id }).sort({ createdAt: -1 }).lean(),
     Registration.db
       .collection("audits")
       .find({ registrationId: student._id })

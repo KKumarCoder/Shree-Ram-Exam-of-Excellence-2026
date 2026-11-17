@@ -22,6 +22,17 @@ test('provider errors never disclose raw error or credentials', () => {
 test('expired draft and mobile authorization are rejected', () => {
   assert.throws(() => assertDraft({ status: 'DRAFT', draftExpiresAt: new Date(0) }), /expired/);
   assert.throws(() => assertAuthorization({ status: 'OTP_VERIFIED', email:'test@example.com', verifiedEmail:'test@example.com', verifiedAt: new Date(), verificationExpiresAt: new Date(0) }), /expired/);
+  assert.throws(() => assertAuthorization({ status: 'OTP_VERIFIED', guardianPhone:'8340202627', verifiedMobile:'8340202627', verifiedAt: new Date(), verificationExpiresAt: new Date(0) }), /expired/);
+});
+test('verified mobile authorization passes without requiring email', () => {
+  assert.doesNotThrow(() => assertAuthorization({
+    status: 'OTP_VERIFIED',
+    guardianPhone: '8340202627',
+    verifiedMobile: '8340202627',
+    verificationStatus: 'verified',
+    verifiedAt: new Date(),
+    verificationExpiresAt: new Date(Date.now() + 3600000),
+  }));
 });
 test('confirmed registration is unaffected by draft expiry', () => {
   assert.doesNotThrow(() => assertDraft({ status: 'CONFIRMED', draftExpiresAt: new Date(0) }));

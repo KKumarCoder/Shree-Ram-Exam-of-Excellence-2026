@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   Users,
-  MailCheck,
+  ShieldCheck,
   FileClock,
   Receipt,
   BadgeCheck,
@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { api } from "../api.js";
 import { notify } from "../notifications.js";
-import { PromoBannerSlider } from "./PromoBannerSlider.jsx";
 
 export function DashboardOverview({
   stats,
@@ -65,9 +64,9 @@ export function DashboardOverview({
     },
     {
       id: "verified",
-      title: "Email Verified",
+      title: "Guardian Verified",
       value: stats?.contactVerified != null ? stats.contactVerified.toLocaleString("en-IN") : "—",
-      icon: MailCheck,
+      icon: ShieldCheck,
       accentColor: "#22C55E",
       bgColor: "#E7F8EE",
       note: "Guardian identity verified",
@@ -109,12 +108,12 @@ export function DashboardOverview({
     },
     {
       id: "reminders",
-      title: "Reminder Emails Sent",
+      title: "WhatsApp Reminders Sent",
       value: (stats?.remindersSent ?? 0).toLocaleString("en-IN"),
       icon: Send,
       accentColor: "#EC4899",
       bgColor: "#FDEAF3",
-      note: "Accepted by Gmail SMTP",
+      note: "Dispatched via APITxT",
       dotColor: "#EC4899",
       onClick: () => onNavigate?.("reminders"),
     },
@@ -154,9 +153,6 @@ export function DashboardOverview({
 
   return (
     <div className="erp-dashboard-overview">
-      {/* PROMO BANNER SLIDER */}
-      <PromoBannerSlider stats={stats} onNavigate={onNavigate} />
-
       {/* 3. EIGHT METRIC CARDS GRID (4x2) */}
       <div className="erp-metrics-grid">
         {metricCards.map((card) => {
@@ -490,7 +486,7 @@ export function DashboardOverview({
                     </td>
                     <td>
                       <div>{r.guardianPhone}</div>
-                      <small style={{ color: "var(--erp-text-muted)" }}>{r.email}</small>
+                      {r.email && <small style={{ color: "var(--erp-text-muted)" }}>{r.email}</small>}
                     </td>
                     <td>
                       <span

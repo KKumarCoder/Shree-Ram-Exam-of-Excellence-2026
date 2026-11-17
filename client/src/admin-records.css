@@ -631,5 +631,170 @@
   border-bottom: 2px solid rgba(239, 68, 68, 0.25);
 }
 
+/* ==========================================================================
+   Icon-based Action Buttons for Admin Tables
+   ========================================================================== */
+.registration-actions,
+.record-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  flex-wrap: nowrap !important;
+  white-space: nowrap !important;
+}
+
+.admin-action-btn {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  max-width: 34px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 8px !important;
+  border: 1px solid !important;
+  background: var(--surface, #ffffff) !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+.admin-action-btn:hover:not(:disabled) {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08) !important;
+}
+
+.admin-action-btn:active:not(:disabled) {
+  transform: translateY(0) !important;
+}
+
+.admin-action-btn:disabled {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+}
+
+/* History / View Details: Light Blue */
+.admin-action-btn.view-btn {
+  color: #0284c7 !important;
+  background: #f0f9ff !important;
+  border-color: #bae6fd !important;
+}
+.admin-action-btn.view-btn:hover:not(:disabled) {
+  background: #e0f2fe !important;
+  border-color: #7dd3fc !important;
+  color: #0369a1 !important;
+}
+
+/* Download Admit Card PDF: Emerald / Teal */
+.admin-action-btn.pdf-btn {
+  color: #0d9488 !important;
+  background: #f0fdfa !important;
+  border-color: #99f6e4 !important;
+}
+.admin-action-btn.pdf-btn:hover:not(:disabled) {
+  background: #ccfbf1 !important;
+  border-color: #5eead4 !important;
+  color: #0f766e !important;
+}
+
+/* Send Reminder: Amber / Warm Gold */
+.admin-action-btn.remind-btn {
+  color: #d97706 !important;
+  background: #fffbeb !important;
+  border-color: #fde68a !important;
+}
+.admin-action-btn.remind-btn:hover:not(:disabled) {
+  background: #fef3c7 !important;
+  border-color: #fcd34d !important;
+  color: #b45309 !important;
+}
+
+/* Edit Details: Indigo / Slate */
+.admin-action-btn.edit-btn {
+  color: #4f46e5 !important;
+  background: #eef2ff !important;
+  border-color: #c7d2fe !important;
+}
+.admin-action-btn.edit-btn:hover:not(:disabled) {
+  background: #e0e7ff !important;
+  border-color: #a5b4fc !important;
+  color: #4338ca !important;
+}
+
+/* Delete Record: Coral Red */
+.admin-action-btn.delete-btn {
+  color: #dc2626 !important;
+  background: #fef2f2 !important;
+  border-color: #fecaca !important;
+}
+.admin-action-btn.delete-btn:hover:not(:disabled) {
+  background: #fee2e2 !important;
+  border-color: #fca5a5 !important;
+  color: #b91c1c !important;
+}
+
+/* Approve Payment: Green */
+.admin-action-btn.approve-btn {
+  color: #16a34a !important;
+  background: #f0fdf4 !important;
+  border-color: #bbf7d0 !important;
+}
+.admin-action-btn.approve-btn:hover:not(:disabled) {
+  background: #dcfce7 !important;
+  border-color: #86efac !important;
+  color: #15803d !important;
+}
+
+/* Reject Payment: Rose Red */
+.admin-action-btn.reject-btn {
+  color: #e11d48 !important;
+  background: #fff1f2 !important;
+  border-color: #fecdd3 !important;
+}
+.admin-action-btn.reject-btn:hover:not(:disabled) {
+  background: #ffe4e6 !important;
+  border-color: #fda4af !important;
+  color: #be123c !important;
+}
+
+/* Dark mode overrides */
+[data-theme="dark"] .admin-action-btn.view-btn {
+  background: #082f49 !important;
+  border-color: #0369a1 !important;
+  color: #38bdf8 !important;
+}
+[data-theme="dark"] .admin-action-btn.pdf-btn {
+  background: #042f2e !important;
+  border-color: #0f766e !important;
+  color: #2dd4bf !important;
+}
+[data-theme="dark"] .admin-action-btn.remind-btn {
+  background: #451a03 !important;
+  border-color: #92400e !important;
+  color: #fbbf24 !important;
+}
+[data-theme="dark"] .admin-action-btn.edit-btn {
+  background: #1e1b4b !important;
+  border-color: #4338ca !important;
+  color: #818cf8 !important;
+}
+[data-theme="dark"] .admin-action-btn.delete-btn {
+  background: #450a0a !important;
+  border-color: #991b1b !important;
+  color: #f87171 !important;
+}
+[data-theme="dark"] .admin-action-btn.approve-btn {
+  background: #052e16 !important;
+  border-color: #166534 !important;
+  color: #4ade80 !important;
+}
+[data-theme="dark"] .admin-action-btn.reject-btn {
+  background: #4c0519 !important;
+  border-color: #9f1239 !important;
+  color: #fb7185 !important;
+}
+
+
 
 

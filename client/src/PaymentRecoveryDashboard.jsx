@@ -154,8 +154,8 @@ export function PaymentRecoveryDashboard({ canPay, onViewDetail, refreshKey }) {
     if (schedulerLoading) return;
     const targetState = !schedulerStatus?.enabled;
     const confirmMsg = targetState
-      ? "Activate automated reminders? Applications incomplete for 2h, 24h, and 72h will be automatically reminded (max 3 emails each)."
-      : "Pause automated reminders? Scheduled emails will be suspended until resumed.";
+      ? "Activate automated reminders? Applications incomplete for 2h, 24h, and 72h will be automatically reminded on WhatsApp (max 3 reminders each)."
+      : "Pause automated reminders? Scheduled WhatsApp reminders will be suspended until resumed.";
 
     if (!window.confirm(confirmMsg)) return;
 
@@ -167,8 +167,8 @@ export function PaymentRecoveryDashboard({ canPay, onViewDetail, refreshKey }) {
         type: "success",
         title: targetState ? "Scheduler Activated" : "Scheduler Paused",
         message: targetState
-          ? "Automated background email reminders are now ACTIVE."
-          : "Automated email delivery is now PAUSED.",
+          ? "Automated background WhatsApp reminders are now ACTIVE."
+          : "Automated reminder delivery is now PAUSED.",
       });
       setRevision((r) => r + 1);
     } catch (err) {
@@ -192,14 +192,14 @@ export function PaymentRecoveryDashboard({ canPay, onViewDetail, refreshKey }) {
       notify({
         type: "success",
         title: "Reminder Sent Successfully",
-        message: `Branded email with secure OTP resume link delivered to guardian of ${studentName}. (Message ID: ${data.messageId || "N/A"})`,
+        message: `Official WhatsApp reminder with secure resume link delivered to guardian of ${studentName}. (Message ID: ${data.messageId || "N/A"})`,
       });
       setRevision((r) => r + 1);
     } catch (err) {
       notify({
         type: "error",
         title: "Delivery Failed",
-        message: err.response?.data?.error || "Failed to deliver reminder email.",
+        message: err.response?.data?.error || "Failed to deliver reminder via WhatsApp.",
       });
     } finally {
       setActions((prev) => ({ ...prev, [`remind:${id}`]: false }));
@@ -263,12 +263,12 @@ export function PaymentRecoveryDashboard({ canPay, onViewDetail, refreshKey }) {
         <div className="recovery-kpi-card">
           <span className="kpi-label">Contact Verified</span>
           <strong className="kpi-val text-teal">{summary?.contactVerified ?? "—"}</strong>
-          <small>Email OTP authenticated</small>
+          <small>Mobile OTP authenticated</small>
         </div>
         <div className="recovery-kpi-card">
           <span className="kpi-label">Reminders Delivered</span>
           <strong className="kpi-val text-blue">{summary?.remindersSent ?? "—"}</strong>
-          <small>Via Gmail SMTP</small>
+          <small>Via APITxT WhatsApp</small>
         </div>
         <div className="recovery-kpi-card">
           <span className="kpi-label">Delivery Failures</span>
@@ -278,7 +278,7 @@ export function PaymentRecoveryDashboard({ canPay, onViewDetail, refreshKey }) {
         <div className="recovery-kpi-card">
           <span className="kpi-label">Recovered via Link</span>
           <strong className="kpi-val text-purple">{summary?.resumedApplications ?? "—"}</strong>
-          <small>Resumed via email token</small>
+          <small>Resumed via recovery link</small>
         </div>
       </div>
 
@@ -326,8 +326,8 @@ export function PaymentRecoveryDashboard({ canPay, onViewDetail, refreshKey }) {
               }}
             >
               <option value="all_incomplete">All Incomplete Stages</option>
-              <option value="draft">Email Pending (Draft)</option>
-              <option value="awaiting_payment">Email Verified (Awaiting Payment)</option>
+              <option value="draft">Mobile Pending (Draft)</option>
+              <option value="awaiting_payment">OTP Verified (Awaiting Payment)</option>
               <option value="under_review">Payment Submitted (Under Review)</option>
             </select>
           </label>
@@ -409,12 +409,12 @@ export function PaymentRecoveryDashboard({ canPay, onViewDetail, refreshKey }) {
                     {isVerified ? (
                       <span className="review-badge state-approved">
                         <CheckCircle size={11} style={{ display: "inline", marginRight: 3 }} />
-                        Email Verified
+                        OTP Verified
                       </span>
                     ) : (
                       <span className="review-badge state-under_review">
                         <Clock size={11} style={{ display: "inline", marginRight: 3 }} />
-                        Email Pending
+                        OTP Pending
                       </span>
                     )}
                   </td>
@@ -453,31 +453,32 @@ export function PaymentRecoveryDashboard({ canPay, onViewDetail, refreshKey }) {
                     <div className="registration-actions">
                       <button
                         type="button"
-                        className="btn light small"
+                        className="admin-action-btn view-btn"
                         onClick={() =>
                           onViewDetail
                             ? onViewDetail(reg.id)
                             : viewStudentDetail(reg.id)
                         }
                         title="View complete application details & reminder history"
+                        aria-label="View history"
                       >
-                        <Eye size={13} /> History
+                        <Eye size={15} />
                       </button>
 
                       {canPay && !hasEvidence && (
                         <button
                           type="button"
-                          className="btn primary small remind-btn"
+                          className="admin-action-btn remind-btn"
                           disabled={actions[`remind:${reg.id}`]}
                           onClick={() => sendManualReminder(reg.id, reg.studentName)}
-                          title={`Send branded Gmail SMTP reminder (${reminderCount}/3 sent)`}
+                          title={`Send WhatsApp reminder (${reminderCount}/3 sent)`}
+                          aria-label="Send reminder"
                         >
                           {actions[`remind:${reg.id}`] ? (
-                            <Loader2 size={13} className="admin-spin" />
+                            <Loader2 size={15} className="admin-spin" />
                           ) : (
-                            <Mail size={13} />
+                            <Mail size={15} />
                           )}
-                          Remind
                         </button>
                       )}
                     </div>

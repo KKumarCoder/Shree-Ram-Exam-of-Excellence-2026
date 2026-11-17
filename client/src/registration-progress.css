@@ -610,8 +610,9 @@
 
 .gov-input.is-invalid,
 .gov-select.is-invalid {
-  border-color: #DC2626 !important;
-  background-color: #FEF2F2 !important;
+  border-color: #EF4444 !important;
+  background-color: #FFFFFF !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
 }
 
 .gov-input::placeholder {
@@ -2211,6 +2212,22 @@
   color: #E2E8F0;
 }
 
+[data-theme="dark"] .brand-logo-pill span {
+  color: #E2E8F0 !important;
+}
+
+[data-theme="dark"] .brand-logo-pill.visa-pill svg text {
+  fill: #60A5FA !important;
+}
+
+[data-theme="dark"] .brand-logo-pill.rupay-pill svg text {
+  fill: #38BDF8 !important;
+}
+
+[data-theme="dark"] .brand-logo-pill.upi-pill svg text {
+  fill: #F1F5F9 !important;
+}
+
 [data-theme="dark"] .brand-logo-pill:hover {
   background: #334155;
 }
@@ -2830,5 +2847,1208 @@
 }
 
 
+/* ==========================================================================
+   SHREE 2027 - PROFESSIONAL ADMISSIONS THEME (REF: REFERENCE IMAGES 1 & 2)
+   Aesthetics:
+   - Page Background: Gentle soothing pastel slate tint (#EBF2F7 / #EDF3F8)
+   - Header: Circular school emblem badge with gold border ring + serif title
+   - Card: Clean elevated white card (#FFFFFF) with subtle border (#D8E2EC)
+   - Typography: 'Merriweather', Georgia, serif for titles & headings;
+                 'DM Sans', system-ui for labels & inputs
+   - Section Headings: Crisp serif headings with underline accent
+   - Layout: Clean 2-column grid, labels strictly ABOVE crisp white inputs
+   - Gender: Custom radio pills (Male / Female)
+   - Dynamic in-place WhatsApp OTP verification (zero wasted page clutter)
+   - Responsive: Mobile-first & Desktop-optimized
+   ========================================================================== */
 
+.register-page {
+  background-color: #EBF2F7;
+  min-height: calc(100vh - 70px);
+  padding: 32px 16px 80px;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #1E293B;
+}
+
+.registration-container {
+  max-width: 820px !important;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Header matching Reference Image 1 */
+.shree-form-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: #FFFFFF;
+  border: 1px solid #D8E2EC;
+  border-radius: 12px;
+  padding: 24px 28px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 16px rgba(7, 54, 87, 0.04);
+}
+
+.shree-logo-wrap {
+  flex-shrink: 0;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  border: 2.5px solid #FFCD3B;
+  background: #FFFFFF;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(7, 54, 87, 0.1);
+}
+
+.shree-school-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+.shree-header-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.shree-form-title {
+  font-family: 'Merriweather', Georgia, 'Times New Roman', serif;
+  font-size: 1.85rem;
+  font-weight: 700;
+  color: #073657;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.shree-form-subtitle {
+  font-size: 0.92rem;
+  color: #475569;
+  margin: 0 0 12px 0;
+  line-height: 1.45;
+}
+
+.shree-meta-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.shree-meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.8rem;
+  color: #334155;
+}
+
+.shree-meta-pill strong {
+  color: #073657;
+  font-weight: 600;
+}
+
+/* Stepper */
+.shree-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FFFFFF;
+  border: 1px solid #D8E2EC;
+  border-radius: 10px;
+  padding: 12px 24px;
+  margin-bottom: 20px;
+  gap: 16px;
+  box-shadow: 0 2px 8px rgba(7, 54, 87, 0.03);
+}
+
+.shree-step-node {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #64748B;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.shree-step-node.active {
+  color: #073657;
+}
+
+.shree-step-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #E2E8F0;
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.shree-step-node.active .shree-step-badge {
+  background: #073657;
+  color: #FFCD3B;
+}
+
+.shree-step-divider {
+  flex: 1;
+  max-width: 80px;
+  height: 2px;
+  background: #E2E8F0;
+}
+
+.shree-step-divider.completed {
+  background: #073657;
+}
+
+/* Form Card */
+.shree-form-card {
+  background: #FFFFFF;
+  border: 1px solid #D8E2EC;
+  border-radius: 12px;
+  padding: 32px 36px;
+  box-shadow: 0 4px 24px rgba(7, 54, 87, 0.05);
+}
+
+/* Section Headings */
+.shree-section-head {
+  border-bottom: 2px solid #E2E8F0;
+  padding-bottom: 8px;
+  margin-top: 28px;
+  margin-bottom: 20px;
+}
+
+.shree-section-head:first-of-type {
+  margin-top: 0;
+}
+
+.shree-section-head h2 {
+  font-family: 'Merriweather', Georgia, 'Times New Roman', serif;
+  font-size: 1.22rem;
+  font-weight: 700;
+  color: #073657;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+/* Grid Layout */
+.shree-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px 22px;
+}
+
+.shree-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.shree-field-full {
+  grid-column: 1 / -1;
+}
+
+/* Labels placed ON TOP of inputs - Strict Row Override for styles.css */
+.shree-field {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+  width: 100% !important;
+}
+
+.shree-label {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 4px !important;
+  font-size: 0.88rem !important;
+  font-weight: 600 !important;
+  color: #334155 !important;
+  margin-bottom: 6px !important;
+  width: 100% !important;
+  text-align: left !important;
+}
+
+.shree-label .req {
+  color: #DC2626 !important;
+  font-size: 0.88rem !important;
+  font-weight: 700 !important;
+  display: inline !important;
+  margin-left: 2px !important;
+  line-height: 1 !important;
+}
+
+/* Inputs & Selects */
+.shree-input,
+.shree-select {
+  width: 100%;
+  box-sizing: border-box;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 0.92rem;
+  color: #0F172A;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+  font-family: inherit;
+  min-height: 42px;
+}
+
+.shree-input::placeholder {
+  color: #94A3B8;
+  font-weight: 400;
+}
+
+.shree-input:focus,
+.shree-select:focus {
+  border-color: #073657;
+  box-shadow: 0 0 0 3px rgba(7, 54, 87, 0.12);
+}
+
+.shree-input.has-error,
+.shree-select.has-error {
+  border-color: #EF4444 !important;
+  background-color: #FFFFFF !important;
+}
+
+.shree-input.has-error:focus,
+.shree-select.has-error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+}
+
+.shree-error-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: #DC2626;
+  margin-top: 5px;
+  font-weight: 500;
+}
+
+/* Gender Radio Pills (Ref Image 2) */
+.shree-radio-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 42px;
+}
+
+.shree-radio-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #334155;
+  flex: 1;
+}
+
+.shree-radio-pill input[type="radio"] {
+  display: none;
+}
+
+.shree-radio-circle {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #94A3B8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.shree-radio-pill.selected {
+  border-color: #073657;
+  background: #F0F6FA;
+  color: #073657;
+  font-weight: 600;
+}
+
+.shree-radio-pill.selected .shree-radio-circle {
+  border-color: #073657;
+  background: #073657;
+  box-shadow: inset 0 0 0 3px #FFFFFF;
+}
+
+/* Photo Upload Box - Single Row Compact */
+.shree-photo-card {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 12px !important;
+  background: #F8FAFC !important;
+  border: 1px dashed #CBD5E1 !important;
+  border-radius: 6px !important;
+  padding: 4px 12px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  text-align: left !important;
+}
+
+.shree-photo-card:hover {
+  border-color: #073657 !important;
+  background: #F1F5F9 !important;
+}
+
+.shree-photo-thumb {
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 4px !important;
+  object-fit: cover !important;
+  border: 1px solid #CBD5E1 !important;
+  flex-shrink: 0 !important;
+}
+
+.shree-photo-badge {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50% !important;
+  background: #E2E8F0 !important;
+  color: #475569 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}
+
+.shree-photo-badge-success {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50% !important;
+  background: #DCFCE7 !important;
+  color: #16A34A !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}
+
+.shree-photo-meta {
+  flex: 1 !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  text-align: left !important;
+}
+
+.shree-photo-title {
+  font-size: 0.84rem !important;
+  font-weight: 600 !important;
+  color: #1E293B !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  line-height: 1.2 !important;
+}
+
+.shree-photo-hint {
+  font-size: 0.72rem !important;
+  color: #64748B !important;
+  line-height: 1.1 !important;
+}
+
+.shree-photo-btn {
+  background: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  border-radius: 4px !important;
+  padding: 4px 10px !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  color: #073657 !important;
+  flex-shrink: 0 !important;
+}
+
+/* Dynamic In-Place WhatsApp OTP */
+.shree-input-btn-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+
+.shree-input-btn-group .shree-input {
+  flex: 1;
+}
+
+.shree-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  padding: 0 16px;
+  min-height: 42px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+
+.shree-action-btn.primary {
+  background: #073657;
+  color: #FFFFFF;
+}
+
+.shree-action-btn.primary:hover:not(:disabled) {
+  background: #0A4A77;
+}
+
+.shree-action-btn.primary:disabled {
+  background: #94A3B8;
+  cursor: not-allowed;
+}
+
+.shree-action-btn.success {
+  background: #16A34A;
+  color: #FFFFFF;
+}
+
+.shree-action-btn.success:hover:not(:disabled) {
+  background: #15803D;
+}
+
+.shree-action-btn.success:disabled {
+  background: #86EFAC;
+  cursor: not-allowed;
+}
+
+.shree-action-btn.secondary {
+  background: #F1F5F9;
+  border-color: #CBD5E1;
+  color: #334155;
+}
+
+.shree-action-btn.secondary:hover:not(:disabled) {
+  background: #E2E8F0;
+  color: #0F172A;
+}
+
+.shree-cooldown-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748B;
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 0 10px;
+  min-height: 42px;
+}
+
+/* Dynamic OTP Box */
+.shree-dynamic-otp-card {
+  background: #F0F9FF;
+  border: 1px solid #BAE6FD;
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shree-otp-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.shree-otp-msg {
+  font-size: 0.8rem;
+  color: #0369A1;
+}
+
+.shree-otp-msg strong {
+  color: #075985;
+}
+
+.shree-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.78rem;
+  color: #0284C7;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.shree-link-btn:hover {
+  color: #0369A1;
+}
+
+.shree-verified-pill-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ECFDF5;
+  border: 1px solid #A7F3D0;
+  border-radius: 6px;
+  padding: 8px 14px;
+  min-height: 42px;
+  box-sizing: border-box;
+}
+
+.shree-verified-pill-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.shree-phone-val {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #065F46;
+}
+
+.shree-verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #10B981;
+  color: #FFFFFF;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+/* Consent Box */
+.shree-consent-box {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-top: 24px;
+}
+
+.shree-consent-label {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 12px !important;
+  cursor: pointer !important;
+  user-select: none;
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+.shree-checkbox {
+  margin: 0 !important;
+  width: 18px !important;
+  height: 18px !important;
+  accent-color: #073657;
+  cursor: pointer;
+  flex-shrink: 0 !important;
+}
+
+.shree-consent-text {
+  font-size: 0.88rem !important;
+  color: #334155 !important;
+  line-height: 1.4 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 4px !important;
+  flex: 1 !important;
+}
+
+.shree-see-more-btn {
+  background: none;
+  border: none;
+  color: #0284C7;
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0 4px;
+  display: inline;
+  font-family: inherit;
+  transition: color 0.15s ease;
+}
+
+.shree-see-more-btn:hover {
+  color: #0369A1;
+}
+
+/* Submit Row */
+.shree-submit-row {
+  margin-top: 28px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.shree-submit-btn {
+  background: #073657;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  padding: 13px 28px;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 14px rgba(7, 54, 87, 0.2);
+  transition: all 0.15s ease;
+}
+
+.shree-submit-btn:hover:not(:disabled) {
+  background: #0A4A77;
+  box-shadow: 0 6px 18px rgba(7, 54, 87, 0.25);
+  transform: translateY(-1px);
+}
+
+.shree-submit-btn:disabled {
+  background: #94A3B8;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Dark Mode Support */
+[data-theme="dark"] .register-page {
+  background-color: #0B132B;
+  color: #F8FAFC;
+}
+
+[data-theme="dark"] .shree-form-header,
+[data-theme="dark"] .shree-stepper,
+[data-theme="dark"] .shree-form-card {
+  background: #1C2541 !important;
+  border-color: #2E3856 !important;
+  color: #F8FAFC !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .shree-form-title {
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .shree-form-subtitle {
+  color: #94A3B8 !important;
+}
+
+[data-theme="dark"] .shree-meta-pill {
+  background: #152336 !important;
+  border-color: #2E3856 !important;
+  color: #CBD5E1 !important;
+}
+
+[data-theme="dark"] .shree-meta-pill strong {
+  color: #38BDF8 !important;
+}
+
+[data-theme="dark"] .shree-step-node {
+  color: #94A3B8 !important;
+}
+
+[data-theme="dark"] .shree-step-node.active {
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .shree-step-node.active .shree-step-badge {
+  background: #0284C7 !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .shree-step-divider {
+  background: #334155 !important;
+}
+
+[data-theme="dark"] .shree-step-divider.completed {
+  background: #0284C7 !important;
+}
+
+[data-theme="dark"] .shree-section-head {
+  border-color: #2E3856 !important;
+}
+
+[data-theme="dark"] .shree-section-head h2 {
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .shree-label {
+  color: #CBD5E1 !important;
+}
+
+[data-theme="dark"] .shree-label .req {
+  color: #F87171 !important;
+}
+
+[data-theme="dark"] .shree-input,
+[data-theme="dark"] .shree-select {
+  background: #0F172A !important;
+  border-color: #334155 !important;
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .shree-input:focus,
+[data-theme="dark"] .shree-select:focus {
+  border-color: #38BDF8 !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15) !important;
+}
+
+[data-theme="dark"] .shree-radio-pill {
+  background: #0F172A !important;
+  border-color: #334155 !important;
+  color: #CBD5E1 !important;
+}
+
+[data-theme="dark"] .shree-radio-pill.selected {
+  background: #1E293B !important;
+  border-color: #38BDF8 !important;
+  color: #38BDF8 !important;
+}
+
+[data-theme="dark"] .shree-radio-pill.selected .shree-radio-circle {
+  border-color: #38BDF8 !important;
+  background: #38BDF8 !important;
+  box-shadow: inset 0 0 0 3px #0F172A !important;
+}
+
+[data-theme="dark"] .shree-photo-card {
+  background: #0F172A !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .shree-photo-title {
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .shree-photo-hint {
+  color: #94A3B8 !important;
+}
+
+[data-theme="dark"] .shree-photo-btn {
+  background: #1E293B !important;
+  border-color: #334155 !important;
+  color: #38BDF8 !important;
+}
+
+[data-theme="dark"] .shree-photo-badge {
+  background: #1E293B !important;
+  color: #94A3B8 !important;
+}
+
+[data-theme="dark"] .shree-dynamic-otp-card {
+  background: #0F172A !important;
+  border-color: #0284C7 !important;
+}
+
+[data-theme="dark"] .shree-consent-box {
+  background: #0F172A !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .shree-consent-text {
+  color: #CBD5E1 !important;
+}
+
+[data-theme="dark"] .shree-see-more-btn {
+  color: #38BDF8 !important;
+}
+
+[data-theme="dark"] .shree-see-more-btn:hover {
+  color: #7DD3FC !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .shree-form-header {
+    flex-direction: column;
+    text-align: center;
+    padding: 20px 16px;
+    gap: 14px;
+  }
+  
+  .shree-form-title {
+    font-size: 1.45rem;
+  }
+
+  .shree-meta-pills {
+    justify-content: center;
+  }
+
+  .shree-form-card {
+    padding: 20px 16px;
+  }
+
+  .shree-grid-2 {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .shree-submit-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ==========================================================================
+   SHREE OLYMPIAD 2027: STEP 2 PAYMENT METHOD SELECTION & RAZORPAY GATEWAY UI
+   ========================================================================== */
+.shree-pay-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 18px 24px;
+  margin-bottom: 24px;
+}
+
+.shree-pay-info-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shree-pay-info-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748B;
+}
+
+.shree-pay-info-val {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #073657;
+  word-break: break-word;
+}
+
+.shree-pay-info-box.highlight {
+  border-left: 3px solid #0284C7;
+  padding-left: 14px;
+}
+
+.shree-pay-info-box.highlight .amount {
+  font-size: 1.35rem;
+  color: #0284C7;
+  font-weight: 800;
+}
+
+.shree-pay-badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.shree-pay-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  letter-spacing: 0.01em;
+}
+
+.shree-pay-badge-pill.instant {
+  background: #ECFDF5;
+  color: #065F46;
+  border: 1px solid #A7F3D0;
+}
+
+.shree-pay-badge-pill.security {
+  background: #F0F9FF;
+  color: #075985;
+  border: 1px solid #BAE6FD;
+}
+
+.shree-pay-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+  margin-bottom: 30px;
+}
+
+.shree-pay-card {
+  background: #FFFFFF;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 14px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.22s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.shree-pay-card:hover {
+  border-color: #073657;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(7, 54, 87, 0.12), 0 6px 10px -4px rgba(7, 54, 87, 0.06);
+}
+
+.shree-pay-card.priority {
+  border: 2px solid #0284C7;
+  background: linear-gradient(180deg, #F0F9FF 0%, #FFFFFF 100%);
+}
+
+.shree-pay-card.priority:hover {
+  border-color: #0369A1;
+  box-shadow: 0 12px 28px -5px rgba(2, 132, 199, 0.22);
+}
+
+.shree-pay-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.shree-pay-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.shree-pay-card-title .icon-upi {
+  color: #0284C7;
+}
+
+.shree-tag-fast {
+  background: #0284C7;
+  color: #FFFFFF;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.shree-tag-all {
+  background: #F1F5F9;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 9999px;
+}
+
+.shree-tag-bank {
+  background: #FEF3C7;
+  color: #92400E;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 9999px;
+}
+
+.shree-tag-wallet {
+  background: #F3E8FF;
+  color: #6B21A8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 9999px;
+}
+
+.shree-pay-card-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.shree-pay-card-hint {
+  font-size: 0.82rem;
+  color: #64748B;
+  margin-top: auto;
+  line-height: 1.4;
+}
+
+.shree-pay-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid #E2E8F0;
+}
+
+.shree-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #475569;
+  background: #F1F5F9;
+  border: 1px solid #CBD5E1;
+  padding: 12px 22px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.shree-back-btn:hover {
+  background: #E2E8F0;
+  color: #1E293B;
+  border-color: #94A3B8;
+}
+
+.shree-pay-now-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  background: linear-gradient(135deg, #073657 0%, #0c4d7b 100%);
+  border: none;
+  padding: 14px 28px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 4px 14px rgba(7, 54, 87, 0.25);
+}
+
+.shree-pay-now-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(7, 54, 87, 0.35);
+  filter: brightness(1.05);
+}
+
+.shree-pay-now-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Dark mode overrides for Step 2 */
+[data-theme="dark"] .shree-pay-summary-strip {
+  background: #0B1528 !important;
+  border-color: #1E293B !important;
+}
+
+[data-theme="dark"] .shree-pay-info-label {
+  color: #94A3B8 !important;
+}
+
+[data-theme="dark"] .shree-pay-info-val {
+  color: #F1F5F9 !important;
+}
+
+[data-theme="dark"] .shree-pay-info-box.highlight {
+  border-left-color: #38BDF8 !important;
+}
+
+[data-theme="dark"] .shree-pay-info-box.highlight .amount {
+  color: #38BDF8 !important;
+}
+
+[data-theme="dark"] .shree-pay-card {
+  background: #0F172A !important;
+  border-color: #1E293B !important;
+}
+
+[data-theme="dark"] .shree-pay-card:hover {
+  border-color: #38BDF8 !important;
+}
+
+[data-theme="dark"] .shree-pay-card.priority {
+  background: linear-gradient(180deg, #0C1E38 0%, #0F172A 100%) !important;
+  border-color: #0284C7 !important;
+}
+
+[data-theme="dark"] .shree-pay-card-title {
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .shree-pay-card-hint {
+  color: #94A3B8 !important;
+}
+
+[data-theme="dark"] .shree-tag-all {
+  background: #1E293B !important;
+  color: #CBD5E1 !important;
+}
+
+[data-theme="dark"] .shree-back-btn {
+  background: #1E293B !important;
+  color: #E2E8F0 !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .shree-back-btn:hover {
+  background: #334155 !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="dark"] .shree-pay-actions-row {
+  border-color: #1E293B !important;
+}
+
+@media (max-width: 640px) {
+  .shree-pay-summary-strip {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .shree-pay-actions-row {
+    flex-direction: column-reverse;
+    width: 100%;
+    gap: 12px;
+  }
+
+  .shree-pay-now-btn,
+  .shree-back-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
 

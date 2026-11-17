@@ -34,7 +34,7 @@ import {
 import { issueToken, authenticate, adminRoles } from "../middleware/auth.js";
 import { safeRegistration, publicSettings } from "./public.js";
 import { confirmRegistration } from "../services/confirm.js";
-import { admitPdf } from "../services/pdf.js";
+import { admitPdf, applicationReceiptPdf } from "../services/pdf.js";
 import { parse, safeCsv } from "../utils/validation.js";
 import {
   sendManualReminder,
@@ -43,7 +43,9 @@ import {
 } from "../services/reminderScheduler.js";
 import { generateCertificatePdfStream } from "../services/certificatePdf.js";
 import { sendCertificateEmail } from "../services/certificateEmail.js";
+import { sendCertificateWhatsApp } from "../services/apitxt/index.js";
 import { processEligibleCertificates } from "../services/certificateWorker.js";
+import adminWhatsAppRoutes from "./adminWhatsApp.js";
 const r = express.Router();
 const writable = adminRoles("SUPER_ADMIN", "ADMIN");
 const verifier = adminRoles("SUPER_ADMIN", "ADMIN", "PAYMENT_VERIFIER");
@@ -79,6 +81,7 @@ r.post("/logout", (req, res) =>
     .json({ ok: true }),
 );
 r.use(authenticate("admin"));
+r.use("/whatsapp", adminWhatsAppRoutes);
 r.get("/me", (req, res) =>
   res.json({ email: req.admin.email, role: req.admin.role }),
 );
@@ -94,6 +97,7 @@ r.get("/registrations", async (req, res) => {
   const q = registrationQuery(filters);
   const [docs, total] = await Promise.all([
     Registration.find(q)
+      .populate("paymentId", "utr providerPaymentId mode amount status")
       .sort({ createdAt: -1, _id: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -106,6 +110,8 @@ r.get("/registrations", async (req, res) => {
       guardianPhone: s.guardianPhone,
       email: s.email,
       createdAt: s.createdAt,
+      payment: s.paymentId || null,
+      paymentUtr: s.paymentId?.utr || s.paymentId?.providerPaymentId || "",
     })),
     total,
     page,
@@ -124,17 +130,41 @@ r.get("/records/:kind/export.:format", exportAdminRecords);
 
 r.get("/payments/:id/receipt", verifier, async (req, res) => {
   const p = await Payment.findById(req.params.id);
-  if (!p?.receipt?.publicId)
-    return res
-      .status(404)
-      .json({ error: "Receipt not found or awaiting storage migration." });
-  const buffer = await downloadMedia(p.receipt);
-  res.set("Cache-Control", "private, no-store");
-  res.set(
-    "Content-Disposition",
-    `attachment; filename="receipt-${p._id}.${p.receipt.format}"`,
-  );
-  res.type(p.receipt.contentType).send(buffer);
+  if (!p) {
+    return res.status(404).json({ error: "Payment not found." });
+  }
+
+  // 1. If manual payment with an uploaded screenshot
+  if (p.receipt?.publicId) {
+    try {
+      const buffer = await downloadMedia(p.receipt);
+      res.set("Cache-Control", "private, no-store");
+      res.set(
+        "Content-Disposition",
+        `attachment; filename="receipt-${p.utr || p._id}.${p.receipt.format || "pdf"}"`,
+      );
+      return res.type(p.receipt.contentType || "application/pdf").send(buffer);
+    } catch (err) {
+      console.warn(
+        "[Admin] Download media failed, falling back to generated PDF:",
+        err.message,
+      );
+    }
+  }
+
+  // 2. For Razorpay online payments or confirmed registrations:
+  // Generate and stream the official Shree Ram Exam of Excellence Application Payment Receipt PDF!
+  const student = await Registration.findOne({
+    $or: [{ _id: p.registrationId }, { paymentId: p._id }],
+  });
+
+  if (student) {
+    return await applicationReceiptPdf(res, student, p);
+  }
+
+  return res
+    .status(404)
+    .json({ error: "Receipt not found or awaiting storage migration." });
 });
 // Both review decisions share one lease so approval and rejection cannot race.
 r.use(
@@ -166,7 +196,7 @@ r.post("/payments/:id/approve", verifier, async (req, res) => {
   if (
     p.status === "PAID" &&
     registration &&
-    String(registration.paymentId) === String(p._id)
+    (String(registration.paymentId) === String(p._id) || !registration.paymentId)
   ) {
     const recovered = await confirmRegistration(
       p.registrationId,
@@ -755,19 +785,52 @@ r.post("/certificate/send/:id", examiner, async (req, res) => {
     await student.save();
   }
 
-  const result = await sendCertificateEmail(student, await publicSettings());
+  const settings = await publicSettings();
+  let waResult = null;
+  let emailResult = null;
+
+  // 1. Dispatch via APITxT WhatsApp with Cloudinary CDN PDF Document (Primary official channel)
+  if (student.guardianPhone) {
+    try {
+      waResult = await sendCertificateWhatsApp(student, settings);
+      if (waResult.success) {
+        await Registration.findByIdAndUpdate(student._id, {
+          $set: {
+            certificateStatus: "SENT",
+            certificateIssuedAt: new Date(),
+            certificateSentTo: student.guardianPhone,
+            certificateError: "",
+          },
+        });
+      }
+    } catch (err) {
+      console.error("[Admin] WhatsApp certificate dispatch failed:", err.message);
+    }
+  }
+
+  // 2. Optionally dispatch via Email if candidate has email configured
+  if (student.email || student.verifiedEmail) {
+    try {
+      emailResult = await sendCertificateEmail(student, settings);
+    } catch (err) {
+      console.warn("[Admin] Optional email certificate dispatch skipped:", err.message);
+    }
+  }
+
   const updated = await Registration.findById(student._id);
 
   await Audit.create({
     actor: String(req.admin._id),
     action: "CERTIFICATE_MANUAL_DISPATCH",
     registrationId: student._id,
-    details: { result },
+    details: { waResult, emailResult },
   });
 
+  const deliveredTo = updated.certificateSentTo || student.guardianPhone || student.email;
   res.json({
-    message: `Certificate successfully sent to ${updated.certificateSentTo || student.email}.`,
+    message: `Certificate successfully sent to ${deliveredTo}.`,
     registration: safeRegistration(updated),
+    waResult,
   });
 });
 r.post("/certificate/process-eligible", examiner, async (req, res) => {
@@ -856,7 +919,7 @@ r.patch("/settings", writable, async (req, res) => {
       reportingTime: z.string().max(80).optional(),
       examTime: z.string().max(80).optional(),
       venue: z.string().max(300).optional(),
-      paymentMode: z.enum(["manual", "razorpay", "both"]).optional(),
+      paymentMode: z.enum(["razorpay", "manual", "both"]).optional(),
       upiId: z.string().max(100).optional(),
       payeeName: z.string().max(120).optional(),
       contactPhone: z.string().max(20).optional(),

@@ -6,10 +6,14 @@ const logo = fileURLToPath(
   new URL("../../../client/public/images/school-logo.png", import.meta.url),
 );
 
-export async function admitPdf(res, student, settings) {
+export async function buildAdmitCardDoc(student, settings) {
   const photo = await studentPhoto(student);
+  const verifyHost =
+    process.env.PUBLIC_BASE_URL && !process.env.PUBLIC_BASE_URL.includes("localhost")
+      ? process.env.PUBLIC_BASE_URL
+      : "https://shreeolympiad.srpskanhra.com";
   const qr = await QRCode.toBuffer(
-    `${process.env.PUBLIC_BASE_URL || "https://shreeolympiad.srpskanhra.com"}/api/verify/${student.admitToken}`,
+    `${verifyHost}/api/verify/${student.admitToken}`,
     { width: 400, margin: 1, errorCorrectionLevel: "M" },
   );
   const doc = new PDFDocument({
@@ -18,13 +22,6 @@ export async function admitPdf(res, student, settings) {
     margin: 0,
     info: { Title: `SHREE 2027 Admit Card ${student.registrationNumber}` },
   });
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader(
-    "Content-Disposition",
-    `attachment; filename="${student.registrationNumber}.pdf"`,
-  );
-  res.setHeader("Cache-Control", "private, no-store");
-  doc.pipe(res);
   const scale = Math.min(doc.page.width / 1426, doc.page.height / 1103);
   doc
     .translate(
@@ -330,5 +327,28 @@ export async function admitPdf(res, student, settings) {
     "#ffffff",
     { align: "center", characterSpacing: 4 },
   );
+  return doc;
+}
+
+export async function admitPdf(res, student, settings) {
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${student.registrationNumber || "admit-card"}.pdf"`,
+  );
+  res.setHeader("Cache-Control", "private, no-store");
+  const doc = await buildAdmitCardDoc(student, settings);
+  doc.pipe(res);
   doc.end();
+}
+
+export async function generateAdmitCardPdfBuffer(student, settings) {
+  const doc = await buildAdmitCardDoc(student, settings);
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    doc.on("data", (chunk) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+    doc.end();
+  });
 }

@@ -1,5 +1,6 @@
 import { Registration, Counter, Audit, Payment } from "../models/index.js";
 import { randomToken } from "../middleware/auth.js";
+import { notifyConfirmed } from "./notifications.js";
 const conflict = () =>
   Object.assign(
     new Error(
@@ -14,6 +15,7 @@ export async function confirmRegistration(registrationId, actor) {
     _id: registrationId,
     status: {
       $in: [
+        "OTP_VERIFIED",
         "PAYMENT_PENDING",
         "PAYMENT_UNDER_VERIFICATION",
         "PAYMENT_REJECTED",
@@ -54,6 +56,11 @@ export async function confirmRegistration(registrationId, actor) {
       { $inc: { seq: 1 } },
       { new: true, upsert: true, setDefaultsOnInsert: true },
     );
+    const paidPayment = await Payment.findOne({
+      registrationId,
+      status: "PAID",
+    }).sort({ createdAt: -1 });
+
     const confirmed = await Registration.findOneAndUpdate(
       claim,
       {
@@ -69,6 +76,12 @@ export async function confirmRegistration(registrationId, actor) {
           notificationAttempts: 0,
           reminderStatus: "COMPLETED",
           reminderNextAttemptAt: null,
+          ...((!before?.paymentId || !before?.paymentMode) && paidPayment
+            ? {
+                paymentId: paidPayment._id,
+                paymentMode: paidPayment.mode,
+              }
+            : {}),
         },
         $unset: {
           reminderLease: 1,
@@ -96,8 +109,11 @@ export async function confirmRegistration(registrationId, actor) {
       registrationId: confirmed._id,
       details: { registrationNumber: confirmed.registrationNumber },
     });
-    // The durable notification job is handled by startNotificationWorker.
-    // Never wait for PDF rendering or SMTP in the payment approval request.
+    // Trigger immediate background dispatch of the confirmation sequence:
+    // 1. shree_payment_received -> 2. shree_olympiad_admit_card
+    notifyConfirmed(confirmed).catch((err) => {
+      console.warn("[Confirm] Async notifyConfirmed queued for worker:", err.message);
+    });
     return confirmed;
   } catch (error) {
     const fallback =

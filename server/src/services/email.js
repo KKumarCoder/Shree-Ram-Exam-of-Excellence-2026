@@ -7,7 +7,11 @@ export const normalizeEmail = value => {
   if (!parsed.success) throw otpError('A valid email address is required. Please update your email or contact the school.');
   return parsed.data;
 };
-export const maskEmail = email => { const [name, domain] = email.split('@'); return `${name[0]}***@${domain}`; };
+export const maskEmail = email => {
+  if (!email || typeof email !== 'string' || !email.includes('@')) return '';
+  const [name, domain] = email.split('@');
+  return `${name[0]}***@${domain}`;
+};
 export function validateEmailEnvironment() {
   for (const key of ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM']) {
     if (!process.env[key] || /^(YOUR_|REPLACE|placeholder)/i.test(process.env[key])) throw new Error(`${key} is not configured.`);

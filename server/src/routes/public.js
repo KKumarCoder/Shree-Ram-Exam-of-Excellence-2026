@@ -40,6 +40,12 @@ import { Challenge } from "../models/index.js";
 import { hashRecoveryToken } from "../services/recoveryToken.js";
 import { markRemindersCompleted } from "../services/reminderScheduler.js";
 import { sendEmailOtp, verifyEmailOtp } from "../services/emailOtp.js";
+import {
+  sendWhatsAppOtp,
+  verifyWhatsAppOtp,
+  processApitxtWebhook,
+  sendPaymentReceived,
+} from "../services/apitxt/index.js";
 const r = express.Router();
 // Serialize mutations of a draft across processes, including payment initiation.
 r.use("/registrations", async (req, res, next) => {
@@ -47,7 +53,9 @@ r.use("/registrations", async (req, res, next) => {
     req.path === "/start" ||
     req.path.startsWith("/resume") ||
     req.path.startsWith("/recovery") ||
-    req.path.startsWith("/email-otp")
+    req.path.startsWith("/email-otp") ||
+    req.path.startsWith("/whatsapp") ||
+    req.path.startsWith("/otp")
   )
     return next();
   return authenticate("draft")(req, res, () => {
@@ -128,6 +136,8 @@ const safeRegistration = (s) => ({
   paymentMode: s.paymentMode,
   verified: !!s.verifiedAt,
   guardianPhone: s.guardianPhone,
+  verifiedMobile: s.verifiedMobile || (s.verifiedAt ? s.guardianPhone : ""),
+  whatsappConsent: s.whatsappConsent ?? true,
   email: s.email,
   notificationStatus: s.notificationStatus,
   verificationExpiresAt: s.verificationExpiresAt,
@@ -153,11 +163,17 @@ const getOwn = async (req) => {
   if (!s) throw notFound();
   assertDraft(s);
   // Auto-verify application drafts so OTP verification is not required
-  if (s.status === "DRAFT" || !s.verifiedAt || !s.verifiedEmail || s.verifiedEmail !== s.email) {
+  if (
+    s.status === "DRAFT" ||
+    !s.verifiedAt ||
+    (s.email && (!s.verifiedEmail || s.verifiedEmail !== s.email)) ||
+    (s.guardianPhone && (!s.verifiedMobile || s.verifiedMobile !== s.guardianPhone))
+  ) {
     const now = new Date();
     s.status = "OTP_VERIFIED";
     s.verifiedAt = now;
-    s.verifiedEmail = s.email;
+    if (s.email) s.verifiedEmail = s.email;
+    if (s.guardianPhone) s.verifiedMobile = s.guardianPhone;
     s.verificationStatus = "verified";
     s.verificationExpiresAt = new Date(now.getTime() + 10800000);
     await s.save();
@@ -253,7 +269,8 @@ r.post("/registrations/start", async (req, res) => {
     existing.draftExpiresAt = directExpiry;
     existing.status = "OTP_VERIFIED";
     existing.verifiedAt = now;
-    existing.verifiedEmail = existing.email;
+    existing.verifiedEmail = existing.email || "";
+    existing.verifiedMobile = existing.guardianPhone || "";
     existing.verificationExpiresAt = directExpiry;
     existing.verificationStatus = "verified";
     await existing.save();
@@ -279,8 +296,12 @@ r.post("/registrations/start", async (req, res) => {
     verifiedEmail: data.email,
     verificationStatus: "verified",
     verificationExpiresAt: directExpiry,
-    applicationStatus: "awaiting_payment",
+    applicationStatus: "awaiting_payment_proof",
     paymentStatus: "not_submitted",
+    whatsappConsent: data.whatsappConsent ?? true,
+    whatsappConsentAt: now,
+    whatsappConsentSource: "web_registration",
+    verifiedMobile: data.guardianPhone,
     statusHistory: [
       {
         from: "NONE",
@@ -316,6 +337,15 @@ r.post("/registrations/start", async (req, res) => {
           "This application request has already been used with different details.",
       });
     assertDraft(s);
+    if (s && (s.status === "DRAFT" || !s.verifiedAt)) {
+      s.status = "OTP_VERIFIED";
+      s.verifiedAt = now;
+      s.verifiedEmail = data.email || s.email || "";
+      s.verifiedMobile = data.guardianPhone || s.guardianPhone || "";
+      s.verificationStatus = "verified";
+      s.verificationExpiresAt = directExpiry;
+      await s.save();
+    }
   } else {
     try {
       s = await Registration.create(values);
@@ -375,6 +405,85 @@ r.post("/registrations/email-otp/verify", async (req, res, next) => {
   }
 });
 
+// APITxT Text SMS OTP Verification (Primary Registration Workflow)
+r.post(["/otp/send", "/whatsapp/otp/send"], async (req, res, next) => {
+  try {
+    const { mobile } = req.body || {};
+    const result = await sendWhatsAppOtp({
+      mobile,
+      ipAddress: req.ip || req.headers["x-forwarded-for"] || "",
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+r.post(["/otp/verify", "/whatsapp/otp/verify"], async (req, res, next) => {
+  try {
+    const { mobile, otp } = req.body || {};
+    const result = await verifyWhatsAppOtp({ mobile, otp });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// APITxT WhatsApp Delivery Reports Webhook
+r.post("/whatsapp/apitxt/webhook", async (req, res, next) => {
+  try {
+    const result = await processApitxtWebhook(req.body);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Direct Public PDF Streaming for Meta WhatsApp / APITxT Document Delivery
+r.get(["/docs/admit-card/:token", "/docs/admit-card/:token.pdf"], async (req, res) => {
+  const token = (req.params.token || "").replace(/\.pdf$/i, "").trim();
+  const s = await Registration.findOne({
+    status: "CONFIRMED",
+    $or: [
+      { admitToken: token },
+      { registrationNumber: token },
+      { applicationRef: token },
+    ],
+  });
+  if (!s) {
+    return res.status(404).send("Admit card document not found or registration not confirmed.");
+  }
+  await admitPdf(res, s, await publicSettings());
+});
+
+r.get(["/certificate", "/certificate/"], (req, res) => {
+  return res.redirect(302, "/status");
+});
+
+r.get(
+  [
+    "/docs/certificate/:token",
+    "/docs/certificate/:token.pdf",
+    "/certificate/:token",
+    "/certificate/:token.pdf",
+  ],
+  async (req, res) => {
+  const token = (req.params.token || "").replace(/\.pdf$/i, "").trim();
+  const s = await Registration.findOne({
+    status: "CONFIRMED",
+    $or: [
+      { admitToken: token },
+      { registrationNumber: token },
+      { applicationRef: token },
+      { certificateNumber: token },
+    ],
+  });
+  if (!s) {
+    return res.status(404).send("Certificate not found.");
+  }
+  await generateCertificatePdfStream(res, s, await publicSettings(), false);
+});
+
 r.post(
   ["/registrations/otp/send", "/registrations/otp/resend"],
   authenticate("draft"),
@@ -384,6 +493,18 @@ r.post(
       return res
         .status(400)
         .json({ error: "OTP verification is already complete." });
+    if (s.guardianPhone) {
+      const result = await sendWhatsAppOtp({
+        mobile: s.guardianPhone,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "",
+      });
+      const cooldown = result.resendAvailableIn || 60;
+      return res.json({
+        message: result.message || "OTP sent to your WhatsApp number.",
+        cooldownSeconds: cooldown,
+        resendAvailableAt: new Date(Date.now() + cooldown * 1000).toISOString(),
+      });
+    }
     res.json(await sendOtp(s, "register"));
   },
 );
@@ -392,9 +513,24 @@ r.post("/registrations/otp/verify", authenticate("draft"), async (req, res) => {
   const s = await getOwn(req);
   if (s.status !== "DRAFT")
     return res.status(400).json({ error: "Already verified." });
+  if (s.guardianPhone) {
+    await verifyWhatsAppOtp({ mobile: s.guardianPhone, otp });
+    const now = new Date();
+    s.status = "OTP_VERIFIED";
+    s.verificationStatus = "verified";
+    s.applicationStatus = "awaiting_payment_proof";
+    s.verifiedAt = now;
+    s.verifiedMobile = s.guardianPhone;
+    s.verificationExpiresAt = new Date(now.getTime() + 10800000);
+    await s.save();
+    return res.json({
+      message: "Mobile number verified via WhatsApp.",
+      registration: safeRegistration(s),
+    });
+  }
   const verified = await verifyOtp(s, "register", otp);
   res.json({
-    message: "Email address verified.",
+    message: "Verified successfully.",
     registration: safeRegistration(verified),
   });
 });
@@ -628,6 +764,10 @@ r.post(
           .json({ error: "Registration was updated in another session." });
       }
       await markRemindersCompleted(s._id);
+      // Asynchronously dispatch WhatsApp payment received notification for manual offline proof
+      sendPaymentReceived(updated, pay).catch((err) => {
+        console.error("[APITXT] Async payment received notification failed:", err.message);
+      });
       res.status(201).json({
         message:
           "Receipt submitted. Payment is awaiting actual bank verification by the school.",
@@ -712,14 +852,23 @@ r.post(
       registrationId: s._id,
       mode: "razorpay",
       status: "PENDING",
+      amount: settings.fee,
     }).sort({ createdAt: -1 });
-    if (prior && Date.now() - prior.createdAt.getTime() < 15 * 60 * 1000)
+    if (prior && Date.now() - prior.createdAt.getTime() < 15 * 60 * 1000) {
+      if (s.status !== "PAYMENT_PENDING" || !s.paymentId) {
+        s.paymentId = prior._id;
+        s.paymentMode = "razorpay";
+        s.status = "PAYMENT_PENDING";
+        s.termsAcceptedAt = s.termsAcceptedAt || new Date();
+        await s.save();
+      }
       return res.json({
         orderId: prior.providerOrderId,
         key: process.env.RAZORPAY_KEY_ID,
         amount: prior.amount * 100,
         currency: "INR",
       });
+    }
     const order = await rzFetch("orders", {
       method: "POST",
       body: JSON.stringify({
@@ -760,6 +909,10 @@ export async function captureRazorpay(orderId, paymentId) {
       throw Object.assign(new Error("Different payment already recorded."), {
         status: 409,
       });
+    if (!pay.utr) {
+      pay.utr = paymentId;
+      await pay.save();
+    }
     const s = await Registration.findById(pay.registrationId);
     return s.status === "CONFIRMED"
       ? s
@@ -782,6 +935,7 @@ export async function captureRazorpay(orderId, paymentId) {
       $set: {
         status: "PAID",
         providerPaymentId: paymentId,
+        utr: pay.utr || paymentId,
         verifiedAt: new Date(),
       },
     },
@@ -847,22 +1001,41 @@ r.post("/status/request", async (req, res) => {
     return res
       .status(404)
       .json({ error: "No matching registration. Check number and mobile." });
-  const result = await sendOtp(s, "lookup");
+
+  // Dispatches OTP directly to registered guardian WhatsApp mobile
+  const otpResult = await sendWhatsAppOtp({
+    mobile: s.guardianPhone,
+    ipAddress: req.ip || req.headers["x-forwarded-for"] || "",
+  });
+  const cooldown = otpResult.resendAvailableIn || 60;
+  const resendAvailableAt = new Date(Date.now() + cooldown * 1000).toISOString();
+
   res.json({
     lookupToken: issueToken(
       { sub: String(s._id), scope: "lookup-pending" },
-      "10m",
+      "15m",
     ),
-    ...result,
+    message: otpResult.message || "OTP has been sent to your WhatsApp number.",
+    cooldownSeconds: cooldown,
+    resendAvailableAt,
+    expiresIn: otpResult.expiresIn || 300,
   });
 });
 r.post("/status/verify", authenticate("lookup-pending"), async (req, res) => {
   const { otp } = parse(otpSchema, req.body);
   const s = await getOwn(req);
-  const verified = await verifyOtp(s, "lookup", otp);
+  await verifyWhatsAppOtp({ mobile: s.guardianPhone, otp });
+
+  // Issue student token for status viewing and admit card download
+  const accessToken = issueToken({ sub: String(s._id), scope: "student" }, "30m");
+
+  // Issue draft token so parent can seamlessly continue payment if not yet confirmed
+  const draftToken = issueToken({ sub: String(s._id), scope: "draft" }, "3h");
+
   res.json({
-    accessToken: issueToken({ sub: String(s._id), scope: "student" }, "30m"),
-    registration: safeRegistration(verified),
+    accessToken,
+    draftToken,
+    registration: safeRegistration(s),
   });
 });
 r.get("/status/me", authenticate("student"), async (req, res) => {
@@ -906,9 +1079,13 @@ r.post("/registrations/resume/request", async (req, res) => {
     });
   }
 
-  // Use primary application to send OTP
+  // Use primary application to send WhatsApp OTP
   const primary = applications[0];
-  const result = await sendOtp(primary, "lookup");
+  const otpResult = await sendWhatsAppOtp({
+    mobile: primary.guardianPhone,
+    ipAddress: req.ip || req.headers["x-forwarded-for"] || "",
+  });
+  const cooldown = otpResult.resendAvailableIn || 60;
   res.json({
     lookupToken: issueToken(
       {
@@ -920,8 +1097,13 @@ r.post("/registrations/resume/request", async (req, res) => {
       "15m",
     ),
     applicationCount: applications.length,
+    maskedPhone: primary.guardianPhone
+      ? primary.guardianPhone.replace(/(\d{2})\d{4}(\d{4})/, "$1****$2")
+      : "",
     maskedEmail: maskEmail(primary.email),
-    ...result,
+    message: otpResult.message || "OTP sent to your WhatsApp number.",
+    cooldownSeconds: cooldown,
+    resendAvailableAt: new Date(Date.now() + cooldown * 1000).toISOString(),
   });
 });
 r.post(
@@ -931,12 +1113,12 @@ r.post(
     const { otp } = parse(otpSchema, req.body);
     const primary = await Registration.findById(req.viewer.sub);
     if (!primary) throw notFound();
-    await verifyOtp(primary, "lookup", otp);
+    await verifyWhatsAppOtp({ mobile: primary.guardianPhone, otp });
 
     const applications = await Registration.find({
       $or: [
         { guardianPhone: req.viewer.guardianPhone },
-        { email: req.viewer.email },
+        ...(req.viewer.email ? [{ email: req.viewer.email }] : []),
       ],
       status: { $ne: "CANCELLED" },
       applicationStatus: { $ne: "superseded" },
@@ -965,12 +1147,13 @@ r.post(
   authenticate("resume-authorized"),
   async (req, res) => {
     const { registrationId } = parse(resumeSelectSchema, req.body);
+    const authConditions = [{ guardianPhone: req.viewer.guardianPhone }];
+    if (req.viewer.email) {
+      authConditions.push({ email: req.viewer.email });
+    }
     const target = await Registration.findOne({
       _id: registrationId,
-      $or: [
-        { guardianPhone: req.viewer.guardianPhone },
-        { email: req.viewer.email },
-      ],
+      $or: authConditions,
       status: { $ne: "CANCELLED" },
     });
 
@@ -1013,7 +1196,7 @@ r.post("/registrations/recovery/validate", async (req, res) => {
     return res.status(404).json({
       expired: true,
       error:
-        "This recovery link is invalid or has already been used. You can resume your application directly by entering your registered email.",
+        "This recovery link is invalid or has already been used. You can resume your application directly by entering your registered mobile number or application reference.",
     });
   }
 
@@ -1024,7 +1207,7 @@ r.post("/registrations/recovery/validate", async (req, res) => {
     return res.status(410).json({
       expired: true,
       error:
-        "This recovery link has expired (links are valid for 7 days). You can resume your application by entering your registered email.",
+        "This recovery link has expired (links are valid for 7 days). You can resume your application by entering your registered mobile number or application reference.",
     });
   }
 
@@ -1047,8 +1230,12 @@ r.post("/registrations/recovery/validate", async (req, res) => {
     return res.status(429).json({ error: "Too many recovery attempts. Please try again shortly." });
   }
 
-  // Trigger Email OTP send to the guardian email bound to this application
-  const otpResult = await sendOtp(registration, "lookup");
+  // Trigger WhatsApp OTP send to the guardian mobile bound to this application
+  const otpResult = await sendWhatsAppOtp({
+    mobile: registration.guardianPhone,
+    ipAddress: req.ip || req.headers["x-forwarded-for"] || "",
+  });
+  const cooldown = otpResult.resendAvailableIn || 60;
 
   const lookupToken = issueToken(
     {
@@ -1061,11 +1248,16 @@ r.post("/registrations/recovery/validate", async (req, res) => {
 
   res.json({
     success: true,
+    maskedPhone: registration.guardianPhone
+      ? registration.guardianPhone.replace(/(\d{2})\d{4}(\d{4})/, "$1****$2")
+      : "",
     maskedEmail: maskEmail(registration.email),
     applicationRef: registration.applicationRef,
     studentClass: registration.studentClass,
     lookupToken,
-    ...otpResult,
+    message: otpResult.message || "OTP sent to your WhatsApp number.",
+    cooldownSeconds: cooldown,
+    resendAvailableAt: new Date(Date.now() + cooldown * 1000).toISOString(),
   });
 });
 
@@ -1083,7 +1275,7 @@ r.post(
       });
     }
 
-    await verifyOtp(registration, "lookup", otp);
+    await verifyWhatsAppOtp({ mobile: registration.guardianPhone, otp });
 
     // Single-use invalidation: invalidate recovery token immediately upon successful recovery
     registration.recoveryTokenHash = null;
@@ -1096,15 +1288,16 @@ r.post(
       registration.status = "OTP_VERIFIED";
       registration.verificationStatus = "verified";
       registration.applicationStatus = "awaiting_payment_proof";
-      registration.verifiedEmail = registration.email;
+      registration.verifiedMobile = registration.guardianPhone;
+      if (registration.email) registration.verifiedEmail = registration.email;
       registration.verifiedAt = now;
     }
     registration.verificationExpiresAt = new Date(now.getTime() + 10800000);
     await registration.save();
 
     await Audit.create({
-      actor: registration.email,
-      action: "APPLICATION_RECOVERED_VIA_EMAIL_LINK",
+      actor: registration.guardianPhone || "guardian",
+      action: "APPLICATION_RECOVERED_VIA_WHATSAPP_LINK",
       registrationId: registration._id,
       details: { applicationRef: registration.applicationRef },
     });
@@ -1255,7 +1448,7 @@ r.get("/certificate/download/:token", async (req, res) => {
   await generateCertificatePdfStream(res, s, await publicSettings(), inline);
 });
 r.get("/certificate", authenticate("student"), async (req, res) => {
-  const s = await Registration.findById(req.registration._id);
+  const s = await getOwn(req);
   if (!s || s.status !== "CONFIRMED") {
     return res.status(404).json({ error: "Registration not found." });
   }

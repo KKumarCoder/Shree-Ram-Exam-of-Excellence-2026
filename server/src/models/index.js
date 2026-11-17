@@ -68,6 +68,10 @@ export const Registration = model(
       currentSchool: { type: String, required: true },
       guardianName: { type: String, required: true },
       guardianPhone: { type: String, required: true },
+      verifiedMobile: { type: String, default: "" },
+      whatsappConsent: { type: Boolean, default: true },
+      whatsappConsentAt: { type: Date, default: null },
+      whatsappConsentSource: { type: String, default: "web_registration" },
       email: { type: String, default: "", lowercase: true, trim: true },
       verifiedEmail: { type: String, default: "" },
       address: { type: String, required: true },
@@ -155,9 +159,11 @@ export const Registration = model(
       photoPath: { type: String, default: "" }, // Legacy migration only; never read by upload/download routes.
       photo: { type: mediaSchema, default: null },
       admitToken: { type: String, unique: true, sparse: true },
+      admitCardPdfUrl: { type: String, default: "" },
       seat: { type: String, default: "" },
       checkInAt: { type: Date, default: null, index: true },
       certificateNumber: { type: String, unique: true, sparse: true },
+      certificatePdfUrl: { type: String, default: "" },
       certificateIssuedAt: { type: Date, default: null, index: true },
       certificateStatus: {
         type: String,
@@ -249,6 +255,113 @@ export const EmailOtpChallenge = model(
 EmailOtpChallenge.schema.index({ expiresAt: 1 }, { expireAfterSeconds: 600 });
 EmailOtpChallenge.schema.index({ recipient: 1, createdAt: -1 });
 
+export const WhatsAppOtpChallenge = model(
+  "WhatsAppOtpChallenge",
+  new Schema(
+    {
+      mobile: { type: String, required: true, index: true },
+      codeHash: { type: String, default: "", select: false },
+      salt: { type: String, default: "" },
+      attempts: { type: Number, default: 0 },
+      expiresAt: { type: Date, required: true },
+      resendAvailableAt: { type: Date, required: true },
+      verified: { type: Boolean, default: false },
+      verifiedAt: { type: Date, default: null },
+      verificationToken: { type: String, default: "", index: true, sparse: true },
+      providerRequestId: { type: String, default: "" },
+      ipAddress: { type: String, default: "" },
+    },
+    opts,
+  ),
+);
+WhatsAppOtpChallenge.schema.index({ expiresAt: 1 }, { expireAfterSeconds: 3600 });
+WhatsAppOtpChallenge.schema.index({ mobile: 1, createdAt: -1 });
+
+export const WhatsAppMessage = model(
+  "WhatsAppMessage",
+  new Schema(
+    {
+      recipientPhone: { type: String, required: true, index: true },
+      studentId: {
+        type: Schema.Types.ObjectId,
+        ref: "Registration",
+        default: null,
+        index: true,
+      },
+      registrationId: {
+        type: Schema.Types.ObjectId,
+        ref: "Registration",
+        default: null,
+        index: true,
+      },
+      registrationNumber: { type: String, default: "", index: true },
+      studentName: { type: String, default: "" },
+      studentClass: { type: String, default: "" },
+      templateName: { type: String, required: true, index: true },
+      language: { type: String, default: "hi" },
+      messageType: {
+        type: String,
+        enum: [
+          "otp",
+          "sms_otp",
+          "registration",
+          "payment_received",
+          "payment_verified",
+          "admit_card",
+          "certificate",
+          "exam_reminder",
+          "result",
+          "bulk",
+          "custom",
+        ],
+        default: "custom",
+        index: true,
+      },
+      documentType: {
+        type: String,
+        enum: ["none", "admit_card", "certificate", "result"],
+        default: "none",
+      },
+      mediaUrl: { type: String, default: "" },
+      filename: { type: String, default: "" },
+      providerName: { type: String, default: "apitxt" },
+      providerRequestId: { type: String, default: "", index: true, sparse: true },
+      providerMessageId: { type: String, default: "", index: true, sparse: true },
+      campaignId: { type: String, default: "", index: true },
+      bodyParams: { type: [String], default: [] },
+      headerParams: { type: [String], default: [] },
+      buttonParams: { type: [String], default: [] },
+      status: {
+        type: String,
+        enum: [
+          "PENDING",
+          "QUEUED",
+          "ACCEPTED",
+          "SENT",
+          "DELIVERED",
+          "READ",
+          "FAILED",
+        ],
+        default: "PENDING",
+        index: true,
+      },
+      errorCode: { type: String, default: "" },
+      errorMessage: { type: String, default: "" },
+      retryCount: { type: Number, default: 0 },
+      sentAt: { type: Date, default: null },
+      deliveredAt: { type: Date, default: null },
+      readAt: { type: Date, default: null },
+      failedAt: { type: Date, default: null },
+      rawResponse: { type: Schema.Types.Mixed, default: null },
+      metadata: { type: Schema.Types.Mixed, default: () => ({}) },
+    },
+    opts,
+  ),
+);
+WhatsAppMessage.schema.index({ createdAt: -1, _id: -1 });
+WhatsAppMessage.schema.index({ status: 1, createdAt: -1 });
+WhatsAppMessage.schema.index({ recipientPhone: 1, createdAt: -1 });
+
 export const Payment = model(
   "Payment",
   new Schema(
@@ -300,7 +413,7 @@ export const Settings = model(
       paymentMode: {
         type: String,
         enum: ["manual", "razorpay", "both"],
-        default: "manual",
+        default: "razorpay",
       },
       upiId: { type: String, default: "" },
       payeeName: { type: String, default: "" },

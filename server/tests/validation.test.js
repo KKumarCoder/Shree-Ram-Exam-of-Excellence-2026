@@ -179,9 +179,10 @@ test("school, city and district require letters and spaces", () => {
   }
 });
 
-test("email is mandatory for registration", () => {
-  for (const email of ["", undefined, "invalid"])
-    assert.equal(startSchema.safeParse({ ...good, email }).success, false);
+test("email is optional for registration", () => {
+  assert.equal(startSchema.safeParse({ ...good, email: "" }).success, true);
+  assert.equal(startSchema.safeParse({ ...good, email: undefined }).success, true);
+  assert.equal(startSchema.safeParse({ ...good, email: "invalid" }).success, false);
 });
 
 test("class 11 requires stream course selection (PCM, PCB, ARTS, COMMERCE)", () => {

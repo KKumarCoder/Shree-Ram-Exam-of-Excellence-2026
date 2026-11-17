@@ -74,7 +74,10 @@ export const startObjectSchema = z
       .trim()
       .toLowerCase()
       .max(150)
-      .email("Enter a valid email address, such as name@gmail.com."),
+      .email("Enter a valid email address, such as name@gmail.com.")
+      .or(z.literal(""))
+      .optional()
+      .default(""),
     address: cleaned(300).refine(
       (value) => readable.test(value) && hasLetters(value) && value.length >= 5,
       "Enter a full address of at least 5 characters, including letters.",
@@ -99,6 +102,8 @@ export const startObjectSchema = z
         (value) => value === "" || (readable.test(value) && hasLetters(value)),
         "Use words to describe your purpose of participation.",
       ),
+    whatsappConsent: z.boolean().optional().default(true),
+    mobileVerificationToken: z.string().optional().default(""),
     consent: z.literal(true),
   })
   .strict();

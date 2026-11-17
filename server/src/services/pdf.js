@@ -9,7 +9,7 @@ const logo = path.resolve(
   here,
   "../../../client/public/images/school-logo.png",
 );
-export { admitPdf } from "./admitPdf.js";
+export { admitPdf, generateAdmitCardPdfBuffer } from "./admitPdf.js";
 
 // Reference-matched landscape receipt; all candidate/payment data stays dynamic.
 export async function applicationReceiptPdf(res, student, payment) {

@@ -19,6 +19,7 @@ import { api, downloadBlob } from "./api.js";
 import { notify } from "./notifications.js";
 import { supportedClasses } from "./portalData.js";
 import "./attendance.css";
+import "./admin-records.css";
 
 const initial = {
   search: "",
@@ -425,39 +426,11 @@ export function AttendanceRecords({
                           width: "fit-content",
                         }}
                       >
-                        <CheckCircle2 size={12} /> Issued & Emailed
+                        <CheckCircle2 size={12} /> Issued & Delivered
                       </span>
                       <small style={{ color: "var(--muted)", fontSize: "11px" }}>
                         {student.certificateNumber || "Official Cert"}
                       </small>
-                      <div style={{ display: "flex", gap: "6px", marginTop: "2px" }}>
-                        <button
-                          type="button"
-                          className="btn light"
-                          style={{ padding: "2px 8px", fontSize: "11px", height: "auto" }}
-                          onClick={() => previewCertificate(student.id)}
-                          title="Preview or download Certificate PDF"
-                        >
-                          <Eye size={12} /> Preview
-                        </button>
-                        {canEdit && (
-                          <button
-                            type="button"
-                            className="btn light"
-                            style={{ padding: "2px 8px", fontSize: "11px", height: "auto" }}
-                            disabled={sendingCertId === student.id}
-                            onClick={() => sendCertificate(student.id)}
-                            title="Resend certificate email"
-                          >
-                            {sendingCertId === student.id ? (
-                              <Loader2 size={12} className="admin-spin" />
-                            ) : (
-                              <Send size={12} />
-                            )}{" "}
-                            Resend
-                          </button>
-                        )}
-                      </div>
                     </div>
                   ) : student.checkInAt ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
@@ -479,34 +452,6 @@ export function AttendanceRecords({
                           ? "Due for auto-dispatch"
                           : `Auto-send at ${new Date(new Date(student.checkInAt).getTime() + delayHours * 3600000).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })}`}
                       </small>
-                      <div style={{ display: "flex", gap: "6px", marginTop: "2px" }}>
-                        <button
-                          type="button"
-                          className="btn light"
-                          style={{ padding: "2px 8px", fontSize: "11px", height: "auto" }}
-                          onClick={() => previewCertificate(student.id)}
-                          title="Preview Certificate PDF"
-                        >
-                          <Eye size={12} /> Preview
-                        </button>
-                        {canEdit && (
-                          <button
-                            type="button"
-                            className="btn gold"
-                            style={{ padding: "2px 8px", fontSize: "11px", height: "auto" }}
-                            disabled={sendingCertId === student.id}
-                            onClick={() => sendCertificate(student.id)}
-                            title="Send certificate right now without waiting 4 hours"
-                          >
-                            {sendingCertId === student.id ? (
-                              <Loader2 size={12} className="admin-spin" />
-                            ) : (
-                              <Send size={12} />
-                            )}{" "}
-                            Send Now
-                          </button>
-                        )}
-                      </div>
                     </div>
                   ) : (
                     <span style={{ color: "var(--muted)", fontSize: "12px" }}>
@@ -517,24 +462,66 @@ export function AttendanceRecords({
                 {canEdit && (
                   <td>
                     <div className="record-actions">
-                      <button
-                        disabled={loading || !!error || saving}
-                        onClick={() => open(student)}
-                      >
-                        {student.checkInAt ? (
-                          <Pencil size={14} />
-                        ) : (
-                          <UserCheck size={14} />
-                        )}
-                        {student.checkInAt ? "Edit" : "Mark present"}
-                      </button>
-                      {student.checkInAt && (
+                      {student.checkInAt ? (
+                        <>
+                          <button
+                            type="button"
+                            className="admin-action-btn view-btn"
+                            onClick={() => previewCertificate(student.id)}
+                            title="Preview Certificate PDF"
+                            aria-label="Preview Certificate PDF"
+                          >
+                            <Eye size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-action-btn remind-btn"
+                            disabled={sendingCertId === student.id}
+                            onClick={() => sendCertificate(student.id)}
+                            title={
+                              student.certificateIssuedAt
+                                ? "Resend Certificate to WhatsApp"
+                                : "Send certificate right now to WhatsApp"
+                            }
+                            aria-label="Send Certificate to WhatsApp"
+                          >
+                            {sendingCertId === student.id ? (
+                              <Loader2 size={15} className="admin-spin" />
+                            ) : (
+                              <Send size={15} />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-action-btn edit-btn"
+                            disabled={loading || !!error || saving}
+                            onClick={() => open(student)}
+                            title="Edit check-in time"
+                            aria-label="Edit check-in time"
+                          >
+                            <Pencil size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-action-btn delete-btn"
+                            disabled={loading || !!error || saving}
+                            onClick={() => open(student, true)}
+                            title="Delete attendance entry"
+                            aria-label="Delete attendance entry"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </>
+                      ) : (
                         <button
-                          className="reject"
+                          type="button"
+                          className="admin-action-btn approve-btn"
                           disabled={loading || !!error || saving}
-                          onClick={() => open(student, true)}
+                          onClick={() => open(student)}
+                          title="Mark student present"
+                          aria-label="Mark student present"
                         >
-                          <Trash2 size={14} /> Delete
+                          <UserCheck size={15} />
                         </button>
                       )}
                     </div>

@@ -22,12 +22,12 @@ export const defaults = {
   eventName: branding.eventName,
   eligibleClasses: supportedClasses,
   portal: {},
-  fee: 149,
+  fee: 2,
   certificateDelayHours: 4,
   registrationOpen: false,
   examDate: '',
   venue: 'Shree Ram Public School, Kanhra-Badhra Road, Charkhi Dadri, Haryana 127306',
-  paymentMode: 'manual',
+  paymentMode: 'razorpay',
   contactPhone: '8199991081',
   contactEmail: 'srpskanhra@gmail.com',
   scholarships: []
@@ -181,6 +181,8 @@ export default function App() {
           }
         />
         <Route path="/status" element={<Status />} />
+        <Route path="/certificate" element={<Status />} />
+        <Route path="/certificate/*" element={<Status />} />
         <Route
           path="*"
           element={

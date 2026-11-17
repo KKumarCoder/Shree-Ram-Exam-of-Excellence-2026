@@ -1,6 +1,6 @@
 import { notify } from "./notifications.js";
 import React, { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Search,
   ShieldCheck,
@@ -9,13 +9,15 @@ import {
   Clock3,
   Award,
 } from "lucide-react";
-import { api, downloadBlob, img } from "./api.js";
+import { api, downloadBlob, img, setToken } from "./api.js";
 import { ApplicationStatusTimeline } from "./PortalComponents.jsx";
 export function Status() {
+  const navigate = useNavigate();
   const [ref, setRef] = useState(""),
     [phone, setPhone] = useState(""),
     [code, setCode] = useState(""),
     [lookupToken, setLookupToken] = useState(""),
+    [draftToken, setDraftToken] = useState(""),
     [access, setAccess] = useState(""),
     [record, setRecord] = useState(null),
     [busy, setBusy] = useState(false);
@@ -57,7 +59,7 @@ export function Status() {
       setLookupToken(r.data.lookupToken);
       notify.success(
         r.data.message ||
-          "Verification code sent. Check your inbox and spam folder.",
+          "Verification code sent to your WhatsApp number.",
       );
       setCode("");
       setResendAt(Date.parse(r.data.resendAvailableAt) || 0);
@@ -71,7 +73,9 @@ export function Status() {
         { headers: { Authorization: `Bearer ${lookupToken}` } },
       );
       setAccess(r.data.accessToken);
+      setDraftToken(r.data.draftToken || "");
       setRecord(r.data.registration);
+      notify.success("WhatsApp mobile verified successfully.");
     });
   }
   function refreshStatus() {
@@ -88,29 +92,31 @@ export function Status() {
       const { data } = await api.get("/status/me", { headers });
       const latest = data.registration;
       setRecord(latest);
-      const confirmed = latest.status === "CONFIRMED";
-      const r = await api.get(
-        confirmed ? "/admit-card" : "/application-receipt",
-        {
-          headers,
-          responseType: "blob",
-        },
-      );
+      const r = await api.get("/application-receipt", {
+        headers,
+        responseType: "blob",
+      });
+      const fileRef =
+        latest.registrationNumber || latest.applicationRef || "Shree-Olympiad-2027";
       downloadBlob(
         r.data,
-        confirmed
-          ? `${latest.registrationNumber}-admit-card.pdf`
-          : "Shree Ram Exam of Excellence 2027.pdf",
+        `${fileRef}-application-receipt.pdf`,
       );
     });
   }
   function download() {
     run(async () => {
+      const headers = { Authorization: `Bearer ${access}` };
+      const { data } = await api.get("/status/me", { headers });
+      const latest = data.registration;
+      setRecord(latest);
       const r = await api.get("/admit-card", {
-        headers: { Authorization: `Bearer ${access}` },
+        headers,
         responseType: "blob",
       });
-      downloadBlob(r.data, `${record.registrationNumber}-admit-card.pdf`);
+      const fileRef =
+        latest.registrationNumber || latest.applicationRef || "Shree-Olympiad-2027";
+      downloadBlob(r.data, `${fileRef}-admit-card.pdf`);
     });
   }
   function downloadCertificate() {
@@ -131,7 +137,7 @@ export function Status() {
         <span className="eyebrow">STUDENT SERVICES</span>
         <h1>Check status & download admit card</h1>
         <p>
-          Verify your registered email to access private student information.
+          Verify your registered mobile via WhatsApp to access student details and admit card.
         </p>
       </div>
       <div className="status-grid">
@@ -180,10 +186,9 @@ export function Status() {
               <div className="form-head">
                 <ShieldCheck />
                 <div>
-                  <h2>Confirm your email</h2>
+                  <h2>Confirm WhatsApp OTP</h2>
                   <p>
-                    Enter the OTP sent to your registered email. Check your
-                    inbox and spam folder.
+                    Enter the 6-digit OTP sent to your registered WhatsApp mobile number.
                   </p>
                 </div>
               </div>
@@ -228,7 +233,7 @@ export function Status() {
                 <CheckCircle2 />
                 <div>
                   <h2>Application details</h2>
-                  <p>Your email is verified.</p>
+                  <p>Your WhatsApp mobile is verified.</p>
                 </div>
               </div>
               <div className="receipt-summary">
@@ -271,8 +276,8 @@ export function Status() {
               {record.status === "CONFIRMED" && (
                 <p className="notice">
                   {record.notificationStatus === "SENT"
-                    ? "Admit card and receipt sent to your registered email. Check your inbox and spam folder."
-                    : "Your admit card and receipt are available below. Email delivery is being processed."}
+                    ? "Admit card and receipt sent to your registered WhatsApp mobile number. You can also download them below."
+                    : "Your admit card and receipt are available below."}
                 </p>
               )}
               {!["DRAFT", "OTP_VERIFIED"].includes(record.status) && (
@@ -324,8 +329,8 @@ export function Status() {
                         }}
                       >
                         {record.certificateIssuedAt
-                          ? `Your certificate (ID: ${record.certificateNumber}) has been issued and sent to your email. You can also download it below.`
-                          : "Exam attendance recorded! Your official Certificate of Participation is scheduled to be automatically generated and emailed 4 hours after check-in."}
+                          ? `Your certificate (ID: ${record.certificateNumber}) has been issued. You can also download it below.`
+                          : "Exam attendance recorded! Your official Certificate of Participation is scheduled to be automatically generated and sent to WhatsApp."}
                       </p>
                       <button
                         type="button"
@@ -358,16 +363,37 @@ export function Status() {
                         ? "This application is cancelled. Contact the school office."
                         : "Admit card is available only after payment approval. Check again after school review."}
                   </div>
-                  {["DRAFT", "OTP_VERIFIED", "PAYMENT_REJECTED"].includes(
+                  {["DRAFT", "OTP_VERIFIED", "PAYMENT_PENDING", "PAYMENT_REJECTED"].includes(
                     record.status,
                   ) && (
-                    <Link
-                      to="/register"
+                    <button
+                      type="button"
                       className="btn primary wide"
-                      style={{ marginTop: "10px", textAlign: "center" }}
+                      style={{
+                        marginTop: "12px",
+                        background: "#ffcd3b",
+                        color: "#073657",
+                        fontWeight: 700,
+                        fontSize: "15px",
+                        padding: "14px 20px",
+                        borderRadius: "10px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        boxShadow: "0 4px 12px rgba(255, 205, 59, 0.35)",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => {
+                        if (draftToken) {
+                          setToken(draftToken);
+                        }
+                        navigate("/register");
+                      }}
                     >
-                      Continue & Complete Application →
-                    </Link>
+                      Continue Application & Pay ₹2 →
+                    </button>
                   )}
                   <button
                     className="btn light wide"
@@ -398,7 +424,7 @@ export function Status() {
               ready.
             </p>
             <p>
-              Verify the email OTP to view your details. Download the
+              Verify the WhatsApp OTP to view your details. Download the
               application receipt while payment is under review; the admit card
               is available after payment confirmation.
             </p>

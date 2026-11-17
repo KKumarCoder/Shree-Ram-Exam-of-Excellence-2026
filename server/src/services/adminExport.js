@@ -10,7 +10,7 @@ export function reportData(records, payments) {
     ? ['Student', 'Class', 'Reference', 'Mobile', 'Amount (INR)', 'UTR', 'Status', 'Submitted', 'Review note']
     : ['Student', 'Class', 'Course/Stream', 'Reference', 'Mobile', 'Email', 'Status', 'Submitted', 'School', 'Room', 'Seat'];
   const rows = records.map(r => payments
-    ? [r.registrationId?.studentName, r.registrationId?.studentClass ? (r.registrationId?.studentClass === '11' && r.registrationId?.course ? `11 (${r.registrationId.course})` : r.registrationId?.studentClass) : '', r.registrationId?.registrationNumber || r.registrationId?.applicationRef, r.registrationId?.guardianPhone, r.amount, r.utr, r.status, dateText(r.createdAt), r.reviewNote]
+    ? [r.registrationId?.studentName, r.registrationId?.studentClass ? (r.registrationId?.studentClass === '11' && r.registrationId?.course ? `11 (${r.registrationId.course})` : r.registrationId?.studentClass) : '', r.registrationId?.registrationNumber || r.registrationId?.applicationRef, r.registrationId?.guardianPhone, r.amount, r.utr || r.providerPaymentId || '', r.status, dateText(r.createdAt), r.reviewNote]
     : [r.studentName, r.studentClass, r.course || (r.studentClass === '11' ? '—' : ''), r.registrationNumber || r.applicationRef, r.guardianPhone, r.email, r.status, dateText(r.createdAt), r.currentSchool, r.room, r.seat]);
   return { columns, rows: rows.map(row => row.map(value => value ?? '')) };
 }

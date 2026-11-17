@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { Registration, Settings } from "../models/index.js";
-import { sendCertificateEmail } from "./certificateEmail.js";
+import { sendCertificateWhatsApp } from "./apitxt/index.js";
+import { formatCertificateNumber } from "./certificatePdf.js";
 
 let workerInterval = null;
 let isProcessing = false;
@@ -57,6 +58,8 @@ export async function processEligibleCertificates() {
     let successCount = 0;
     let failCount = 0;
 
+    const settings = await Settings.findById("primary").lean();
+
     for (const student of eligibleCandidates) {
       try {
         // Mark as PROCESSING to avoid concurrent duplicate dispatch
@@ -64,10 +67,29 @@ export async function processEligibleCertificates() {
           $set: { certificateStatus: "PROCESSING" },
         });
 
-        // Generate and send Certificate PDF via email
-        await sendCertificateEmail(student);
-        successCount++;
-        console.log(`[CERTIFICATE WORKER] Successfully sent certificate to ${student.studentName} (${student.email})`);
+        if (!student.certificateNumber) {
+          student.certificateNumber = formatCertificateNumber(student);
+          await Registration.findByIdAndUpdate(student._id, {
+            $set: { certificateNumber: student.certificateNumber },
+          });
+        }
+
+        // Generate and send Certificate PDF via APITxT WhatsApp
+        const result = await sendCertificateWhatsApp(student, settings);
+        if (result.success) {
+          successCount++;
+          await Registration.findByIdAndUpdate(student._id, {
+            $set: {
+              certificateStatus: "SENT",
+              certificateIssuedAt: new Date(),
+              certificateSentTo: student.guardianPhone,
+              certificateError: "",
+            },
+          });
+          console.log(`[CERTIFICATE WORKER] Successfully sent WhatsApp certificate to ${student.studentName} (${student.guardianPhone})`);
+        } else {
+          throw new Error(result.error || "WhatsApp certificate send failed");
+        }
       } catch (err) {
         failCount++;
         console.error(`[CERTIFICATE WORKER] Failed to send certificate to ${student.studentName}:`, err.message);

@@ -8,7 +8,7 @@ import {eventBrand} from './portalData.js';
 export function RegistrationOffer({settings,loading,pathname}) {
  const dialog=useRef(null);
  const [cycle,setCycle]=useState(0);
- const eligible=pathname==='/'&&!loading&&settings.registrationOpen&&Number(settings.fee)===149;
+ const eligible=pathname==='/'&&!loading&&settings.registrationOpen&&Number(settings.fee)>0;
  const dismiss=()=>setCycle(value=>value+1);
  useEffect(()=>{
   const element=dialog.current;

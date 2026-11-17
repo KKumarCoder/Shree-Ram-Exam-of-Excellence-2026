@@ -7,14 +7,14 @@ const labels = {
   UNDER_REVIEW: "Payment under review",
   PAID: "Approved",
   REJECTED: "Rejected",
-  DRAFT: "Draft (Email pending)",
-  AWAITING_PAYMENT: "Awaiting payment proof",
+  DRAFT: "Draft (Pending)",
+  AWAITING_PAYMENT: "Awaiting payment",
   PAYMENT_SUBMITTED: "Payment submitted",
   PAYMENT_UNDER_VERIFICATION: "Payment review",
   CONFIRMING: "Confirming",
   CONFIRMED: "Approved (Confirmed)",
   APPROVED: "Approved (Confirmed)",
-  OTP_VERIFIED: "Email verified",
+  OTP_VERIFIED: "Mobile verified (Payment pending)",
   PAYMENT_PENDING: "Payment pending",
   PAYMENT_REJECTED: "Payment rejected",
   CANCELLED: "Cancelled / Superseded",
@@ -54,7 +54,7 @@ export function StudentDetailModal({
     if (reminding) return;
     if (
       !window.confirm(
-        `Send registration reminder email to the guardian of ${student.studentName}?`
+        `Send WhatsApp registration reminder to the guardian of ${student.studentName}?`
       )
     )
       return;
@@ -65,14 +65,14 @@ export function StudentDetailModal({
       notify({
         type: "success",
         title: "Reminder Sent",
-        message: data.message || "Manual reminder email dispatched via Gmail SMTP.",
+        message: data.message || "Manual WhatsApp reminder dispatched via APITxT.",
       });
       if (onRefresh) onRefresh(student._id);
     } catch (err) {
       notify({
         type: "error",
         title: "Failed",
-        message: err.response?.data?.error || "Failed to deliver reminder email.",
+        message: err.response?.data?.error || "Failed to deliver reminder via WhatsApp.",
       });
     } finally {
       setReminding(false);
@@ -192,15 +192,21 @@ export function StudentDetailModal({
               <div className="payment-info-row">
                 <div>
                   <span>Mode</span>
-                  <strong>{payment.mode}</strong>
+                  <strong>
+                    {payment.mode === "razorpay"
+                      ? "Online (Razorpay)"
+                      : "Manual (UPI / Bank)"}
+                  </strong>
                 </div>
                 <div>
                   <span>Amount</span>
                   <strong>₹{payment.amount}</strong>
                 </div>
                 <div>
-                  <span>UTR</span>
-                  <strong className="utr-badge">{payment.utr || "—"}</strong>
+                  <span>UTR / Payment ID</span>
+                  <strong className="utr-badge">
+                    {payment.utr || payment.providerPaymentId || "—"}
+                  </strong>
                 </div>
                 <div>
                   <span>Payment Status</span>
@@ -365,7 +371,7 @@ export function StudentDetailModal({
               </div>
             ) : (
               <p className="no-history-text" style={{ margin: "8px 0" }}>
-                No reminder emails dispatched yet for this application. (Scheduled attempts will appear here).
+                No WhatsApp reminders dispatched yet for this application. (Scheduled attempts will appear here).
               </p>
             )}
           </div>

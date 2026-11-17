@@ -87,17 +87,15 @@ const participationPurposes = [
 ];
 
 export function Register({ settings, loading, settingsError, reloadSettings }) {
-  // Language State: defaults to English ('en') as requested, with Hindi toggle available
-  const [lang, setLang] = useState(() => {
-    return localStorage.getItem("shree_reg_lang_v2") || "en";
-  });
-  const t = translations[lang] || translations.en;
-
-  const toggleLanguage = () => {
-    const nextLang = lang === "hi" ? "en" : "hi";
-    setLang(nextLang);
-    localStorage.setItem("shree_reg_lang_v2", nextLang);
-  };
+  // Language: Strictly English
+  const lang = "en";
+  const t = translations.en;
+  useEffect(() => {
+    try {
+      localStorage.removeItem("shree_reg_lang_v2");
+      localStorage.setItem("shree_reg_lang_v2", "en");
+    } catch {}
+  }, []);
 
   const [form, setForm] = useState(initialForm);
   // wizardStep: 1 = Details, 2 = Verify Email OTP, 3 = Pay Fee QR, 4 = Submit Payment Details, 5 = Confirmation
@@ -115,23 +113,32 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
   const [busy, setBusy] = useState(false);
   const [otpAction, setOtpAction] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
+
+  useEffect(() => {
+    loadRazorpayScript();
+    if (typeof window !== "undefined") {
+      window.__setWizardStep = setWizardStep;
+      window.__setRegistration = setRegistration;
+      window.__setForm = setForm;
+    }
+  }, []);
+  const [submittedAttempt, setSubmittedAttempt] = useState(false);
   const [editingEmail, setEditingEmail] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [showUtrGuide, setShowUtrGuide] = useState(false);
-  const [paymentTab, setPaymentTab] = useState(
-    settings?.paymentMode === "manual" ? "manual" : "online"
-  );
+  const [paymentTab, setPaymentTab] = useState("online");
 
-  // Inline Email Verification states
-  const [emailVerified, setEmailVerified] = useState(false);
-  const [emailOtpCode, setEmailOtpCode] = useState("");
+  // Inline WhatsApp Mobile OTP Verification states
+  const [mobileVerified, setMobileVerified] = useState(false);
+  const [mobileOtpCode, setMobileOtpCode] = useState("");
   const [otpSending, setOtpSending] = useState(false);
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpSentOnce, setOtpSentOnce] = useState(false);
   const [otpCooldown, setOtpCooldown] = useState(0);
-  const [emailOtpError, setEmailOtpError] = useState("");
+  const [mobileOtpError, setMobileOtpError] = useState("");
   const [otpSentMessage, setOtpSentMessage] = useState("");
-  const [emailVerificationToken, setEmailVerificationToken] = useState("");
+  const [mobileVerificationToken, setMobileVerificationToken] = useState("");
+  const [whatsappConsent, setWhatsappConsent] = useState(true);
   const [consentExpanded, setConsentExpanded] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
 
@@ -143,13 +150,6 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
     return () => clearInterval(timer);
   }, [otpCooldown]);
 
-  useEffect(() => {
-    if (settings?.paymentMode === "manual") {
-      setPaymentTab("manual");
-    } else {
-      setPaymentTab("online");
-    }
-  }, [settings?.paymentMode]);
 
   // Resume Registration modal states
   const [resumeOpen, setResumeOpen] = useState(false);
@@ -178,7 +178,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         .post("/registrations/recovery/validate", { recoveryToken })
         .then(({ data }) => {
           setResumeLookupToken(data.lookupToken);
-          setResumeMaskedEmail(data.maskedEmail);
+          setResumeMaskedEmail(data.maskedPhone || data.maskedEmail || "");
           setRecoveryAppRef(data.applicationRef);
           setResumeStep("recovery-otp");
           setResumeOtp("");
@@ -187,9 +187,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         .catch((err) => {
           notify.error(
             err.message ||
-            (lang === "hi"
-              ? "रिकवरी लिंक अमान्य या समाप्त हो गया है। आप अपने ईमेल से आवेदन जारी रख सकते हैं।"
-              : "Recovery link is expired or invalid. You can resume your application using your registered email.")
+            ("Recovery link is expired or invalid. You can resume your application using your registered mobile number.")
           );
           setResumeStep("input");
           setResumeOpen(true);
@@ -204,9 +202,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         .then(({ data }) => {
           notify.success(
             data.message ||
-            (lang === "hi"
-              ? "आपको ईमेल सूचनाओं से अनसब्सक्राइब कर दिया गया है।"
-              : "You have been unsubscribed from reminder emails.")
+            ("You have been unsubscribed from reminder emails.")
           );
         })
         .catch((err) => {
@@ -260,14 +256,12 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
             consent: true,
           });
 
-          // Determine current wizard step (2-step flow)
+          // Determine current wizard step
           if (
             reg.status === "CONFIRMED" ||
             reg.status === "PAYMENT_UNDER_VERIFICATION"
           ) {
             setWizardStep(5);
-          } else if (reg.photoUploaded || ["OTP_VERIFIED", "PAYMENT_PENDING", "PAYMENT_REJECTED"].includes(reg.status)) {
-            setWizardStep(2);
           } else {
             setWizardStep(1);
           }
@@ -276,9 +270,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
           if ([401, 404, 410].includes(e.status)) setToken("");
           else
             notify.error(
-              lang === "hi"
-                ? "सत्र पुनर्प्राप्त नहीं हो सका। कृपया पृष्ठ पुनः लोड करें।"
-                : "Could not restore your application session. Please reload."
+              "Could not restore your application session. Please reload."
             );
         });
     }
@@ -307,7 +299,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
           .catch(() => null);
         if (latest?.data.registration.status === "DRAFT") {
           setRegistration(latest.data.registration);
-          setWizardStep(latest.data.registration.photoUploaded ? 2 : 1);
+          setWizardStep(1);
           setOtp("");
         }
       } else if ([429, 502, 503].includes(e.status) && getToken()) {
@@ -326,13 +318,25 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
   const updateField = (key, value) => {
     const cleaned = cleanRegistrationInput(key, value);
     setForm((prev) => ({ ...prev, [key]: cleaned }));
-    const err = registrationFieldError(key, cleaned, lang);
-    setFieldErrors((prev) => ({ ...prev, [key]: err }));
+    // If the field was already in error state, clear error once valid
+    if (fieldErrors[key]) {
+      const err = registrationFieldError(key, cleaned, lang);
+      if (!err) {
+        setFieldErrors((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+      }
+    }
   };
 
   const handleBlurField = (key, value) => {
-    const err = registrationFieldError(key, value, lang);
-    setFieldErrors((prev) => ({ ...prev, [key]: err }));
+    // Only display errors on blur if user has attempted to submit or actually entered content
+    if (submittedAttempt || (typeof value === "string" && value.trim().length > 0)) {
+      const err = registrationFieldError(key, value, lang);
+      setFieldErrors((prev) => ({ ...prev, [key]: err }));
+    }
   };
 
   // Reset entire form
@@ -342,6 +346,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
     setWizardStep(1);
     setForm(initialForm);
     setFieldErrors({});
+    setSubmittedAttempt(false);
     setRegistration(null);
     setOtp("");
     setResendAt(0);
@@ -359,6 +364,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
     applicationKey.current = crypto.randomUUID();
     setToken("");
     setWizardStep(1);
+    setSubmittedAttempt(false);
     setForm((prev) => ({
       studentName: "",
       dob: "",
@@ -389,17 +395,158 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
     setTermsAccepted(false);
     setEditingEmail(false);
     notify.success(
-      lang === "hi"
-        ? "अभिभावक विवरण सुरक्षित रखा गया है। कृपया नए विद्यार्थी की जानकारी भरें।"
-        : "Ready to register another sibling with existing guardian details."
+      "Ready to register another sibling with existing guardian details."
     );
   }
+
+  // ==========================================
+  // RAZORPAY GATEWAY SDK LOADER & LAUNCHER
+  // ==========================================
+  const loadRazorpayScript = () =>
+    new Promise((resolve) => {
+      if (typeof window !== "undefined" && window.Razorpay) return resolve(true);
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+
+  const launchRazorpayCheckout = async (activeReg = null) => {
+    const reg = activeReg || registration;
+    const loaded = await loadRazorpayScript();
+    if (!loaded) {
+      throw new Error(
+        "Failed to load Razorpay payment gateway. Please check your internet connection."
+      );
+    }
+
+    const { data } = await api.post(
+      "/registrations/razorpay/order",
+      { termsAccepted: true },
+      { headers: draftHeaders() }
+    );
+
+    const studentName = reg?.studentName || form.studentName;
+    const studentEmail = reg?.email || form.email;
+    const guardianPhone =
+      reg?.guardianPhone || form.guardianPhone || form.phone;
+
+    return new Promise((resolve) => {
+      const options = {
+        key: data.key,
+        amount: data.amount,
+        currency: data.currency || "INR",
+        name: "Shree Ram Public School",
+        description: `Shree Olympiad 2027 Registration Fee — ${studentName}`,
+        image: window.location.origin + "/images/school-logo.png",
+        order_id: data.orderId,
+        prefill: {
+          name: studentName,
+          email: studentEmail || `student_${guardianPhone}@shreeolympiad.in`,
+          contact: guardianPhone,
+          method: "upi",
+        },
+        config: {
+          display: {
+            blocks: {
+              upi: {
+                name: "Pay via UPI (Google Pay, PhonePe, Paytm)",
+                instruments: [
+                  {
+                    method: "upi",
+                  },
+                ],
+              },
+              card: {
+                name: "Debit & Credit Cards",
+                instruments: [
+                  {
+                    method: "card",
+                  },
+                ],
+              },
+              netbanking: {
+                name: "Net Banking (All Indian Banks)",
+                instruments: [
+                  {
+                    method: "netbanking",
+                  },
+                ],
+              },
+              wallet: {
+                name: "Wallets",
+                instruments: [
+                  {
+                    method: "wallet",
+                  },
+                ],
+              },
+            },
+            sequence: ["block.upi", "block.card", "block.netbanking", "block.wallet"],
+            preferences: {
+              show_default_blocks: true,
+            },
+          },
+        },
+        theme: {
+          color: "#073657",
+        },
+        modal: {
+          backdropclose: false,
+          escape: false,
+          ondismiss: () => {
+            notify.info(
+              `Payment window closed. Click 'Submit & Pay' to complete your ₹${settings.fee || 2} fee payment anytime.`
+            );
+            resolve(false);
+          },
+        },
+        handler: async (response) => {
+          try {
+            setBusy(true);
+            const verifyRes = await api.post(
+              "/registrations/razorpay/verify",
+              {
+                orderId: response.razorpay_order_id,
+                paymentId: response.razorpay_payment_id,
+                signature: response.razorpay_signature,
+              },
+              { headers: draftHeaders() }
+            );
+
+            setRegistration(verifyRes.data.registration);
+            setWizardStep(5);
+            notify.success(
+              "Payment successful! Your registration has been confirmed."
+            );
+            resolve(true);
+          } catch (err) {
+            notify.error(err.message || "Payment verification failed.");
+            resolve(false);
+          } finally {
+            setBusy(false);
+          }
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", (response) => {
+        const desc =
+          response.error?.description || "Payment failed. Please try again.";
+        notify.error(desc);
+      });
+      rzp.open();
+    });
+  };
 
   // ==========================================
   // STEP 1: SAVE DRAFT & UPLOAD PHOTO
   // ==========================================
   const handleSaveStep1 = () =>
     execute(async () => {
+      setSubmittedAttempt(true);
       // Validate all required fields
       const errors = {};
       const requiredKeys = [
@@ -411,7 +558,6 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         "currentSchool",
         "guardianName",
         "guardianPhone",
-        "email",
         "city",
         "district",
         "state",
@@ -422,31 +568,25 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         if (err) errors[k] = err;
       }
       if (!form.consent) {
-        errors.consent = t.errorTermsRequired;
+        errors.consent = t.errorTermsRequired || "Please confirm the declaration before submitting.";
       }
       if (Object.keys(errors).length > 0) {
         setFieldErrors(errors);
         notify.error(
-          lang === "hi"
-            ? "कृपया फॉर्म में चिह्नित सभी आवश्यक जानकारी सही भरें।"
-            : "Please correct the highlighted fields before proceeding."
+          "Please fill in all required fields marked with an asterisk (*)."
         );
         return;
       }
 
-      // Check email OTP verification requirement
-      if (!emailVerified) {
-        setEmailOtpError(
-          lang === "hi"
-            ? "कृपया पहले अपने ईमेल पर OTP भेजकर सत्यापित करें।"
-            : "Please verify your email with OTP before proceeding."
+      // Check Mobile WhatsApp OTP verification requirement
+      if (!mobileVerified) {
+        setMobileOtpError(
+          "Please verify your mobile number with WhatsApp OTP before proceeding."
         );
         notify.error(
-          lang === "hi"
-            ? "कृपया फॉर्म सबमिट करने से पहले ईमेल के सामने दिए गए OTP विकल्प से ईमेल सत्यापित करें।"
-            : "Please verify your email address using the OTP verification box before submitting."
+          "Please verify your mobile number via WhatsApp OTP before proceeding."
         );
-        const otpEl = document.getElementById("emailOtp") || document.getElementById("email");
+        const otpEl = document.getElementById("mobileOtp") || document.getElementById("guardianPhone");
         if (otpEl) otpEl.focus();
         return;
       }
@@ -467,6 +607,8 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
 
         const payload = {
           ...form,
+          whatsappConsent: true,
+          mobileVerificationToken,
           address: synthesizedAddress,
         };
 
@@ -479,9 +621,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         if (r.data.resumed) {
           notify.info(
             r.data.message ||
-            (lang === "hi"
-              ? "इस विद्यार्थी का पूर्व में शुरू किया गया आवेदन बहाल किया गया।"
-              : "Restored existing application for this student.")
+            ("Restored existing application for this student.")
           );
         }
       }
@@ -504,89 +644,78 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         setRegistration(current);
       }
 
-      // Direct 2-step flow: Advance directly to Step 2 (Payment)
-      setWizardStep(2);
-      notify.success(
-        lang === "hi"
-          ? "विद्यार्थी विवरण सुरक्षित है। कृपया ऑनलाइन शुल्क भुगतान करें।"
-          : "Student details saved. Please complete your registration fee payment."
-      );
+      // Directly launch Razorpay payment popup!
+      setTermsAccepted(true);
+      await launchRazorpayCheckout(current);
     });
 
   // ==========================================
-  // INLINE EMAIL OTP HANDLERS (STEP 1)
   // ==========================================
-  const handleSendInlineOtp = async () => {
-    const emailErr = registrationFieldError("email", form.email, lang);
-    if (emailErr) {
-      setFieldErrors((prev) => ({ ...prev, email: emailErr }));
-      notify.error(emailErr);
+  // INLINE WHATSAPP OTP HANDLERS (STEP 1)
+  // ==========================================
+  const handleSendWhatsAppOtp = async () => {
+    const phoneErr = registrationFieldError("guardianPhone", form.guardianPhone, lang);
+    if (phoneErr) {
+      setFieldErrors((prev) => ({ ...prev, guardianPhone: phoneErr }));
+      notify.error(phoneErr);
       return;
     }
     setOtpSending(true);
-    setEmailOtpError("");
+    setMobileOtpError("");
     try {
-      const res = await api.post("/registrations/email-otp/send", {
-        email: form.email,
+      const res = await api.post("/whatsapp/otp/send", {
+        mobile: form.guardianPhone,
       });
       setOtpSentOnce(true);
-      setOtpCooldown(res.data.cooldownSeconds || 45);
+      setOtpCooldown(res.data.resendAvailableIn || 60);
       setOtpSentMessage(
         res.data.message ||
-          (lang === "hi"
-            ? "OTP आपके ईमेल पर भेजा गया है।"
-            : "OTP sent to your email.")
+        ("OTP sent to your WhatsApp number.")
       );
       notify.success(
         res.data.message ||
-          (lang === "hi"
-            ? "सत्यापन कोड भेजा गया।"
-            : "Verification code sent.")
+        ("WhatsApp verification code sent.")
       );
     } catch (err) {
       const msg =
         err.response?.data?.error ||
         err.message ||
-        (lang === "hi" ? "OTP भेजने में विफल।" : "Failed to send OTP.");
-      setEmailOtpError(msg);
+        ("Failed to send WhatsApp OTP.");
+      setMobileOtpError(msg);
       notify.error(msg);
     } finally {
       setOtpSending(false);
     }
   };
 
-  const handleVerifyInlineOtp = async () => {
-    if (!emailOtpCode || emailOtpCode.trim().length !== 6) {
+  const handleVerifyWhatsAppOtp = async () => {
+    if (!mobileOtpCode || mobileOtpCode.trim().length !== 6) {
       const msg =
-        lang === "hi"
-          ? "कृपया 6 अंकों का OTP दर्ज करें।"
-          : "Please enter a 6-digit OTP.";
-      setEmailOtpError(msg);
+        "Please enter the 6-digit WhatsApp OTP.";
+      setMobileOtpError(msg);
       notify.error(msg);
       return;
     }
     setOtpVerifying(true);
-    setEmailOtpError("");
+    setMobileOtpError("");
     try {
-      const res = await api.post("/registrations/email-otp/verify", {
-        email: form.email,
-        otp: emailOtpCode.trim(),
+      const res = await api.post("/whatsapp/otp/verify", {
+        mobile: form.guardianPhone,
+        otp: mobileOtpCode.trim(),
       });
-      setEmailVerified(true);
-      setEmailVerificationToken(res.data.verificationToken || "verified");
+      setMobileVerified(true);
+      setMobileVerificationToken(res.data.verificationToken || "verified");
       setOtpSentMessage("");
       notify.success(
         res.data.message ||
-          (lang === "hi"
-            ? "ईमेल सफलतापूर्वक सत्यापित हो गया।"
-            : "Email address verified successfully.")
+        ("WhatsApp number verified successfully.")
       );
     } catch (err) {
       const msg =
         err.response?.data?.error ||
         err.message ||
-        (lang === "hi" ? "अमान्य OTP कोड।" : "Invalid OTP code.");
-      setEmailOtpError(msg);
+        ("Invalid WhatsApp OTP code.");
+      setMobileOtpError(msg);
       notify.error(msg);
     } finally {
       setOtpVerifying(false);
@@ -627,9 +756,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
       setWizardStep(3);
       notify.success(
         r.data.message ||
-        (lang === "hi"
-          ? "ईमेल सफलतापूर्वक सत्यापित हो गया।"
-          : "Email verified successfully.")
+        ("Email verified successfully.")
       );
     });
 
@@ -651,152 +778,10 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
       notify.success(data.message);
     });
 
-  // ==========================================
-  // STEP 4: SUBMIT MANUAL PAYMENT PROOF
-  // ==========================================
-  const handleSubmitPayment = () =>
+  // STEP 2: MANUAL/FALLBACK RAZORPAY PAYMENT TRIGGER
+  const handleRazorpayPayment = (regParam = null) =>
     execute(async () => {
-      if (!receipt) {
-        throw new Error(t.errorReceiptRequired);
-      }
-      if (
-        !["image/jpeg", "image/png", "application/pdf"].includes(
-          receipt.type
-        ) ||
-        receipt.size > 3 * 1024 * 1024
-      ) {
-        throw new Error(t.errorReceiptInvalid);
-      }
-      if (!termsAccepted) {
-        throw new Error(t.errorTermsRequired);
-      }
-
-      const fd = new FormData();
-      if (utr.trim()) {
-        fd.append("utr", utr.trim());
-      }
-      fd.append("termsAccepted", "true");
-      fd.append("receipt", receipt);
-
-      const r = await api.post("/registrations/manual", fd, {
-        headers: draftHeaders(),
-        timeout: 45000,
-      });
-
-      setRegistration(r.data.registration);
-      setWizardStep(5);
-      notify.success(
-        lang === "hi"
-          ? "आपका आवेदन और भुगतान रसीद सफलतापूर्वक जमा हो गई है।"
-          : "Application and payment proof submitted successfully."
-      );
-    });
-
-  // Dynamically load Razorpay SDK
-  const loadRazorpayScript = () =>
-    new Promise((resolve) => {
-      if (window.Razorpay) return resolve(true);
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.async = true;
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-
-  // STEP 3 (ONLINE): PAY VIA RAZORPAY GATEWAY
-  const handleRazorpayPayment = () =>
-    execute(async () => {
-      if (!termsAccepted) {
-        throw new Error(
-          lang === "hi"
-            ? "कृपया ऑनलाइन भुगतान करने से पहले अभिभावक सहमति और नियम-शर्तें स्वीकार करें।"
-            : "Please accept the terms and guardian declaration before payment."
-        );
-      }
-
-      const loaded = await loadRazorpayScript();
-      if (!loaded) {
-        throw new Error(
-          lang === "hi"
-            ? "Razorpay गेटवे लोड नहीं हो सका। कृपया अपना इंटरनेट कनेक्शन जांचें।"
-            : "Failed to load Razorpay payment gateway. Please check your internet connection."
-        );
-      }
-
-      const { data } = await api.post(
-        "/registrations/razorpay/order",
-        { termsAccepted: true },
-        { headers: draftHeaders() }
-      );
-
-      const studentName = registration?.studentName || form.studentName;
-      const studentEmail = registration?.email || form.email;
-      const guardianPhone =
-        registration?.guardianPhone || form.guardianPhone || form.phone;
-
-      const options = {
-        key: data.key,
-        amount: data.amount,
-        currency: data.currency || "INR",
-        name: settings?.eventName || "SHREE 2027 OLYMPIAD",
-        description: `Olympiad Registration Fee — ${studentName}`,
-        image: "/favicon.ico",
-        order_id: data.orderId,
-        prefill: {
-          name: studentName,
-          email: studentEmail,
-          contact: guardianPhone,
-        },
-        theme: {
-          color: "#073657",
-        },
-        modal: {
-          backdropclose: false,
-          escape: false,
-          ondismiss: () => {
-            notify.info(
-              lang === "hi"
-                ? "भुगतान विंडो बंद कर दी गई। आप दोबारा प्रयास कर सकते हैं।"
-                : "Payment window closed. You can retry whenever you are ready."
-            );
-          },
-        },
-        handler: async (response) => {
-          try {
-            setBusy(true);
-            const verifyRes = await api.post(
-              "/registrations/razorpay/verify",
-              {
-                orderId: response.razorpay_order_id,
-                paymentId: response.razorpay_payment_id,
-                signature: response.razorpay_signature,
-              },
-              { headers: draftHeaders() }
-            );
-
-            setRegistration(verifyRes.data.registration);
-            setWizardStep(5);
-            notify.success(
-              lang === "hi"
-                ? "भुगतान सफल रहा! आपका पंजीकरण सफलतापूर्वक पूरा हुआ।"
-                : "Payment successful! Your registration has been confirmed."
-            );
-          } catch (err) {
-            notify.error(err.message || "Payment verification failed.");
-          } finally {
-            setBusy(false);
-          }
-        },
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.on("payment.failed", (response) => {
-        const desc =
-          response.error?.description || "Payment failed. Please try again.";
-        notify.error(desc);
-      });
-      rzp.open();
+      await launchRazorpayCheckout(regParam || registration);
     });
 
   // Download application receipt
@@ -806,18 +791,15 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
       const { data } = await api.get("/registrations/me", { headers });
       const latest = data.registration;
       setRegistration(latest);
-      const confirmed = latest.status === "CONFIRMED";
-      const r = await api.get(
-        confirmed
-          ? "/registrations/admit-card"
-          : "/registrations/application-receipt",
-        { headers, responseType: "blob" }
-      );
+      const r = await api.get("/registrations/application-receipt", {
+        headers,
+        responseType: "blob",
+      });
+      const fileRef =
+        latest.registrationNumber || latest.applicationRef || "SHREE-2027";
       downloadBlob(
         r.data,
-        confirmed
-          ? `${latest.registrationNumber || "SHREE-2027"}-admit-card.pdf`
-          : `${latest.applicationRef || "SHREE-2027"}-application-receipt.pdf`
+        `${fileRef}-application-receipt.pdf`,
       );
     });
 
@@ -846,13 +828,11 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         identifier: resumeIdentifier.trim(),
       });
       setResumeLookupToken(data.lookupToken);
-      setResumeMaskedEmail(data.maskedEmail);
+      setResumeMaskedEmail(data.maskedPhone || data.maskedEmail || "");
       setResumeStep("otp");
       notify.success(
         data.message ||
-        (lang === "hi"
-          ? "सत्यापन कोड आपके ईमेल पर भेजा गया है।"
-          : "Verification code sent to your email.")
+        ("Verification code sent to your WhatsApp number.")
       );
     } catch (err) {
       notify.error(err.message || "Failed to find application.");
@@ -881,7 +861,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
     } catch (err) {
       notify.error(
         err.message ||
-        (lang === "hi" ? "गलत सत्यापन कोड।" : "Incorrect verification code.")
+        ("Incorrect verification code.")
       );
     } finally {
       setResumeBusy(false);
@@ -923,8 +903,6 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         reg.status === "PAYMENT_UNDER_VERIFICATION"
       ) {
         setWizardStep(5);
-      } else if (reg.photoUploaded || ["OTP_VERIFIED", "PAYMENT_PENDING", "PAYMENT_REJECTED"].includes(reg.status)) {
-        setWizardStep(2);
       } else {
         setWizardStep(1);
       }
@@ -934,9 +912,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
       setResumeStep("input");
       setResumeOtp("");
       notify.success(
-        lang === "hi"
-          ? `${reg.studentName} का आवेदन सफलतापूर्वक पुनः लोड कर लिया गया है।`
-          : `Application restored for ${reg.studentName}.`
+        `Application restored for ${reg.studentName}.`
       );
     } catch (err) {
       notify.error(err.message || "Failed to restore application session.");
@@ -982,8 +958,6 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         reg.status === "PAYMENT_UNDER_VERIFICATION"
       ) {
         setWizardStep(5);
-      } else if (reg.photoUploaded || ["OTP_VERIFIED", "PAYMENT_PENDING", "PAYMENT_REJECTED"].includes(reg.status)) {
-        setWizardStep(2);
       } else {
         setWizardStep(1);
       }
@@ -992,16 +966,12 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
       setResumeStep("input");
       setResumeOtp("");
       notify.success(
-        lang === "hi"
-          ? `स्वागत है! ${reg.studentName} (${reg.applicationRef}) का आवेदन बहाल हो गया है।`
-          : `Welcome back! Application for ${reg.studentName} (${reg.applicationRef}) has been restored.`
+        `Welcome back! Application for ${reg.studentName} (${reg.applicationRef}) has been restored.`
       );
     } catch (err) {
       notify.error(
         err.message ||
-        (lang === "hi"
-          ? "अमान्य सत्यापन कोड। कृपया दोबारा प्रयास करें।"
-          : "Invalid verification code. Please check your email and try again.")
+        ("Invalid verification code. Please check your email and try again.")
       );
     } finally {
       setResumeBusy(false);
@@ -1012,32 +982,33 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
     <main className="register-page">
       <div className="registration-container">
         {/* ===================================================================
-            1. MODERN PORTAL HERO BANNER
+            1. PROFESSIONAL HEADER (MATCHING REFERENCE IMAGE 1)
             =================================================================== */}
-        <header className="gov-portal-hero">
-          <div className="gov-hero-badge-wrap">
-            <span className="gov-hero-pill-kicker">
-              <ShieldCheck size={14} /> {lang === "hi" ? "श्री 2027 ओलंपियाड पंजीकरण" : "SHREE Olympiad 2027"}
-            </span>
+        <header className="shree-form-header">
+          <div className="shree-logo-wrap">
+            <img
+              src="/images/school-logo.png"
+              alt="Shree Ram Public School"
+              className="shree-school-logo"
+            />
           </div>
-          <h1 className="gov-hero-title">
-            {lang === "hi" ? "विद्यार्थी पंजीकरण फॉर्म" : "Student Registration Form"}
-          </h1>
-          <p className="gov-hero-subtitle">
-            {lang === "hi"
-              ? "कृपया विद्यार्थी एवं अभिभावक की जानकारी सही-सही भरें।"
-              : "Complete the simple details below to register the student."}
-          </p>
-          <div className="gov-hero-pills">
-            <span className="gov-hero-pill">
-              <IndianRupee size={15} /> <strong>{t.badgeFee}: ₹{settings.fee || 149}</strong>
-            </span>
-            <span className="gov-hero-pill">
-              <Calendar size={15} /> <strong>{t.badgeDate}: {formatPublicDate(settings.examDate) || t.badgeDateValue}</strong>
-            </span>
-            <span className="gov-hero-pill">
-              <GraduationCap size={15} /> <strong>{t.badgeClasses}: {t.badgeClassesValue}</strong>
-            </span>
+          <div className="shree-header-text">
+            <h1 className="shree-form-title">Student Registration Form</h1>
+            <p className="shree-form-subtitle">
+              Fill out the form to register for Shree Ram Exam of Excellence 2027. Official Online Application.
+            </p>
+            <div className="shree-meta-pills">
+              <span className="shree-meta-pill">
+                <strong>Registration Fee:</strong> ₹{settings.fee != null ? settings.fee : 2}
+              </span>
+              <span className="shree-meta-pill">
+                <strong>Examination Date:</strong>{" "}
+                {formatPublicDate(settings.examDate) || "12 Jan 2027"}
+              </span>
+              <span className="shree-meta-pill">
+                <strong>Eligible Classes:</strong> Class 2 to 11
+              </span>
+            </div>
           </div>
         </header>
 
@@ -1045,19 +1016,16 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         {settingsError && (
           <div
             className="gov-instructions-card"
-            style={{ borderLeftColor: "#DC2626", background: "#FEF2F2" }}
+            style={{ borderLeftColor: "#DC2626", background: "#FEF2F2", marginBottom: "16px" }}
           >
-            <div
-              className="gov-instructions-head"
-              style={{ color: "#DC2626" }}
-            >
-              <AlertCircle size={18} />
+            <div className="gov-instructions-head" style={{ color: "#DC2626" }}>
+              <AlertCircle size={16} />
               <span>{settingsError}</span>
             </div>
             <button
               type="button"
               className="gov-btn-secondary"
-              style={{ minHeight: "38px", padding: "6px 14px", marginTop: "8px" }}
+              style={{ minHeight: "34px", padding: "4px 12px", marginTop: "8px" }}
               disabled={loading}
               onClick={reloadSettings}
             >
@@ -1066,130 +1034,51 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
           </div>
         )}
 
-        {/* ===================================================================
-            2. MODERN COMPACT STEPPER
-            =================================================================== */}
-        {wizardStep <= 4 && (
-          <nav className="gov-modern-stepper" aria-label="Registration Progress">
-            <div
-              className={`gov-modern-step ${
-                wizardStep === 1 ? "active" : ""
-              } ${wizardStep > 1 ? "completed" : ""}`}
-            >
-              <div className="gov-modern-step-circle">
-                {wizardStep > 1 ? <Check size={14} /> : "1"}
-              </div>
-              <div className="gov-modern-step-text">
-                <span className="step-label">{lang === "hi" ? "चरण 1" : "Step 1"}</span>
-                <span className="step-title">
-                  {lang === "hi" ? "विद्यार्थी विवरण" : "Student Details"}
-                </span>
-              </div>
-            </div>
-
-            <div
-              className={`gov-modern-step-divider ${
-                wizardStep > 1 ? "completed" : ""
-              }`}
-            />
-
-            <div
-              className={`gov-modern-step ${
-                wizardStep === 2 ? "active" : ""
-              } ${wizardStep > 2 ? "completed" : ""}`}
-            >
-              <div className="gov-modern-step-circle">
-                {wizardStep > 2 ? <Check size={14} /> : "2"}
-              </div>
-              <div className="gov-modern-step-text">
-                <span className="step-label">{lang === "hi" ? "चरण 2" : "Step 2"}</span>
-                <span className="step-title">
-                  {lang === "hi" ? "सबमिट एवं भुगतान" : "Submit & Pay"}
-                </span>
-              </div>
-            </div>
-
-            {(settings?.paymentMode === "manual" ||
-              (settings?.paymentMode === "both" && paymentTab === "manual")) && (
-              <>
-                <div
-                  className={`gov-modern-step-divider ${
-                    wizardStep > 2 ? "completed" : ""
-                  }`}
-                />
-                <div
-                  className={`gov-modern-step ${
-                    wizardStep === 3 ? "active" : ""
-                  } ${wizardStep > 3 ? "completed" : ""}`}
-                >
-                  <div className="gov-modern-step-circle">
-                    {wizardStep > 3 ? <Check size={14} /> : "3"}
-                  </div>
-                  <div className="gov-modern-step-text">
-                    <span className="step-label">{lang === "hi" ? "चरण 3" : "Step 3"}</span>
-                    <span className="step-title">
-                      {lang === "hi" ? "रसीद अपलोड" : "Upload Receipt"}
-                    </span>
-                  </div>
-                </div>
-              </>
-            )}
-          </nav>
-        )}
 
         {/* ===================================================================
-            4. MAIN FORM CARD: STEP 1 (STUDENT & PARENT DETAILS)
+            3. MAIN FORM CARD: STEP 1 (STUDENT & PARENT DETAILS)
             =================================================================== */}
         {wizardStep === 1 && (
           <form
-            className="gov-form-card"
+            className="shree-form-card"
             onSubmit={(e) => {
               e.preventDefault();
               handleSaveStep1();
             }}
           >
-            {/* Group 1: Student Information */}
-            <div className="form-group-heading">
-              <span className="group-heading-badge">1</span>
-              <h4>{lang === "hi" ? "विद्यार्थी विवरण" : "Student Information"}</h4>
+            {/* Section 1: Student Information */}
+            <div className="shree-section-head">
+              <h2>Student Information</h2>
             </div>
 
-            <div className="gov-grid-2">
+            <div className="shree-grid-2">
               {/* Student Full Name */}
-              <div className="gov-field-group">
-                <label htmlFor="studentName" className="gov-field-label">
-                  <span className="gov-label-text">{t.studentName}</span>
-                  <span className="required-star">*</span>
+              <div className="shree-field">
+                <label htmlFor="studentName" className="shree-label">
+                  Student Full Name <span className="req">*</span>
                 </label>
                 <input
                   id="studentName"
                   type="text"
                   required
-                  autoFocus
                   maxLength={fieldMaxLength("studentName")}
-                  className={`gov-input ${fieldErrors.studentName ? "is-invalid" : ""
-                    }`}
+                  className={`shree-input ${fieldErrors.studentName ? "has-error" : ""}`}
                   value={form.studentName}
-                  placeholder={t.studentNamePlaceholder}
-                  onChange={(e) =>
-                    updateField("studentName", e.target.value)
-                  }
-                  onBlur={(e) =>
-                    handleBlurField("studentName", e.target.value)
-                  }
+                  placeholder="Full name as per school records"
+                  onChange={(e) => updateField("studentName", e.target.value)}
+                  onBlur={(e) => handleBlurField("studentName", e.target.value)}
                 />
                 {fieldErrors.studentName && (
-                  <span className="gov-field-error">
-                    <AlertCircle size={14} /> {fieldErrors.studentName}
+                  <span className="shree-error-text">
+                    <AlertCircle size={13} /> {fieldErrors.studentName}
                   </span>
                 )}
               </div>
 
               {/* Date of Birth */}
-              <div className="gov-field-group">
-                <label htmlFor="dob" className="gov-field-label">
-                  <span className="gov-label-text">{t.dob}</span>
-                  <span className="required-star">*</span>
+              <div className="shree-field">
+                <label htmlFor="dob" className="shree-label">
+                  Date of Birth <span className="req">*</span>
                 </label>
                 <input
                   id="dob"
@@ -1197,56 +1086,69 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   required
                   min="1995-01-01"
                   max={new Date().toLocaleDateString("en-CA")}
-                  className={`gov-input ${fieldErrors.dob ? "is-invalid" : ""
-                    }`}
+                  className={`shree-input ${fieldErrors.dob ? "has-error" : ""}`}
                   value={form.dob}
                   onChange={(e) => updateField("dob", e.target.value)}
                   onBlur={(e) => handleBlurField("dob", e.target.value)}
                 />
                 {fieldErrors.dob && (
-                  <span className="gov-field-error">
-                    <AlertCircle size={14} /> {fieldErrors.dob}
+                  <span className="shree-error-text">
+                    <AlertCircle size={13} /> {fieldErrors.dob}
                   </span>
                 )}
               </div>
 
-              {/* Gender */}
-              <div className="gov-field-group">
-                <label htmlFor="gender" className="gov-field-label">
-                  <span className="gov-label-text">{t.gender}</span>
-                  <span className="required-star">*</span>
+              {/* Gender (Male / Female Radio Pills) */}
+              <div className="shree-field">
+                <label className="shree-label">
+                  Gender <span className="req">*</span>
                 </label>
-                <select
-                  id="gender"
-                  required
-                  className={`gov-select ${fieldErrors.gender ? "is-invalid" : ""
-                    }`}
-                  value={form.gender}
-                  onChange={(e) => updateField("gender", e.target.value)}
-                  onBlur={(e) => handleBlurField("gender", e.target.value)}
-                >
-                  <option value="">{t.selectGenderPlaceholder}</option>
-                  <option value="MALE">{t.genderMale}</option>
-                  <option value="FEMALE">{t.genderFemale}</option>
-                </select>
+                <div className="shree-radio-group">
+                  <label className={`shree-radio-pill ${form.gender === "MALE" ? "selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="gender"
+                      value="MALE"
+                      checked={form.gender === "MALE"}
+                      onChange={() => {
+                        updateField("gender", "MALE");
+                        handleBlurField("gender", "MALE");
+                      }}
+                    />
+                    <span className="shree-radio-circle" />
+                    <span>Male</span>
+                  </label>
+                  <label className={`shree-radio-pill ${form.gender === "FEMALE" ? "selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="gender"
+                      value="FEMALE"
+                      checked={form.gender === "FEMALE"}
+                      onChange={() => {
+                        updateField("gender", "FEMALE");
+                        handleBlurField("gender", "FEMALE");
+                      }}
+                    />
+                    <span className="shree-radio-circle" />
+                    <span>Female</span>
+                  </label>
+                </div>
                 {fieldErrors.gender && (
-                  <span className="gov-field-error">
-                    <AlertCircle size={14} /> {fieldErrors.gender}
+                  <span className="shree-error-text">
+                    <AlertCircle size={13} /> {fieldErrors.gender}
                   </span>
                 )}
               </div>
 
               {/* Class */}
-              <div className="gov-field-group">
-                <label htmlFor="studentClass" className="gov-field-label">
-                  <span className="gov-label-text">{t.studentClass}</span>
-                  <span className="required-star">*</span>
+              <div className="shree-field">
+                <label htmlFor="studentClass" className="shree-label">
+                  Class <span className="req">*</span>
                 </label>
                 <select
                   id="studentClass"
                   required
-                  className={`gov-select ${fieldErrors.studentClass ? "is-invalid" : ""
-                    }`}
+                  className={`shree-select ${fieldErrors.studentClass ? "has-error" : ""}`}
                   value={form.studentClass}
                   onChange={(e) => {
                     const nextClass = e.target.value;
@@ -1260,38 +1162,32 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                       });
                     }
                   }}
-                  onBlur={(e) =>
-                    handleBlurField("studentClass", e.target.value)
-                  }
+                  onBlur={(e) => handleBlurField("studentClass", e.target.value)}
                 >
-                  <option value="">{t.selectClassPlaceholder}</option>
+                  <option value="">Select Class</option>
                   {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((cls) => (
                     <option key={cls} value={String(cls)}>
-                      {lang === "hi" ? `कक्षा ${cls}` : `Class ${cls}`}
+                      {`Class ${cls}`}
                     </option>
                   ))}
                 </select>
                 {fieldErrors.studentClass && (
-                  <span className="gov-field-error">
-                    <AlertCircle size={14} /> {fieldErrors.studentClass}
+                  <span className="shree-error-text">
+                    <AlertCircle size={13} /> {fieldErrors.studentClass}
                   </span>
                 )}
               </div>
 
-              {/* Course Dropdown (Only visible when Class 11 is selected) */}
+              {/* Stream (if Class 11) */}
               {form.studentClass === "11" && (
-                <div className="gov-field-group">
-                  <label htmlFor="course" className="gov-field-label">
-                    <span className="gov-label-text">
-                      {lang === "hi" ? "कोर्स (Course)" : "Course"}
-                    </span>
-                    <span className="required-star">*</span>
+                <div className="shree-field shree-field-full">
+                  <label htmlFor="course" className="shree-label">
+                    Stream (for Class 11) <span className="req">*</span>
                   </label>
                   <select
                     id="course"
                     required
-                    className={`gov-select ${fieldErrors.course ? "is-invalid" : ""
-                      }`}
+                    className={`shree-select ${fieldErrors.course ? "has-error" : ""}`}
                     value={form.course}
                     onChange={(e) => {
                       updateField("course", e.target.value);
@@ -1305,58 +1201,49 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                     }}
                     onBlur={(e) => handleBlurField("course", e.target.value)}
                   >
-                    <option value="">
-                      {lang === "hi" ? "-- कोर्स चुनें --" : "-- Select Course --"}
-                    </option>
-                    <option value="PCM">PCM</option>
-                    <option value="PCB">PCB</option>
-                    <option value="COMMERCE">COMMERCE</option>
-                    <option value="ARTS">ARTS</option>
+                    <option value="">Select Stream</option>
+                    <option value="PCM">PCM (Physics, Chemistry, Maths)</option>
+                    <option value="PCB">PCB (Physics, Chemistry, Biology)</option>
+                    <option value="COMMERCE">Commerce</option>
+                    <option value="ARTS">Arts</option>
                   </select>
                   {fieldErrors.course && (
-                    <span className="gov-field-error">
-                      <AlertCircle size={14} /> {fieldErrors.course}
+                    <span className="shree-error-text">
+                      <AlertCircle size={13} /> {fieldErrors.course}
                     </span>
                   )}
                 </div>
               )}
 
               {/* Current School */}
-              <div className="gov-field-group">
-                <label htmlFor="currentSchool" className="gov-field-label">
-                  <span className="gov-label-text">{t.currentSchool}</span>
-                  <span className="required-star">*</span>
+              <div className="shree-field">
+                <label htmlFor="currentSchool" className="shree-label">
+                  Current School Name <span className="req">*</span>
                 </label>
                 <input
                   id="currentSchool"
                   type="text"
                   required
                   maxLength={fieldMaxLength("currentSchool")}
-                  className={`gov-input ${fieldErrors.currentSchool ? "is-invalid" : ""
-                    }`}
+                  className={`shree-input ${fieldErrors.currentSchool ? "has-error" : ""}`}
                   value={form.currentSchool}
-                  placeholder={t.currentSchoolPlaceholder}
-                  onChange={(e) =>
-                    updateField("currentSchool", e.target.value)
-                  }
-                  onBlur={(e) =>
-                    handleBlurField("currentSchool", e.target.value)
-                  }
+                  placeholder="School currently studying in"
+                  onChange={(e) => updateField("currentSchool", e.target.value)}
+                  onBlur={(e) => handleBlurField("currentSchool", e.target.value)}
                 />
                 {fieldErrors.currentSchool && (
-                  <span className="gov-field-error">
-                    <AlertCircle size={14} /> {fieldErrors.currentSchool}
+                  <span className="shree-error-text">
+                    <AlertCircle size={13} /> {fieldErrors.currentSchool}
                   </span>
                 )}
               </div>
 
-              {/* Compact Student Passport Photo */}
-              <div className="gov-field-group">
-                <label className="gov-field-label">
-                  <span className="gov-label-text">{t.photoLabel}</span>
-                  <span className="required-star">*</span>
+              {/* Passport Photo Upload */}
+              <div className="shree-field">
+                <label className="shree-label">
+                  Student Passport-Size Photo <span className="req">*</span>
                 </label>
-                <label className="gov-photo-compact" htmlFor="student-photo-input">
+                <label className="shree-photo-card" htmlFor="student-photo-input">
                   <input
                     id="student-photo-input"
                     type="file"
@@ -1369,7 +1256,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                           !["image/jpeg", "image/png"].includes(file.type) ||
                           file.size > 5 * 1024 * 1024
                         ) {
-                          notify.error(t.errorPhotoInvalid);
+                          notify.error("Please upload a JPG or PNG image under 5 MB.");
                           setPhoto(null);
                           setPhotoPreview(null);
                           return;
@@ -1380,324 +1267,279 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                     }}
                   />
                   {photoPreview ? (
-                    <img
-                      src={photoPreview}
-                      alt="Student Preview"
-                      className="gov-photo-compact-thumb"
-                    />
+                    <img src={photoPreview} alt="Preview" className="shree-photo-thumb" />
                   ) : registration?.photoUploaded ? (
-                    <div className="gov-photo-compact-thumb success">
-                      <CheckCircle2 size={18} />
+                    <div className="shree-photo-badge-success">
+                      <CheckCircle2 size={16} />
                     </div>
                   ) : (
-                    <div className="gov-photo-compact-thumb">
-                      <Upload size={16} />
+                    <div className="shree-photo-badge">
+                      <Upload size={14} />
                     </div>
                   )}
-                  <span className="gov-photo-compact-text">
-                    {photo
-                      ? photo.name
-                      : registration?.photoUploaded
-                        ? t.photoUploadedBadge
-                        : lang === "hi"
-                          ? "फोटो चुनें (JPG/PNG, अधिकतम 5MB)"
-                          : "Upload Photo (JPG/PNG, max 5MB)"}
-                  </span>
-                  <span className="gov-photo-compact-btn">
-                    {photo || registration?.photoUploaded
-                      ? lang === "hi"
-                        ? "बदलें"
-                        : "Change"
-                      : lang === "hi"
-                        ? "ब्राउज़"
-                        : "Browse"}
+                  <div className="shree-photo-meta">
+                    <span className="shree-photo-title">
+                      {photo
+                        ? photo.name
+                        : registration?.photoUploaded
+                        ? "Photo uploaded ✓"
+                        : "Upload photo (JPG/PNG)"}
+                    </span>
+                    <span className="shree-photo-hint">Max file size 5 MB</span>
+                  </div>
+                  <span className="shree-photo-btn">
+                    {photo || registration?.photoUploaded ? "Change" : "Browse"}
                   </span>
                 </label>
               </div>
             </div>
 
-            {/* Group 2: Parent / Guardian Details */}
-            <div className="form-group-heading">
-              <span className="group-heading-badge">2</span>
-              <h4>{lang === "hi" ? "अभिभावक विवरण एवं सत्यापन" : "Parent & Contact Details"}</h4>
+            {/* Section 2: Contact Information */}
+            <div className="shree-section-head">
+              <h2>Contact Information</h2>
             </div>
 
-            <div className="gov-grid-2">
+            <div className="shree-grid-2">
               {/* Guardian Name */}
-              <div className="gov-field-group">
-                <label htmlFor="guardianName" className="gov-field-label">
-                  <span className="gov-label-text">{t.guardianName}</span>
-                  <span className="required-star">*</span>
+              <div className="shree-field">
+                <label htmlFor="guardianName" className="shree-label">
+                  Father / Guardian Full Name <span className="req">*</span>
                 </label>
                 <input
                   id="guardianName"
                   type="text"
                   required
                   maxLength={fieldMaxLength("guardianName")}
-                  className={`gov-input ${fieldErrors.guardianName ? "is-invalid" : ""
-                    }`}
+                  className={`shree-input ${fieldErrors.guardianName ? "has-error" : ""}`}
                   value={form.guardianName}
-                  placeholder={t.guardianNamePlaceholder}
-                  onChange={(e) =>
-                    updateField("guardianName", e.target.value)
-                  }
-                  onBlur={(e) =>
-                    handleBlurField("guardianName", e.target.value)
-                  }
+                  placeholder="Father / Guardian full name"
+                  onChange={(e) => updateField("guardianName", e.target.value)}
+                  onBlur={(e) => handleBlurField("guardianName", e.target.value)}
                 />
                 {fieldErrors.guardianName && (
-                  <span className="gov-field-error">
-                    <AlertCircle size={14} /> {fieldErrors.guardianName}
+                  <span className="shree-error-text">
+                    <AlertCircle size={13} /> {fieldErrors.guardianName}
                   </span>
                 )}
               </div>
 
-              {/* Guardian Mobile */}
-              <div className="gov-field-group">
-                <label htmlFor="guardianPhone" className="gov-field-label">
-                  <span className="gov-label-text">{t.guardianPhone}</span>
-                  <span className="required-star">*</span>
+              {/* Mobile Number & Dynamic WhatsApp OTP */}
+              <div className="shree-field">
+                <label htmlFor="guardianPhone" className="shree-label">
+                  WhatsApp Mobile Number <span className="req">*</span>
                 </label>
-                <input
-                  id="guardianPhone"
-                  type="tel"
-                  inputMode="numeric"
-                  required
-                  maxLength={fieldMaxLength("guardianPhone")}
-                  className={`gov-input ${fieldErrors.guardianPhone ? "is-invalid" : ""
-                    }`}
-                  value={form.guardianPhone}
-                  placeholder={t.guardianPhonePlaceholder}
-                  onChange={(e) =>
-                    updateField("guardianPhone", e.target.value)
-                  }
-                  onBlur={(e) =>
-                    handleBlurField("guardianPhone", e.target.value)
-                  }
-                />
-                {fieldErrors.guardianPhone && (
-                  <span className="gov-field-error">
-                    <AlertCircle size={14} /> {fieldErrors.guardianPhone}
-                  </span>
-                )}
-              </div>
-
-              {/* Guardian Email (Left Column) */}
-              <div className="gov-field-group">
-                <label htmlFor="email" className="gov-field-label">
-                  <span className="gov-label-text">{t.email}</span>
-                  <span className="required-star">*</span>
-                  {emailVerified && (
-                    <span className="gov-verified-pill">
-                      <CheckCircle2 size={13} /> {t.inlineVerified || (lang === "hi" ? "सत्यापित" : "Verified")}
-                    </span>
-                  )}
-                </label>
-                <div className="gov-input-action-wrapper">
-                  <input
-                    id="email"
-                    type="email"
-                    required
-                    disabled={emailVerified}
-                    maxLength={fieldMaxLength("email")}
-                    className={`gov-input ${
-                      fieldErrors.email ? "is-invalid" : ""
-                    } ${emailVerified ? "is-verified" : ""}`}
-                    value={form.email}
-                    placeholder={t.emailPlaceholder}
-                    onChange={(e) => {
-                      updateField("email", e.target.value);
-                      if (emailVerified) setEmailVerified(false);
-                      if (otpSentOnce) setOtpSentOnce(false);
-                      setEmailOtpError("");
-                      setOtpSentMessage("");
-                    }}
-                    onBlur={(e) => handleBlurField("email", e.target.value)}
-                  />
-                  {!emailVerified ? (
-                    <button
-                      type="button"
-                      className="gov-input-action-btn btn-send"
-                      disabled={
-                        otpSending ||
-                        otpCooldown > 0 ||
-                        !form.email ||
-                        !!registrationFieldError("email", form.email, lang)
-                      }
-                      onClick={handleSendInlineOtp}
-                    >
-                      {otpSending
-                        ? (t.inlineSendingOtp || (lang === "hi" ? "भेज रहे हैं..." : "Sending..."))
-                        : otpCooldown > 0
-                          ? `${otpCooldown}s`
-                          : otpSentOnce
-                            ? (t.btnResendOtp || (lang === "hi" ? "पुनः भेजें" : "Resend OTP"))
-                            : (t.inlineSendOtp || (lang === "hi" ? "OTP भेजें" : "Send OTP"))}
-                    </button>
+                {!mobileVerified ? (
+                  !otpSentOnce ? (
+                    /* State A: Phone Input + Send OTP */
+                    <div className="shree-input-btn-group">
+                      <input
+                        id="guardianPhone"
+                        type="tel"
+                        inputMode="numeric"
+                        required
+                        maxLength={10}
+                        className={`shree-input ${fieldErrors.guardianPhone ? "has-error" : ""}`}
+                        value={form.guardianPhone}
+                        placeholder="10-digit mobile number"
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                          updateField("guardianPhone", val);
+                          setMobileOtpError("");
+                          setOtpSentMessage("");
+                        }}
+                        onBlur={(e) => handleBlurField("guardianPhone", e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="shree-action-btn primary"
+                        disabled={
+                          otpSending ||
+                          otpCooldown > 0 ||
+                          !form.guardianPhone ||
+                          form.guardianPhone.length !== 10
+                        }
+                        onClick={handleSendWhatsAppOtp}
+                      >
+                        {otpSending
+                          ? "Sending..."
+                          : otpCooldown > 0
+                          ? `Resend (${otpCooldown}s)`
+                          : "Send OTP"}
+                      </button>
+                    </div>
                   ) : (
+                    /* State B: In-place Dynamic OTP Verification */
+                    <div className="shree-dynamic-otp-card">
+                      <div className="shree-otp-card-top">
+                        <span className="shree-otp-msg">
+                          OTP sent via WhatsApp to <strong>+91 {form.guardianPhone}</strong>
+                        </span>
+                        <button
+                          type="button"
+                          className="shree-link-btn"
+                          onClick={() => {
+                            setOtpSentOnce(false);
+                            setMobileOtpCode("");
+                            setMobileOtpError("");
+                            setOtpSentMessage("");
+                          }}
+                        >
+                          Change Number
+                        </button>
+                      </div>
+
+                      <div className="shree-input-btn-group">
+                        <input
+                          id="mobileOtp"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={6}
+                          autoFocus
+                          className={`shree-input ${mobileOtpError ? "has-error" : ""}`}
+                          value={mobileOtpCode}
+                          placeholder="6-digit OTP"
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                            setMobileOtpCode(val);
+                            setMobileOtpError("");
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="shree-action-btn success"
+                          disabled={otpVerifying || mobileOtpCode.trim().length !== 6}
+                          onClick={handleVerifyWhatsAppOtp}
+                        >
+                          {otpVerifying ? "Verifying..." : "Verify OTP"}
+                        </button>
+
+                        {otpCooldown > 0 ? (
+                          <span className="shree-cooldown-tag">{otpCooldown}s</span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="shree-action-btn secondary"
+                            disabled={otpSending}
+                            onClick={handleSendWhatsAppOtp}
+                          >
+                            Resend
+                          </button>
+                        )}
+                      </div>
+
+                      {mobileOtpError && (
+                        <span className="shree-error-text">
+                          <AlertCircle size={13} /> {mobileOtpError}
+                        </span>
+                      )}
+                    </div>
+                  )
+                ) : (
+                  /* State C: WhatsApp Verified In-Place */
+                  <div className="shree-verified-pill-box">
+                    <div className="shree-verified-pill-left">
+                      <span className="shree-phone-val">+91 {form.guardianPhone}</span>
+                      <span className="shree-verified-badge">
+                        <CheckCircle2 size={13} /> WhatsApp Verified
+                      </span>
+                    </div>
                     <button
                       type="button"
-                      className="gov-input-action-btn btn-edit"
+                      className="shree-link-btn"
                       onClick={() => {
-                        setEmailVerified(false);
+                        setMobileVerified(false);
                         setOtpSentOnce(false);
-                        setEmailOtpCode("");
+                        setMobileOtpCode("");
                         setOtpSentMessage("");
                       }}
-                      title={t.inlineChangeEmail || (lang === "hi" ? "ईमेल बदलें" : "Change Email")}
                     >
-                      {t.inlineChangeEmail || (lang === "hi" ? "बदलें" : "Change")}
+                      Change Number
                     </button>
-                  )}
-                </div>
-                {fieldErrors.email && (
-                  <span className="gov-field-error">
-                    <AlertCircle size={14} /> {fieldErrors.email}
-                  </span>
+                  </div>
                 )}
-                {otpSentMessage && !emailVerified && (
-                  <span className="gov-field-hint-success">
-                    <Mail size={13} /> {otpSentMessage}
-                  </span>
-                )}
-              </div>
 
-              {/* Verify Email OTP (Right Column) */}
-              <div className="gov-field-group">
-                <label htmlFor="emailOtp" className="gov-field-label">
-                  <span className="gov-label-text">
-                    {t.inlineVerifyTitle || (lang === "hi" ? "ईमेल OTP सत्यापन" : "Verify Email OTP")}
-                  </span>
-                  <span className="required-star">*</span>
-                </label>
-                <div className="gov-input-action-wrapper">
-                  <input
-                    id="emailOtp"
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={6}
-                    disabled={emailVerified || !otpSentOnce}
-                    className={`gov-input ${
-                      emailOtpError ? "is-invalid" : ""
-                    } ${emailVerified ? "is-verified" : ""}`}
-                    value={emailVerified ? "••••••" : emailOtpCode}
-                    placeholder={
-                      emailVerified
-                        ? (t.inlineVerifiedPlaceholder || (lang === "hi" ? "सत्यापित है ✓" : "Verified ✓"))
-                        : otpSentOnce
-                          ? (t.inlineEnterOtpPlaceholder || (lang === "hi" ? "6 अंकों का OTP दर्ज करें" : "Enter 6-digit OTP"))
-                          : (t.inlineClickSendFirst || (lang === "hi" ? "पहले 'OTP भेजें' पर क्लिक करें" : "Click 'Send OTP' first"))
-                    }
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, "").slice(0, 6);
-                      setEmailOtpCode(val);
-                      setEmailOtpError("");
-                    }}
-                  />
-                  {!emailVerified ? (
-                    <button
-                      type="button"
-                      className="gov-input-action-btn btn-verify"
-                      disabled={
-                        otpVerifying ||
-                        !otpSentOnce ||
-                        emailOtpCode.trim().length !== 6
-                      }
-                      onClick={handleVerifyInlineOtp}
-                    >
-                      {otpVerifying
-                        ? (t.inlineVerifyingBtn || (lang === "hi" ? "जांच रहे हैं..." : "Verifying..."))
-                        : (t.inlineVerifyBtn || (lang === "hi" ? "सत्यापित करें" : "Verify OTP"))}
-                    </button>
-                  ) : (
-                    <span className="gov-verified-check-badge">
-                      <CheckCircle2 size={16} /> {t.inlineVerified || (lang === "hi" ? "सत्यापित" : "Verified")}
-                    </span>
-                  )}
-                </div>
-                {emailOtpError && (
-                  <span className="gov-field-error">
-                    <AlertCircle size={14} /> {emailOtpError}
-                  </span>
-                )}
-                {!emailOtpError && !emailVerified && otpSentOnce && (
-                  <span className="gov-field-hint">
-                    {t.inlineOtpHint || (lang === "hi"
-                      ? "ईमेल इनबॉक्स / स्पैम में भेजा गया 6 अंकों का कोड भरें।"
-                      : "Enter 6-digit OTP sent to your email inbox/spam.")}
-                  </span>
-                )}
-                {emailVerified && (
-                  <span className="gov-field-hint-success">
-                    <CheckCircle2 size={13} /> {t.inlineVerifiedSuccess || (lang === "hi" ? "ईमेल सफलतापूर्वक सत्यापित हो गया है।" : "Email has been successfully verified.")}
+                {fieldErrors.guardianPhone && !otpSentOnce && !mobileVerified && (
+                  <span className="shree-error-text">
+                    <AlertCircle size={13} /> {fieldErrors.guardianPhone}
                   </span>
                 )}
               </div>
             </div>
 
-            {/* Group 3: Address & Location Details */}
-            <div className="form-group-heading">
-              <span className="group-heading-badge">3</span>
-              <h4>{lang === "hi" ? "स्थान एवं पता विवरण" : "Address & Location"}</h4>
+            {/* Section 3: Address */}
+            <div className="shree-section-head">
+              <h2>Address</h2>
             </div>
 
-            <div className="gov-grid-2">
-              {/* Village / Town / City */}
-              <div className="gov-field-group">
-                <label htmlFor="city" className="gov-field-label">
-                  <span className="gov-label-text">{t.city}</span>
-                  <span className="required-star">*</span>
+            <div className="shree-grid-2">
+              {/* Village / City */}
+              <div className="shree-field shree-field-full">
+                <label htmlFor="city" className="shree-label">
+                  Street / Village / City <span className="req">*</span>
                 </label>
                 <input
                   id="city"
                   type="text"
                   required
                   maxLength={fieldMaxLength("city")}
-                  className={`gov-input ${fieldErrors.city ? "is-invalid" : ""
-                    }`}
+                  className={`shree-input ${fieldErrors.city ? "has-error" : ""}`}
                   value={form.city}
-                  placeholder={t.cityPlaceholder}
+                  placeholder="Village, town, or city address"
                   onChange={(e) => updateField("city", e.target.value)}
                   onBlur={(e) => handleBlurField("city", e.target.value)}
                 />
                 {fieldErrors.city && (
-                  <span className="gov-field-error">
-                    <AlertCircle size={14} /> {fieldErrors.city}
+                  <span className="shree-error-text">
+                    <AlertCircle size={13} /> {fieldErrors.city}
                   </span>
                 )}
               </div>
 
               {/* District */}
-              <div className="gov-field-group">
-                <label htmlFor="district" className="gov-field-label">
-                  <span className="gov-label-text">{t.district}</span>
-                  <span className="required-star">*</span>
+              <div className="shree-field">
+                <label htmlFor="district" className="shree-label">
+                  District <span className="req">*</span>
                 </label>
                 <input
                   id="district"
                   type="text"
                   required
                   maxLength={fieldMaxLength("district")}
-                  className={`gov-input ${fieldErrors.district ? "is-invalid" : ""
-                    }`}
+                  className={`shree-input ${fieldErrors.district ? "has-error" : ""}`}
                   value={form.district}
-                  placeholder={t.districtPlaceholder}
+                  placeholder="District"
                   onChange={(e) => updateField("district", e.target.value)}
                   onBlur={(e) => handleBlurField("district", e.target.value)}
                 />
                 {fieldErrors.district && (
-                  <span className="gov-field-error">
-                    <AlertCircle size={14} /> {fieldErrors.district}
+                  <span className="shree-error-text">
+                    <AlertCircle size={13} /> {fieldErrors.district}
                   </span>
                 )}
               </div>
 
+              {/* State */}
+              <div className="shree-field">
+                <label htmlFor="state" className="shree-label">
+                  State <span className="req">*</span>
+                </label>
+                <input
+                  id="state"
+                  type="text"
+                  required
+                  maxLength={fieldMaxLength("state")}
+                  className="shree-input"
+                  value={form.state}
+                  placeholder="State"
+                  onChange={(e) => updateField("state", e.target.value)}
+                />
+              </div>
+
               {/* PIN Code */}
-              <div className="gov-field-group">
-                <label htmlFor="pincode" className="gov-field-label">
-                  <span className="gov-label-text">{t.pincode}</span>
-                  <span className="required-star">*</span>
+              <div className="shree-field">
+                <label htmlFor="pincode" className="shree-label">
+                  PIN Code <span className="req">*</span>
                 </label>
                 <input
                   id="pincode"
@@ -1705,86 +1547,79 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   inputMode="numeric"
                   required
                   maxLength={fieldMaxLength("pincode")}
-                  className={`gov-input ${fieldErrors.pincode ? "is-invalid" : ""
-                    }`}
+                  className={`shree-input ${fieldErrors.pincode ? "has-error" : ""}`}
                   value={form.pincode}
-                  placeholder={t.pincodePlaceholder}
+                  placeholder="6-digit PIN code"
                   onChange={(e) => updateField("pincode", e.target.value)}
                   onBlur={(e) => handleBlurField("pincode", e.target.value)}
                 />
                 {fieldErrors.pincode && (
-                  <span className="gov-field-error">
-                    <AlertCircle size={14} /> {fieldErrors.pincode}
+                  <span className="shree-error-text">
+                    <AlertCircle size={13} /> {fieldErrors.pincode}
                   </span>
                 )}
-              </div>
-
-              {/* State */}
-              <div className="gov-field-group">
-                <label htmlFor="state" className="gov-field-label">
-                  <span className="gov-label-text">{t.state}</span>
-                  <span className="required-star">*</span>
-                </label>
-                <input
-                  id="state"
-                  type="text"
-                  required
-                  maxLength={fieldMaxLength("state")}
-                  className="gov-input"
-                  value={form.state}
-                  onChange={(e) => updateField("state", e.target.value)}
-                />
               </div>
             </div>
 
             {/* Consent Checkbox */}
-            <div
-              className="gov-consent-box"
-              onClick={() => setForm((f) => ({ ...f, consent: !f.consent }))}
-            >
-              <input
-                id="consentCheckbox"
-                type="checkbox"
-                required
-                checked={form.consent}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  setForm((f) => ({ ...f, consent: e.target.checked }));
-                }}
-              />
-              <label
-                htmlFor="consentCheckbox"
-                style={{ cursor: "pointer", margin: 0, display: "inline" }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <span>
-                  {consentExpanded ? t.consentLabel : t.consentLabelShort}
-                  <button
-                    type="button"
-                    className="gov-see-more-link"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setConsentExpanded((prev) => !prev);
-                    }}
-                    aria-expanded={consentExpanded}
-                  >
-                    {consentExpanded ? t.seeLess : t.seeMore}
-                  </button>
+            <div className="shree-consent-box">
+              <label className="shree-consent-label checkline" htmlFor="consentCheckbox">
+                <input
+                  id="consentCheckbox"
+                  type="checkbox"
+                  required
+                  checked={form.consent}
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, consent: e.target.checked }));
+                  }}
+                  className="shree-checkbox"
+                />
+                <span className="shree-consent-text">
+                  {consentExpanded ? (
+                    <>
+                      I confirm that all student and contact details provided are accurate for Shree Olympiad 2027 registration.{" "}
+                      <button
+                        type="button"
+                        className="shree-see-more-btn"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setConsentExpanded(false);
+                        }}
+                      >
+                        See less
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      I confirm that all details provided are accurate...{" "}
+                      <button
+                        type="button"
+                        className="shree-see-more-btn"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setConsentExpanded(true);
+                        }}
+                      >
+                        See more
+                      </button>
+                    </>
+                  )}
                 </span>
               </label>
+              {fieldErrors.consent && (
+                <span className="shree-error-text" style={{ marginTop: "4px" }}>
+                  <AlertCircle size={13} /> {fieldErrors.consent}
+                </span>
+              )}
             </div>
-            {fieldErrors.consent && (
-              <p className="gov-field-error" style={{ marginBottom: "14px" }}>
-                <AlertCircle size={14} /> {fieldErrors.consent}
-              </p>
-            )}
 
             {/* Submit Action */}
-            <div className="gov-actions-row">
+            <div className="shree-submit-row">
               <button
                 type="submit"
-                className="gov-btn-primary gov-btn-wide"
+                className="shree-submit-btn"
                 disabled={
                   busy ||
                   loading ||
@@ -1792,474 +1627,8 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   !settings.registrationOpen
                 }
               >
-                {busy
-                  ? t.btnSaving
-                  : (lang === "hi"
-                      ? `सबमिट और भुगतान करें (₹${settings.fee || 149})`
-                      : `Submit & Pay ₹${settings.fee || 149}`)} <ArrowRight size={18} />
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* ===================================================================
-            5. MAIN FORM CARD: STEP 2 (PAY REGISTRATION FEE VIA RAZORPAY / UPI)
-            =================================================================== */}
-        {wizardStep === 2 && (
-          <div className="gov-form-card">
-            {/* Student & Fee Header Strip */}
-            <div className="gov-payment-summary-strip">
-              <div className="gov-pay-student-info">
-                <span>{t.summaryStudent}</span>
-                <strong>{registration?.studentName || form.studentName}</strong>
-              </div>
-              <div className="gov-pay-ref-info">
-                <span>{t.summaryRef}</span>
-                <strong>{registration?.applicationRef || "DRAFT"}</strong>
-              </div>
-              <div className="gov-pay-amount-box">
-                <span>{t.summaryFee}</span>
-                <strong>₹{settings.fee || 149}</strong>
-              </div>
-            </div>
-
-            {/* If Both Modes are Enabled: Choice Tabs */}
-            {settings?.paymentMode === "both" && (
-              <div className="gov-payment-mode-tabs">
-                <button
-                  type="button"
-                  className={`gov-pay-tab-btn ${paymentTab === "online" ? "active" : ""}`}
-                  onClick={() => setPaymentTab("online")}
-                >
-                  <CreditCard size={18} />
-                  <span>{t.paymentChoiceOnline || "Pay Online via Razorpay (Instant Admit Card)"}</span>
-                </button>
-                <button
-                  type="button"
-                  className={`gov-pay-tab-btn ${paymentTab === "manual" ? "active" : ""}`}
-                  onClick={() => setPaymentTab("manual")}
-                >
-                  <IndianRupee size={18} />
-                  <span>{t.paymentChoiceManual || "Pay via UPI QR (Manual Receipt Upload)"}</span>
-                </button>
-              </div>
-            )}
-
-            {/* TAB 1: RAZORPAY ONLINE GATEWAY */}
-            {(settings?.paymentMode === "razorpay" || (settings?.paymentMode === "both" && paymentTab === "online")) ? (
-              <div className="gov-razorpay-layout">
-                <div className="gov-razorpay-header">
-                  <div className="gov-razorpay-badge-row">
-                    <span className="gov-instant-pill">
-                      <Zap size={14} /> {lang === "hi" ? "तत्काल प्रवेश पत्र (Admit Card) जारी" : "Instant Admit Card Issued"}
-                    </span>
-                    <span className="gov-security-pill">
-                      <ShieldCheck size={14} /> {lang === "hi" ? "Razorpay 256-बिट सुरक्षित पेमेंट गेटवे" : "Razorpay 256-Bit Secure Gateway"}
-                    </span>
-                  </div>
-                  <h3>{t.onlinePaymentTitle || "Online Payment via Razorpay Gateway"}</h3>
-                  <p>
-                    {t.onlinePaymentSub ||
-                      "Pay securely using UPI (Google Pay, PhonePe, Paytm), Debit/Credit Cards, or Netbanking. Your official Admit Card will be generated immediately."}
-                  </p>
-                </div>
-
-                {/* Accepted Payment Methods with Authentic Brand Logos */}
-                <div className="gov-pay-methods-grid">
-                  {/* Method 1: UPI Apps */}
-                  <div className="gov-pay-method-card">
-                    <div className="gov-pay-method-card-header">
-                      <div className="gov-pay-method-card-title">
-                        <Zap size={18} />
-                        <span>{lang === "hi" ? "UPI ऐप्स (तत्काल)" : "UPI Instant Pay"}</span>
-                      </div>
-                      <span className="gov-pay-method-tag popular">
-                        {lang === "hi" ? "सर्वाधिक लोकप्रिय" : "Most Popular"}
-                      </span>
-                    </div>
-                    <div className="gov-pay-method-pills">
-                      <PhonePeBadge />
-                      <GooglePayBadge />
-                      <PaytmBadge />
-                      <UpiBadge />
-                    </div>
-                  </div>
-
-                  {/* Method 2: ATM / Debit / Credit Cards */}
-                  <div className="gov-pay-method-card">
-                    <div className="gov-pay-method-card-header">
-                      <div className="gov-pay-method-card-title">
-                        <CreditCard size={18} />
-                        <span>{lang === "hi" ? "ATM / डेबिट एवं क्रेडिट कार्ड" : "ATM / Debit & Credit Cards"}</span>
-                      </div>
-                      <span className="gov-pay-method-tag">
-                        {lang === "hi" ? "सभी कार्ड" : "All Cards"}
-                      </span>
-                    </div>
-                    <div className="gov-pay-method-pills">
-                      <RuPayBadge />
-                      <VisaBadge />
-                      <MastercardBadge />
-                    </div>
-                  </div>
-
-                  {/* Method 3: Net Banking */}
-                  <div className="gov-pay-method-card">
-                    <div className="gov-pay-method-card-header">
-                      <div className="gov-pay-method-card-title">
-                        <Landmark size={18} />
-                        <span>{lang === "hi" ? "नेट बैंकिंग" : "Net Banking"}</span>
-                      </div>
-                      <span className="gov-pay-method-tag">
-                        {lang === "hi" ? "50+ भारतीय बैंक" : "50+ Banks"}
-                      </span>
-                    </div>
-                    <div className="gov-pay-method-pills">
-                      <BankIcon name="SBI" code="SBI" color="#0084CA" />
-                      <BankIcon name="HDFC" code="HDFC" color="#004C8F" />
-                      <BankIcon name="ICICI" code="ICICI" color="#B02A30" />
-                      <BankIcon name="Axis" code="AXIS" color="#97144D" />
-                      <span className="brand-more-pill">
-                        {lang === "hi" ? "+ अन्य बैंक" : "+ More"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Method 4: Wallets & Others */}
-                  <div className="gov-pay-method-card">
-                    <div className="gov-pay-method-card-header">
-                      <div className="gov-pay-method-card-title">
-                        <Wallet size={18} />
-                        <span>{lang === "hi" ? "वॉलेट्स एवं अन्य" : "Wallets & More"}</span>
-                      </div>
-                      <span className="gov-pay-method-tag">
-                        {lang === "hi" ? "आसान चेकआउट" : "Fast Checkout"}
-                      </span>
-                    </div>
-                    <div className="gov-pay-method-pills">
-                      <PaytmBadge />
-                      <span className="brand-logo-pill">
-                        <span>Mobikwik</span>
-                      </span>
-                      <span className="brand-logo-pill">
-                        <span>Amazon Pay</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Security Trust Badges */}
-                <div className="gov-trust-footer">
-                  <span className="gov-trust-footer-item">
-                    <ShieldCheck size={16} />
-                    <span>{lang === "hi" ? "भारतीय रिजर्व बैंक (RBI) अधिकृत गेटवे" : "RBI Authorized Gateway"}</span>
-                  </span>
-                  <span className="gov-trust-footer-item">
-                    <Lock size={16} />
-                    <span>{lang === "hi" ? "256-बिट SSL सुरक्षित एन्क्रिप्शन" : "256-Bit SSL Encrypted"}</span>
-                  </span>
-                  <span className="gov-trust-footer-item">
-                    <Zap size={16} />
-                    <span>{lang === "hi" ? "भुगतान के तुरंत बाद प्रवेश पत्र (Admit Card) प्राप्त करें" : "Instant Admit Card PDF"}</span>
-                  </span>
-                </div>
-
-                {/* Terms & Guardian Consent Checkbox */}
-                <div className="gov-terms-box" style={{ marginTop: "24px" }}>
-                  <label className="gov-checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={termsAccepted}
-                      onChange={(e) => setTermsAccepted(e.target.checked)}
-                    />
-                    <span>
-                      <strong>
-                        {lang === "hi" ? "अभिभावक घोषणा एवं सहमति:" : "Guardian Declaration & Consent:"}{" "}
-                      </strong>
-                      {settings.terms ||
-                        "I confirm the information submitted is correct. I am a parent or authorized guardian and consent to the school processing the student information for this Olympiad. Payment and award eligibility are subject to the school’s published terms."}
-                    </span>
-                  </label>
-                </div>
-
-                {/* Actions Row */}
-                <div className="gov-actions-row" style={{ marginTop: "28px" }}>
-                  <button
-                    type="button"
-                    className="gov-btn-secondary"
-                    onClick={() => setWizardStep(1)}
-                    disabled={busy}
-                  >
-                    <ArrowLeft size={16} /> {t.btnBack}
-                  </button>
-                  <button
-                    type="button"
-                    className="gov-btn-primary"
-                    onClick={handleRazorpayPayment}
-                    disabled={busy || !termsAccepted}
-                    style={{
-                      background: termsAccepted ? "#087EB8" : "#94A3B8",
-                      cursor: termsAccepted && !busy ? "pointer" : "not-allowed",
-                    }}
-                  >
-                    <CreditCard size={18} />
-                    {busy
-                      ? lang === "hi" ? "कृपया प्रतीक्षा करें..." : "Connecting Gateway..."
-                      : (t.onlinePayBtn ? t.onlinePayBtn(settings.fee || 149) : `Pay ₹${settings.fee || 149} via Razorpay`)}
-                    <ArrowRight size={18} />
-                  </button>
-                </div>
-              </div>
-            ) : (
-              /* TAB 2: MANUAL SCHOOL UPI QR FLOW */
-              <>
-                {/* Already Paid Alert Banner */}
-                <div className="gov-already-paid-card">
-                  <div className="gov-already-paid-text">
-                    <strong>⚡ {t.btnAlreadyPaid}</strong>
-                    <p>{t.alreadyPaidNotice}</p>
-                  </div>
-                  <button
-                    type="button"
-                    className="gov-btn-amber"
-                    onClick={() => setWizardStep(3)}
-                  >
-                    {lang === "hi"
-                      ? "हाँ, मैंने भुगतान कर दिया है (रसीद अपलोड करें) →"
-                      : "Proceed to Upload Receipt →"}
-                  </button>
-                </div>
-
-                {/* Official UPI QR Layout */}
-                <div className="gov-qr-layout">
-                  <div className="gov-qr-box">
-                    <img
-                      src="/images/school-upi-qr.png"
-                      alt="Official School Payment UPI QR Code"
-                      className="gov-qr-image"
-                      onError={(e) => {
-                        e.currentTarget.onerror = null;
-                        e.currentTarget.src = "/api/payment-qr";
-                      }}
-                    />
-                    <span className="gov-qr-caption">
-                      {t.payeeNameLabel}:{" "}
-                      <strong>
-                        {settings.payeeName || "Shree Ram Public School"}
-                      </strong>
-                      <br />
-                      {t.payeeUpiLabel}:{" "}
-                      <strong>{settings.upiId || "srpskanhra@okaxis"}</strong>
-                    </span>
-                  </div>
-
-                  <div className="gov-qr-instructions">
-                    <h4>{t.upiStepsTitle}</h4>
-                    <ul className="gov-qr-step-list">
-                      <li className="gov-qr-step-item">
-                        <span className="gov-qr-step-num">1</span>
-                        <span>{t.upiStep1}</span>
-                      </li>
-                      <li className="gov-qr-step-item">
-                        <span className="gov-qr-step-num">2</span>
-                        <span>{t.upiStep2}</span>
-                      </li>
-                      <li className="gov-qr-step-item">
-                        <span className="gov-qr-step-num">3</span>
-                        <span>{t.upiStep3}</span>
-                      </li>
-                      <li className="gov-qr-step-item">
-                        <span className="gov-qr-step-num">4</span>
-                        <span>{t.upiStep4}</span>
-                      </li>
-                      <li className="gov-qr-step-item">
-                        <span className="gov-qr-step-num">5</span>
-                        <span>{t.upiStep5}</span>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-
-                {/* Actions Row */}
-                <div className="gov-actions-row">
-                  <button
-                    type="button"
-                    className="gov-btn-secondary"
-                    onClick={() => setWizardStep(1)}
-                  >
-                    <ArrowLeft size={16} /> {t.btnBack}
-                  </button>
-                  <button
-                    type="button"
-                    className="gov-btn-primary"
-                    onClick={() => setWizardStep(3)}
-                  >
-                    {lang === "hi"
-                      ? "भुगतान रसीद अपलोड करें"
-                      : "Upload Payment Receipt"}{" "}
-                    <ArrowRight size={18} />
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* ===================================================================
-            7. MAIN FORM CARD: STEP 3 (SUBMIT PAYMENT DETAILS & UTR)
-            =================================================================== */}
-        {wizardStep === 3 && (
-          <form
-            className="gov-form-card"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSubmitPayment();
-            }}
-          >
-            {/* Header Strip */}
-            <div className="gov-payment-summary-strip">
-              <div className="gov-pay-student-info">
-                <span>{t.summaryStudent}</span>
-                <strong>{registration?.studentName || form.studentName}</strong>
-              </div>
-              <div className="gov-pay-ref-info">
-                <span>{t.summaryRef}</span>
-                <strong>{registration?.applicationRef || "DRAFT"}</strong>
-              </div>
-              <div className="gov-pay-amount-box">
-                <span>{t.summaryFee}</span>
-                <strong>₹{settings.fee || 149}</strong>
-              </div>
-            </div>
-
-            <div className="gov-section-header">
-              <div className="gov-section-icon">
-                <IndianRupee size={20} />
-              </div>
-              <div>
-                <h3>{t.submitHeading}</h3>
-                <p>{t.submitSub}</p>
-              </div>
-            </div>
-
-
-
-            {/* Payment Receipt / Screenshot Upload */}
-            <div className="gov-field-group" style={{ marginBottom: "20px" }}>
-              <label className="gov-field-label">
-                <span className="gov-label-text">{t.receiptLabel}</span>
-                <span className="required-star">*</span>
-              </label>
-
-              <label
-                className="gov-receipt-upload-card"
-                htmlFor="receipt-file-input"
-              >
-                <input
-                  id="receipt-file-input"
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.pdf"
-                  required
-                  style={{ display: "none" }}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    if (file) {
-                      if (
-                        ![
-                          "image/jpeg",
-                          "image/png",
-                          "application/pdf",
-                        ].includes(file.type) ||
-                        file.size > 3 * 1024 * 1024
-                      ) {
-                        notify.error(t.errorReceiptInvalid);
-                        setReceipt(null);
-                        setReceiptPreview(null);
-                        return;
-                      }
-                      setReceipt(file);
-                      if (file.type.startsWith("image/")) {
-                        setReceiptPreview(URL.createObjectURL(file));
-                      } else {
-                        setReceiptPreview(null);
-                      }
-                    }
-                  }}
-                />
-                <Upload size={32} />
-                <strong>
-                  {receipt ? t.receiptSelected(receipt.name) : t.receiptChoose}
-                </strong>
-                <p>
-                  {receipt
-                    ? `${(receipt.size / (1024 * 1024)).toFixed(2)} MB · Click to replace`
-                    : "JPG, PNG or PDF · Maximum file size 3 MB"}
-                </p>
-              </label>
-
-              {/* Receipt Preview Thumbnail if image */}
-              {receiptPreview && (
-                <div style={{ marginTop: "8px", textAlign: "center" }}>
-                  <img
-                    src={receiptPreview}
-                    alt="Uploaded Payment Receipt Preview"
-                    style={{
-                      maxHeight: "160px",
-                      borderRadius: "8px",
-                      border: "1px solid #CBD5E1",
-                      margin: "0 auto",
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Verification Notice */}
-            <div
-              className="gov-instructions-card"
-              style={{
-                borderLeftColor: "#087EB8",
-                background: "#EAF5FC",
-                marginBottom: "20px",
-              }}
-            >
-              <div
-                className="gov-instructions-head"
-                style={{ color: "#087EB8" }}
-              >
-                <Info size={16} />
-                <span>{t.importantReviewNotice}</span>
-              </div>
-            </div>
-
-            {/* Terms Acceptance Checkbox */}
-            <label className="gov-consent-box">
-              <input
-                type="checkbox"
-                required
-                checked={termsAccepted}
-                onChange={(e) => setTermsAccepted(e.target.checked)}
-              />
-              <span>{t.termsCheckbox}</span>
-            </label>
-
-            {/* Actions Row */}
-            <div className="gov-actions-row">
-              <button
-                type="button"
-                className="gov-btn-secondary"
-                disabled={busy}
-                onClick={() => setWizardStep(2)}
-              >
-                <ArrowLeft size={16} /> {t.btnBack}
-              </button>
-              <button
-                type="submit"
-                className="gov-btn-primary"
-                disabled={busy || !receipt || !termsAccepted}
-              >
-                {busy ? t.btnSubmitting : t.btnSubmitApplication}{" "}
-                <CheckCircle2 size={18} />
+                {busy ? "Saving Details..." : "Submit & Pay"}{" "}
+                <ArrowRight size={18} />
               </button>
             </div>
           </form>
@@ -2290,17 +1659,13 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   className="gov-review-badge"
                   style={{ background: "#10B981", color: "#FFFFFF" }}
                 >
-                  ✓ {lang === "hi" ? "सीट एवं भुगतान कन्फर्म" : "Registration Confirmed"}
+                  ✓ {"Registration Confirmed"}
                 </div>
                 <strong style={{ color: "#065F46" }}>
-                  {lang === "hi"
-                    ? "आपका भुगतान सत्यापित हो चुका है और प्रवेश पत्र (Admit Card) जारी कर दिया गया है!"
-                    : "Payment Verified & Official Admit Card Issued Successfully!"}
+                  {"Payment Verified & Official Admit Card Issued Successfully!"}
                 </strong>
                 <p style={{ color: "#047857" }}>
-                  {lang === "hi"
-                    ? "आपका आधिकारिक पंजीकरण नंबर नीचे दिया गया है। आप अपना प्रवेश पत्र (Admit Card) और भुगतान रसीद तुरंत डाउनलोड कर सकते हैं।"
-                    : "Your permanent registration number has been assigned. You can now download your Admit Card and Payment Receipt below."}
+                  {"Your permanent registration number has been assigned. You can now download your Admit Card and Payment Receipt below."}
                 </p>
               </div>
             ) : (
@@ -2337,15 +1702,10 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
               <div className="gov-confirm-row">
                 <span className="gov-confirm-label">{t.confirmClass}</span>
                 <span className="gov-confirm-value">
-                  {lang === "hi"
-                    ? `कक्षा ${registration?.studentClass}${registration?.studentClass === "11" && registration?.course
-                      ? ` (${registration.course})`
-                      : ""
-                    }`
-                    : `Class ${registration?.studentClass}${registration?.studentClass === "11" && registration?.course
-                      ? ` (${registration.course})`
-                      : ""
-                    }`}
+                  {`Class ${registration?.studentClass}${registration?.studentClass === "11" && registration?.course
+                    ? ` (${registration.course})`
+                    : ""
+                  }`}
                 </span>
               </div>
               <div className="gov-confirm-row">
@@ -2354,10 +1714,12 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                   {registration?.guardianName} ({registration?.guardianPhone})
                 </span>
               </div>
-              <div className="gov-confirm-row">
-                <span className="gov-confirm-label">{t.confirmEmail}</span>
-                <span className="gov-confirm-value">{registration?.email}</span>
-              </div>
+              {registration?.email ? (
+                <div className="gov-confirm-row">
+                  <span className="gov-confirm-label">{t.confirmEmail}</span>
+                  <span className="gov-confirm-value">{registration.email}</span>
+                </div>
+              ) : null}
               {registration?.status === "CONFIRMED" && (
                 <div className="gov-confirm-row">
                   <span className="gov-confirm-label">Registration Number</span>
@@ -2443,17 +1805,17 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
           >
             <span className="gov-guidelines-toggle-left">
               <Info size={16} />
-              {t.instructionsTitle || (lang === "hi" ? "महत्वपूर्ण दिशानिर्देश" : "Important Guidelines")}
+              {t.instructionsTitle || ("Important Guidelines")}
             </span>
             <span className="gov-guidelines-toggle-right" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
               {showInstructions ? (
                 <>
-                  <span>{lang === "hi" ? "छिपाएं" : "Hide"}</span>
+                  <span>{"Hide"}</span>
                   <ChevronUp size={15} />
                 </>
               ) : (
                 <>
-                  <span>{lang === "hi" ? "देखें" : "View"}</span>
+                  <span>{"View"}</span>
                   <ChevronDown size={15} />
                 </>
               )}
@@ -2476,9 +1838,9 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         <footer className="gov-help-strip">
           <div className="gov-help-strip-left">
             <HelpCircle size={16} style={{ color: "#0284C7" }} />
-            <span>{t.helpTitle || (lang === "hi" ? "सहायता केंद्र" : "Helpdesk Support")}</span>
+            <span>{t.helpTitle || ("Helpdesk Support")}</span>
             <span className="gov-help-hours">
-              ({t.helpHours || (lang === "hi" ? "सोम - शनि: 9:00 AM - 5:00 PM" : "Mon - Sat: 9:00 AM - 5:00 PM")})
+              ({t.helpHours || ("Mon - Sat: 9:00 AM - 5:00 PM")})
             </span>
           </div>
           <div className="gov-help-strip-right">
@@ -2674,9 +2036,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
                         <div>
                           <strong>{app.studentName}</strong>
                           <span>
-                            {lang === "hi"
-                              ? `कक्षा ${app.studentClass}${app.studentClass === "11" && app.course ? ` (${app.course})` : ""}`
-                              : `Class ${app.studentClass}${app.studentClass === "11" && app.course ? ` (${app.course})` : ""}`}{" "}
+                            {`Class ${app.studentClass}${app.studentClass === "11" && app.course ? ` (${app.course})` : ""}`}{" "}
                             · {app.applicationRef}
                           </span>
                           <small>

@@ -20,6 +20,7 @@ import { ReminderCenterView } from "./admin/ReminderCenterView.jsx";
 import { AdmitCardView } from "./admin/AdmitCardView.jsx";
 import { ReportsView } from "./admin/ReportsView.jsx";
 import { DuplicateAuditView } from "./admin/DuplicateAuditView.jsx";
+import { WhatsAppCenter } from "./admin/WhatsAppCenter.jsx";
 import { AdminRecords } from "./AdminRecords.jsx";
 import { PaymentRecoveryDashboard } from "./PaymentRecoveryDashboard.jsx";
 import { PortalEditor } from "./PortalEditor.jsx";
@@ -34,6 +35,7 @@ const sectionTitles = {
   recovery: "Incomplete Applications",
   reminders: "Email Reminder Center",
   admit_cards: "Admit Card Management",
+  whatsapp: "WhatsApp Communication Center",
   checkin: "Exam Check-in",
   settings: "Event Settings",
   duplicates: "Suspected Duplicates",
@@ -628,6 +630,11 @@ export function Admin() {
         />
       )}
 
+      {/* SECTION 5B: WhatsApp Communication Center */}
+      {active === "whatsapp" && (
+        <WhatsAppCenter canAdmin={canSet} />
+      )}
+
       {/* SECTION 6: Suspected Duplicates */}
       {active === "duplicates" && (
         <DuplicateAuditView
@@ -695,14 +702,12 @@ export function Admin() {
               <label className="crud-form-field">
                 <span>Payment Mode</span>
                 <select
-                  value={settings.paymentMode}
+                  value={settings.paymentMode || "razorpay"}
                   onChange={(e) =>
-                    setSettings((s) => ({ ...s, paymentMode: e.target.value }))
+                    setSettings((s) => ({ ...s, paymentMode: "razorpay" }))
                   }
                 >
-                  <option value="manual">Manual UPI & Receipt Verification</option>
                   <option value="razorpay">Razorpay Verified Gateway (Instant)</option>
-                  <option value="both">Both (Student Chooses Online or Manual QR)</option>
                 </select>
               </label>
             </div>

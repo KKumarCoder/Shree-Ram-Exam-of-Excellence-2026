@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { Registration, Payment, Settings, ReminderLog } from '../models/index.js';
-import { sendMail } from './email.js';
+import { sendExamReminderWhatsApp } from './apitxt/index.js';
 import { buildReminderEmail } from './reminderEmail.js';
 import {
   generateRecoveryToken,
@@ -95,8 +95,9 @@ export function checkReminderEligibility(registration, payment = null) {
     return { eligible: false, reason: `Payment record status is ${payment.status}` };
   }
 
-  if (!registration.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registration.email)) {
-    return { eligible: false, reason: 'No valid recipient email address' };
+  const cleanPhone = (registration.guardianPhone || '').replace(/\D/g, '');
+  if (!cleanPhone || cleanPhone.length < 10) {
+    return { eligible: false, reason: 'No valid guardian mobile number for WhatsApp' };
   }
 
   return { eligible: true, reason: 'Eligible' };
@@ -113,7 +114,7 @@ export function checkReminderEligibility(registration, payment = null) {
  */
 export async function sendRegistrationReminder(
   registrationDoc,
-  { triggerType = 'AUTOMATIC', actor = 'system', deliver = sendMail } = {}
+  { triggerType = 'AUTOMATIC', actor = 'system', deliver = null } = {}
 ) {
   const regId = registrationDoc._id;
   const lease = crypto.randomUUID();
@@ -152,8 +153,8 @@ export async function sendRegistrationReminder(
         await ReminderLog.create({
           registrationId: current._id,
           attemptNumber: current.reminderCount + 1,
-          channel: 'email',
-          recipientEmail: current.email,
+          channel: 'whatsapp',
+          recipientEmail: current.guardianPhone || current.email || '',
           status: 'SKIPPED',
           errorDetail: eligibility.reason,
           triggerType,
@@ -195,8 +196,8 @@ export async function sendRegistrationReminder(
       await ReminderLog.create({
         registrationId: claimed._id,
         attemptNumber: claimed.reminderCount + 1,
-        channel: 'email',
-        recipientEmail: claimed.email,
+        channel: 'whatsapp',
+        recipientEmail: claimed.guardianPhone || claimed.email || '',
         status: 'SKIPPED',
         errorDetail: eligibility.reason,
         triggerType,
@@ -229,15 +230,9 @@ export async function sendRegistrationReminder(
       attemptNumber,
     });
 
-    // 4. Send email through established provider
-    const sendResult = await deliver({
-      to: claimed.email,
-      subject: emailPayload.subject,
-      html: emailPayload.html,
-      text: emailPayload.text,
-    });
-
-    const providerMessageId = sendResult?.messageId || sendResult?.providerId || '';
+    // 4. Send WhatsApp notification through APITxT
+    const sendResult = await sendExamReminderWhatsApp(claimed, settings);
+    const providerMessageId = sendResult?.requestId || sendResult?.messageId || '';
 
     // 5. Success state transition & schedule next reminder if attemptNumber < 3
     const intervals = getReminderIntervals(settings);
@@ -263,8 +258,8 @@ export async function sendRegistrationReminder(
     await ReminderLog.create({
       registrationId: claimed._id,
       attemptNumber,
-      channel: 'email',
-      recipientEmail: claimed.email,
+      channel: 'whatsapp',
+      recipientEmail: claimed.guardianPhone || claimed.email,
       status: 'SENT',
       providerMessageId,
       triggerType,
@@ -293,8 +288,8 @@ export async function sendRegistrationReminder(
     await ReminderLog.create({
       registrationId: claimed._id,
       attemptNumber: claimed.reminderCount + 1,
-      channel: 'email',
-      recipientEmail: claimed.email,
+      channel: 'whatsapp',
+      recipientEmail: claimed.guardianPhone || claimed.email,
       status: 'FAILED',
       errorDetail: err.message || 'Email delivery failed',
       triggerType,
@@ -314,7 +309,7 @@ export async function sendRegistrationReminder(
  * @param {Function} [deliver]
  * @returns {Promise<{ success: boolean, reason?: string, messageId?: string }>}
  */
-export async function sendManualReminder(registrationId, admin, deliver = sendMail) {
+export async function sendManualReminder(registrationId, admin, deliver = null) {
   const registration = await Registration.findById(registrationId);
   if (!registration) {
     throw Object.assign(new Error('Registration not found.'), { status: 404 });
@@ -339,10 +334,10 @@ export async function sendManualReminder(registrationId, admin, deliver = sendMa
 /**
  * Processes due incomplete registrations in the queue.
  * @param {number} [limit=10]
- * @param {Function} [deliver=sendMail]
+ * @param {Function} [deliver=null]
  * @returns {Promise<{ processed: number, successes: number, failures: number }>}
  */
-export async function processReminderQueue(limit = 10, deliver = sendMail) {
+export async function processReminderQueue(limit = 10, deliver = null) {
   const settings = await Settings.findById('primary');
   if (!areRemindersEnabled(settings)) {
     // Reminders globally paused or disabled pending admin approval

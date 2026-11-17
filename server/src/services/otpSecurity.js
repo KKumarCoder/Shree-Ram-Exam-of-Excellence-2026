@@ -72,9 +72,43 @@ export function assertDraft(s) {
     throw otpError('Registration session expired. Start a new application.', 410);
 }
 export function assertAuthorization(s) {
-  if (!s.verifiedEmail || s.verifiedEmail !== s.email) throw otpError('Please verify your email before submitting the application.', 403);
+  const hasEmail = Boolean(s.email && s.email.trim());
+  const hasMobile = Boolean(s.guardianPhone && s.guardianPhone.trim());
+
+  // 1. Mobile verification check (WhatsApp OTP or direct verified mobile)
+  const isMobileVerified = Boolean(
+    s.verifiedMobile &&
+    s.guardianPhone &&
+    s.verifiedMobile === s.guardianPhone &&
+    (s.verificationStatus === 'verified' || s.verifiedAt || s.status === 'OTP_VERIFIED')
+  );
+
+  // 2. Email verification check (when email OTP was verified)
+  const isEmailVerified = Boolean(
+    s.verifiedEmail &&
+    s.email &&
+    s.verifiedEmail === s.email &&
+    (s.verificationStatus === 'verified' || s.verifiedAt || s.status === 'OTP_VERIFIED')
+  );
+
+  // 3. Direct / status-based verified draft check
+  const isDirectVerified = Boolean(
+    (s.status === 'OTP_VERIFIED' || s.verificationStatus === 'verified') &&
+    s.verifiedAt &&
+    (!hasEmail || (s.verifiedEmail && s.verifiedEmail === s.email)) &&
+    (!hasMobile || !s.verifiedMobile || s.verifiedMobile === s.guardianPhone)
+  );
+
+  if (!isMobileVerified && !isEmailVerified && !isDirectVerified) {
+    if (hasEmail && (!s.verifiedEmail || s.verifiedEmail !== s.email)) {
+      throw otpError('Please verify your email before submitting the application.', 403);
+    }
+    throw otpError('Please verify your mobile number via WhatsApp OTP before submitting the application.', 403);
+  }
+
   if (s.verificationDevMode && !otpDevMode())
     throw otpError('Please verify your email address again before submitting the application.', 403);
+
   if (!s.verifiedAt || (s.status === 'OTP_VERIFIED' && (!s.verificationExpiresAt || s.verificationExpiresAt <= new Date())))
     throw otpError('Email verification expired. Verify your email again before payment.', 403);
 }

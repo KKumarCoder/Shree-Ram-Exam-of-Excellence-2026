@@ -3,6 +3,7 @@ import * as emailProvider from './email.js';
 import { normalizeEmail, maskEmail } from './email.js';
 import { generateOtp, hashOtp, matchesOtp } from './otpCode.js';
 import { assertDraft, assertOtpEnabled, otpDevMode, limit, otpError, setting, withOtpLock } from './otpSecurity.js';
+import { sendWhatsAppOtp, verifyWhatsAppOtp } from './apitxt/otpService.js';
 
 function assertPurpose(purpose) {
   if (!['register', 'lookup'].includes(purpose)) throw otpError('Invalid verification purpose.');
@@ -13,6 +14,16 @@ export function createOtpService(provider = emailProvider) {
   async function sendOtp(registration, purpose) {
     assertOtpEnabled();
     assertPurpose(purpose);
+    if (!registration.email && registration.guardianPhone) {
+      const res = await sendWhatsAppOtp({ mobile: registration.guardianPhone });
+      const cooldown = res.resendAvailableIn || 60;
+      return {
+        message: res.message || 'OTP sent to your WhatsApp number.',
+        cooldownSeconds: cooldown,
+        resendAvailableAt: new Date(Date.now() + cooldown * 1000),
+        expiresAt: new Date(Date.now() + (res.expiresIn || 300) * 1000),
+      };
+    }
     const recipient = normalizeEmail(registration.email);
     return withOtpLock(`email:${recipient}`, async () => {
       const fresh = await Registration.findById(registration._id);
@@ -56,6 +67,29 @@ export function createOtpService(provider = emailProvider) {
     assertOtpEnabled();
     assertPurpose(purpose);
     if (typeof otp !== 'string' || !/^\d{6}$/.test(otp)) throw otpError('Enter a six-digit OTP.');
+    if (!registration.email && registration.guardianPhone) {
+      await verifyWhatsAppOtp({ mobile: registration.guardianPhone, otp });
+      const fresh = await Registration.findById(registration._id);
+      const now = new Date();
+      if (purpose === 'register') {
+        const updated = await Registration.findOneAndUpdate(
+          { _id: fresh._id, status: 'DRAFT' },
+          {
+            $set: {
+              status: 'OTP_VERIFIED',
+              verificationStatus: 'verified',
+              applicationStatus: 'awaiting_payment_proof',
+              verifiedAt: now,
+              verifiedMobile: fresh.guardianPhone,
+              verificationExpiresAt: new Date(+now + 10800000),
+            },
+          },
+          { new: true }
+        );
+        return updated || fresh;
+      }
+      return fresh;
+    }
     const recipient = normalizeEmail(registration.email);
     return withOtpLock(`email:${recipient}`, async () => {
       const fresh = await Registration.findById(registration._id);

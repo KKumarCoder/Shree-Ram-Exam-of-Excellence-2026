@@ -13,7 +13,7 @@ import {
   Eye,
   History,
   Users,
-  Mail,
+  Bell,
   Edit2,
   Trash2,
   AlertTriangle,
@@ -43,14 +43,14 @@ const labels = {
   UNDER_REVIEW: "Payment under review",
   PAID: "Approved",
   REJECTED: "Rejected",
-  DRAFT: "Draft (Email pending)",
-  AWAITING_PAYMENT: "Awaiting payment proof",
+  DRAFT: "Draft (Pending)",
+  AWAITING_PAYMENT: "Awaiting payment",
   PAYMENT_SUBMITTED: "Payment submitted",
   PAYMENT_UNDER_VERIFICATION: "Payment review",
   CONFIRMING: "Confirming",
   CONFIRMED: "Approved (Confirmed)",
   APPROVED: "Approved (Confirmed)",
-  OTP_VERIFIED: "Email verified",
+  OTP_VERIFIED: "Mobile verified (Payment pending)",
   PAYMENT_PENDING: "Payment pending",
   PAYMENT_REJECTED: "Payment rejected",
   CANCELLED: "Cancelled / Superseded",
@@ -679,7 +679,26 @@ export function AdminRecords({
                         ₹{Number(record.amount).toLocaleString("en-IN")}
                       </td>
                       <td>
-                        <span className="utr-value">{record.utr || "—"}</span>
+                        <span className="utr-value">
+                          {record.utr || record.providerPaymentId || "—"}
+                        </span>
+                        {(record.mode === "razorpay" || (record.utr || record.providerPaymentId)?.startsWith("pay_")) && (
+                          <span
+                            style={{
+                              display: "inline-block",
+                              marginLeft: "6px",
+                              fontSize: "0.68rem",
+                              fontWeight: 700,
+                              padding: "1px 6px",
+                              borderRadius: "4px",
+                              background: "#E0F2FE",
+                              color: "#0369A1",
+                              border: "1px solid #BAE6FD",
+                            }}
+                          >
+                            Razorpay
+                          </span>
+                        )}
                         {record.reviewNote && (
                           <small>{record.reviewNote}</small>
                         )}
@@ -689,8 +708,28 @@ export function AdminRecords({
                   ) : (
                     <>
                       <td>
-                        {student.registrationNumber || student.applicationRef}
+                        <strong>{student.registrationNumber || student.applicationRef}</strong>
                         <small>{dateLabel(student.createdAt)}</small>
+                        {student.paymentUtr && (
+                          <div style={{ marginTop: "4px" }}>
+                            <span
+                              style={{
+                                fontFamily: "ui-monospace, monospace",
+                                fontSize: "0.72rem",
+                                background: "#EFF6FF",
+                                color: "#1D4ED8",
+                                padding: "2px 6px",
+                                borderRadius: "4px",
+                                border: "1px solid #BFDBFE",
+                                display: "inline-block",
+                                fontWeight: 600,
+                              }}
+                              title="Razorpay Payment ID / Transaction UTR"
+                            >
+                              Txn: {student.paymentUtr}
+                            </span>
+                          </div>
+                        )}
                       </td>
                       <td>
                         <div style={{ fontWeight: 700, color: "var(--erp-navy, #193651)" }}>
@@ -779,58 +818,88 @@ export function AdminRecords({
                               Receipt
                             </button>
                           )}
+                          {actions[`receipt:${id}`] ? (
+                            <button
+                              type="button"
+                              className="admin-action-btn view-btn"
+                              disabled
+                              title="Generating receipt…"
+                              aria-label="Generating receipt"
+                            >
+                              <Loader2 size={15} className="admin-spin" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="admin-action-btn view-btn"
+                              disabled={
+                                actions[`receipt:${id}`] ||
+                                (record.status !== "PAID" &&
+                                  record.status !== "APPROVED")
+                              }
+                              onClick={() => receipt(record)}
+                              title="View & Download Payment Receipt"
+                              aria-label="Payment receipt"
+                            >
+                              <FileText size={15} />
+                            </button>
+                          )}
                           {canPay &&
                             (record.status === "UNDER_REVIEW" || recovery) && (
                               <button
-                                className="approve"
+                                type="button"
+                                className="admin-action-btn approve-btn"
                                 disabled={!!processing || loading || !!error}
                                 onClick={() => review(record, true)}
+                                title={recovery ? "Retry confirmation" : "Approve payment"}
+                                aria-label="Approve payment"
                               >
                                 {processing === "approve" ? (
-                                  <Loader2 size={14} className="admin-spin" />
+                                  <Loader2 size={15} className="admin-spin" />
                                 ) : (
-                                  <Check size={14} />
+                                  <Check size={16} />
                                 )}
-                                {processing === "approve"
-                                  ? "Approving…"
-                                  : recovery
-                                    ? "Retry confirmation"
-                                    : "Approve"}
                               </button>
                             )}
                           {canPay && record.status === "UNDER_REVIEW" && (
                             <button
-                              className="reject"
+                              type="button"
+                              className="admin-action-btn reject-btn"
                               disabled={!!processing || loading || !!error}
                               onClick={() => {
                                 setRejectTarget(record);
                                 setReason("");
                               }}
+                              title="Reject payment"
+                              aria-label="Reject payment"
                             >
-                              <X size={14} />
-                              {processing === "reject"
-                                ? "Rejecting…"
-                                : "Reject"}
+                              {processing === "reject" ? (
+                                <Loader2 size={15} className="admin-spin" />
+                              ) : (
+                                <X size={16} />
+                              )}
                             </button>
                           )}
                           {canPay && (
                             <button
                               type="button"
-                              className="btn light small btn-edit-action"
+                              className="admin-action-btn edit-btn"
                               onClick={() => openEditPayment(record)}
                               title="Edit payment details (UTR, amount, status, note)"
+                              aria-label="Edit payment"
                             >
-                              <Edit2 size={13} /> Edit
+                              <Edit2 size={15} />
                             </button>
                           )}
                           {canPay && (
                             <button
                               type="button"
-                              className="btn light small btn-delete-action"
+                              className="admin-action-btn delete-btn"
                               onClick={() => setDeletePaymentTarget(record)}
                               title="Delete payment record"
+                              aria-label="Delete payment"
                             >
-                              <Trash2 size={13} /> Delete
+                              <Trash2 size={15} />
                             </button>
                           )}
                         </>
@@ -838,11 +907,12 @@ export function AdminRecords({
                         <div className="registration-actions">
                           <button
                             type="button"
-                            className="btn light small"
+                            className="admin-action-btn view-btn"
                             onClick={() => viewStudentDetail(record.id)}
                             title="View student history & audit timeline"
+                            aria-label="View history"
                           >
-                            <Eye size={13} /> History
+                            <Eye size={15} />
                           </button>
                           {canPay &&
                             ["DRAFT", "OTP_VERIFIED", "PAYMENT_PENDING"].includes(
@@ -852,54 +922,55 @@ export function AdminRecords({
                             record.applicationStatus !== "submitted" && (
                               <button
                                 type="button"
-                                className="btn light small"
-                                style={{
-                                  color: "#b45309",
-                                  borderColor: "#fde68a",
-                                }}
+                                className="admin-action-btn remind-btn"
                                 disabled={actions[`remind:${record.id}`]}
                                 onClick={() =>
                                   sendReminder(record.id, record.studentName)
                                 }
-                                title={`Send manual reminder email (Sent: ${record.reminderCount || 0}/3)`}
+                                title={`Send WhatsApp reminder (${record.reminderCount || 0}/3 sent)`}
+                                aria-label="Send reminder"
                               >
                                 {actions[`remind:${record.id}`] ? (
-                                  <Loader2 size={13} className="admin-spin" />
+                                  <Loader2 size={15} className="admin-spin" />
                                 ) : (
-                                  <Mail size={13} />
-                                )}{" "}
-                                Remind
-                                {record.reminderCount
-                                  ? ` (${record.reminderCount})`
-                                  : ""}
+                                  <Bell size={15} />
+                                )}
                               </button>
                             )}
                           {record.status === "CONFIRMED" && canExam && (
-                            <button onClick={() => onPdf(record.id)}>
-                              <Download size={14} /> Admit PDF
+                            <button
+                              type="button"
+                              className="admin-action-btn pdf-btn"
+                              onClick={() => onPdf(record.id)}
+                              title="Download Admit Card PDF"
+                              aria-label="Download Admit Card PDF"
+                            >
+                              <Download size={15} />
                             </button>
                           )}
                           {canPay && (
                             <button
                               type="button"
-                              className="btn light small btn-edit-action"
+                              className="admin-action-btn edit-btn"
                               onClick={() => openEditRegistration(record)}
                               title="Edit student and guardian registration details"
+                              aria-label="Edit registration"
                             >
-                              <Edit2 size={13} /> Edit
+                              <Edit2 size={15} />
                             </button>
                           )}
                           {canPay && (
                             <button
                               type="button"
-                              className="btn light small btn-delete-action"
+                              className="admin-action-btn delete-btn"
                               onClick={() => {
                                 setDeleteRegistrationTarget(record);
                                 setDeleteReason("");
                               }}
                               title="Permanently delete registration"
+                              aria-label="Delete registration"
                             >
-                              <Trash2 size={13} /> Delete
+                              <Trash2 size={15} />
                             </button>
                           )}
                         </div>
@@ -1166,16 +1237,22 @@ export function AdminRecords({
                   <div className="payment-info-row">
                     <div>
                       <span>Mode</span>
-                      <strong>{selectedStudentDetail.payment.mode}</strong>
+                      <strong>
+                        {selectedStudentDetail.payment.mode === "razorpay"
+                          ? "Online (Razorpay)"
+                          : "Manual (UPI / Bank)"}
+                      </strong>
                     </div>
                     <div>
                       <span>Amount</span>
                       <strong>₹{selectedStudentDetail.payment.amount}</strong>
                     </div>
                     <div>
-                      <span>UTR</span>
+                      <span>UTR / Payment ID</span>
                       <strong className="utr-badge">
-                        {selectedStudentDetail.payment.utr || "—"}
+                        {selectedStudentDetail.payment.utr ||
+                          selectedStudentDetail.payment.providerPaymentId ||
+                          "—"}
                       </strong>
                     </div>
                     <div>
