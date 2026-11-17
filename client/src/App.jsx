@@ -22,7 +22,7 @@ export const defaults = {
   eventName: branding.eventName,
   eligibleClasses: supportedClasses,
   portal: {},
-  fee: 2,
+  fee: 149,
   certificateDelayHours: 4,
   registrationOpen: false,
   examDate: '',

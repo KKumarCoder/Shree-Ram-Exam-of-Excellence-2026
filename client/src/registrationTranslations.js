@@ -13,7 +13,7 @@ export const translations = {
 
     // Header info strip
     badgeFee: "Registration Fee",
-    badgeFeeValue: "₹2 per student",
+    badgeFeeValue: "₹149 per student",
     badgeDate: "Examination Date",
     badgeDateValue: "12 January 2027",
     badgeClasses: "Eligible Classes",
@@ -273,7 +273,7 @@ export const translations = {
 
     // Header info strip
     badgeFee: "पंजीकरण शुल्क",
-    badgeFeeValue: "₹2 प्रति विद्यार्थी",
+    badgeFeeValue: "₹149 प्रति विद्यार्थी",
     badgeDate: "परीक्षा तिथि",
     badgeDateValue: "12 जनवरी 2027",
     badgeClasses: "पात्र कक्षाएं",

@@ -392,7 +392,7 @@ export function Status() {
                         navigate("/register");
                       }}
                     >
-                      Continue Application & Pay ₹2 →
+                      Continue Application & Pay ₹149 →
                     </button>
                   )}
                   <button
