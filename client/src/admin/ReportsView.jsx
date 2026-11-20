@@ -27,9 +27,9 @@ export function ReportsView({ stats }) {
         timeout: 60000,
       });
       downloadBlob(r.data, `${filename}.${format}`);
-      notify.success(`${filename}.${format} downloaded successfully.`);
+      notify.success("Report downloaded");
     } catch (e) {
-      notify.error(e.message || "Failed to download export report.");
+      notify.error(e.message || "Download failed");
     } finally {
       setExporting("");
     }

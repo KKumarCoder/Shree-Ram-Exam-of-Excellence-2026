@@ -1,6 +1,6 @@
 :root {
   --toastify-font-family: inherit;
-  --toastify-toast-width: 390px;
+  --toastify-toast-width: 320px;
   --toastify-color-success: #22845b;
   --toastify-color-info: #167fa5;
   --toastify-color-error: #d04444;
@@ -13,13 +13,13 @@
   color: var(--text);
   border: 1px solid var(--edge);
   border-left: 4px solid var(--toastify-color-progress-light);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px #142f4a24;
-  padding: 18px 34px 18px 16px;
+  border-radius: 10px;
+  box-shadow: 0 6px 24px #142f4a20;
+  padding: 12px 28px 12px 14px;
   font-family: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.55;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.4;
   overflow-wrap: anywhere;
   align-items: center;
 }

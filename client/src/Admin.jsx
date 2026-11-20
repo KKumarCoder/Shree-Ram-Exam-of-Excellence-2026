@@ -300,7 +300,7 @@ export function Admin() {
       };
       const r = await api.patch("/admin/settings", payload);
       setSettings(r.data);
-      notify.success("Event settings saved successfully.");
+      notify.success("Settings saved");
     });
 
   const checkIn = (value = token) =>
@@ -333,7 +333,7 @@ export function Admin() {
               ? decodeURIComponent(match[1])
               : decodedText.trim();
             if (scannedToken.length < 20) {
-              notify.error("This QR code is not a Shree Olympiad admit card.");
+              notify.error("Invalid admit card QR");
               return;
             }
             await camera.stop().catch(() => {});

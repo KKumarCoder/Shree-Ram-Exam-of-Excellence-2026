@@ -95,11 +95,11 @@ export function AttendanceRecords({
     setSendingCertId(studentId);
     try {
       const res = await api.post(`/admin/certificate/send/${studentId}`);
-      notify.success(res.data.message || "Certificate sent successfully!");
+      notify.success("Certificate sent");
       setRevision((v) => v + 1);
       onChanged?.();
     } catch (err) {
-      notify.error(err.message || "Failed to send certificate.");
+      notify.error("Certificate failed");
     } finally {
       setSendingCertId("");
     }
@@ -111,17 +111,13 @@ export function AttendanceRecords({
     try {
       const res = await api.post("/admin/certificate/process-eligible");
       if (res.data.processed > 0) {
-        notify.success(
-          `Dispatched ${res.data.successCount} certificate(s) for eligible attendees (4h cutoff).`
-        );
+        notify.success(`Certificates sent: ${res.data.successCount}`);
       } else {
-        notify.info(
-          res.data.message || "No students have currently reached the 4-hour mark."
-        );
+        notify.info("No eligible students");
       }
       setRevision((v) => v + 1);
     } catch (err) {
-      notify.error(err.message || "Failed to trigger certificate batch.");
+      notify.error("Batch dispatch failed");
     } finally {
       setRunningWorker(false);
     }
@@ -214,7 +210,7 @@ export function AttendanceRecords({
         timeout: 60000,
       });
       downloadBlob(result.data, `shree-attendance.${format}`);
-      notify.success("Attendance exported for all matching pages.");
+      notify.success("Attendance exported");
     } catch (e) {
       notify.error(e.message);
       if (e.status === 401) onUnauthorized();

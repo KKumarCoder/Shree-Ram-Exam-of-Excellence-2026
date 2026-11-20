@@ -394,9 +394,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
     setUtr("");
     setTermsAccepted(false);
     setEditingEmail(false);
-    notify.success(
-      "Ready to register another sibling with existing guardian details."
-    );
+    notify.success("Ready for sibling");
   }
 
   // ==========================================
@@ -518,9 +516,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
 
             setRegistration(verifyRes.data.registration);
             setWizardStep(5);
-            notify.success(
-              "Payment successful! Your registration has been confirmed."
-            );
+            notify.success("Payment success");
             resolve(true);
           } catch (err) {
             notify.error(err.message || "Payment verification failed.");
@@ -672,10 +668,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
         res.data.message ||
         ("OTP sent to your WhatsApp number.")
       );
-      notify.success(
-        res.data.message ||
-        ("WhatsApp verification code sent.")
-      );
+      notify.success("WhatsApp OTP sent");
     } catch (err) {
       const msg =
         err.response?.data?.error ||
@@ -706,10 +699,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
       setMobileVerified(true);
       setMobileVerificationToken(res.data.verificationToken || "verified");
       setOtpSentMessage("");
-      notify.success(
-        res.data.message ||
-        ("WhatsApp number verified successfully.")
-      );
+      notify.success("WhatsApp verified");
     } catch (err) {
       const msg =
         err.response?.data?.error ||
@@ -830,12 +820,9 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
       setResumeLookupToken(data.lookupToken);
       setResumeMaskedEmail(data.maskedPhone || data.maskedEmail || "");
       setResumeStep("otp");
-      notify.success(
-        data.message ||
-        ("Verification code sent to your WhatsApp number.")
-      );
+      notify.success("WhatsApp OTP sent");
     } catch (err) {
-      notify.error(err.message || "Failed to find application.");
+      notify.error(err.message || "Application not found");
     } finally {
       setResumeBusy(false);
     }
@@ -911,9 +898,7 @@ export function Register({ settings, loading, settingsError, reloadSettings }) {
       setResumeIdentifier("");
       setResumeStep("input");
       setResumeOtp("");
-      notify.success(
-        `Application restored for ${reg.studentName}.`
-      );
+      notify.success("Application restored");
     } catch (err) {
       notify.error(err.message || "Failed to restore application session.");
     } finally {

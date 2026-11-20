@@ -47,9 +47,9 @@ export function AdmitCardView({ canExam, onPdfDownload, stats }) {
         responseType: "blob",
       });
       downloadBlob(r.data, `admit-card-${regNumber || id}.pdf`);
-      notify.success("Admit card PDF downloaded successfully.");
+      notify.success("Admit card downloaded");
     } catch (e) {
-      notify.error(e.message || "Failed to download admit card PDF.");
+      notify.error(e.message || "Download failed");
     } finally {
       setDownloading((prev) => ({ ...prev, [id]: false }));
     }

@@ -132,13 +132,13 @@ export function WhatsAppCenter({ canAdmin = true }) {
     try {
       const { data } = await api.post(`/admin/whatsapp/messages/${messageId}/retry`);
       if (data.success) {
-        notify.success("Message redelivered successfully!");
+        notify.success("WhatsApp resent");
         loadMessages(messagesPagination.page);
       } else {
         notify.error(data.error || "Retry failed");
       }
     } catch (e) {
-      notify.error(e.message || "Error retrying message");
+      notify.error(e.message || "Retry failed");
     }
   };
 
@@ -146,7 +146,7 @@ export function WhatsAppCenter({ canAdmin = true }) {
   const handleSendTest = async (e) => {
     e.preventDefault();
     if (!testModal.mobile) {
-      notify.error("Please enter a recipient WhatsApp number");
+      notify.error("Enter mobile number");
       return;
     }
     setTestSending(true);
@@ -156,10 +156,10 @@ export function WhatsAppCenter({ canAdmin = true }) {
         mobile: testModal.mobile,
         params: testModal.params,
       });
-      notify.success(data.message || "Test message sent successfully!");
+      notify.success("Test WhatsApp sent");
       setTestModal((prev) => ({ ...prev, open: false }));
     } catch (e) {
-      notify.error(e.response?.data?.error || e.message || "Failed to send test message");
+      notify.error(e.response?.data?.error || e.message || "Test WhatsApp failed");
     } finally {
       setTestSending(false);
     }
@@ -179,7 +179,7 @@ export function WhatsAppCenter({ canAdmin = true }) {
         templateKey: bulkTemplate,
         campaignTitle: `Admin Campaign ${new Date().toLocaleDateString()}`,
       });
-      notify.success(data.message);
+      notify.success("Bulk dispatch started");
       setBulkResult(data);
     } catch (e) {
       notify.error(e.response?.data?.error || e.message || "Bulk dispatch failed");

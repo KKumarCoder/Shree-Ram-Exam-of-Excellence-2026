@@ -72,10 +72,7 @@ export function Status() {
         phone,
       });
       setLookupToken(r.data.lookupToken);
-      notify.success(
-        r.data.message ||
-          "Verification code sent to your WhatsApp number.",
-      );
+      notify.success("WhatsApp OTP sent");
       setCode("");
       setResendAt(Date.parse(r.data.resendAvailableAt) || 0);
     });
@@ -93,7 +90,7 @@ export function Status() {
       if (Array.isArray(r.data.allRegistrations) && r.data.allRegistrations.length > 1) {
         setAllRecords(r.data.allRegistrations);
       }
-      notify.success("WhatsApp mobile verified successfully.");
+      notify.success("WhatsApp verified");
     });
   }
   function switchStudent(studentId) {

@@ -159,7 +159,7 @@ export function AdminRecords({
         `/admin/payments/${editPaymentTarget._id}`,
         editPaymentForm
       );
-      notify.success(res.message || "Payment updated successfully.");
+      notify.success("Payment updated");
       setEditPaymentTarget(null);
       setRevision((r) => r + 1);
     } catch (err) {
@@ -177,7 +177,7 @@ export function AdminRecords({
       const { data: res } = await api.delete(
         `/admin/payments/${deletePaymentTarget._id}`
       );
-      notify.success(res.message || "Payment deleted successfully.");
+      notify.success("Payment deleted");
       setDeletePaymentTarget(null);
       setRevision((r) => r + 1);
     } catch (err) {
@@ -218,7 +218,7 @@ export function AdminRecords({
         `/admin/registrations/${editRegistrationTarget.id}`,
         editRegistrationForm
       );
-      notify.success(res.message || "Registration updated successfully.");
+      notify.success("Registration updated");
       setEditRegistrationTarget(null);
       setRevision((r) => r + 1);
     } catch (err) {
@@ -241,7 +241,7 @@ export function AdminRecords({
           data: { reason: deleteReason || "Deleted by administrator" },
         }
       );
-      notify.success(res.message || "Registration deleted successfully.");
+      notify.success("Registration deleted");
       setDeleteRegistrationTarget(null);
       setDeleteReason("");
       setRevision((r) => r + 1);
@@ -278,10 +278,10 @@ export function AdminRecords({
     setActions((prev) => ({ ...prev, [`remind:${id}`]: true }));
     try {
       const { data } = await api.post(`/admin/registrations/${id}/remind`);
-      notify.success(data.message || "WhatsApp reminder sent successfully.");
+      notify.success("WhatsApp reminder sent");
       setRevision((r) => r + 1);
     } catch (err) {
-      notify.error(err.message || "Failed to send WhatsApp reminder.");
+      notify.error("WhatsApp reminder failed");
     } finally {
       setActions((prev) => ({ ...prev, [`remind:${id}`]: false }));
     }
@@ -429,9 +429,7 @@ export function AdminRecords({
         timeout: 60000,
       });
       downloadBlob(r.data, `shree-${kind}.${format}`);
-      notify.success(
-        "Report downloaded. Includes all records matching your filters.",
-      );
+      notify.success("Report downloaded");
     } catch (e) {
       notify.error(e.message);
       if (e.status === 401) onUnauthorized();

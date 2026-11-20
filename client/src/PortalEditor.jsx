@@ -84,7 +84,7 @@ export function PortalEditor({
       });
       setContent(r.data.portal);
       onSaved(r.data);
-      notify.success('Public content saved. Only entries marked Published are visible on the website.');
+      notify.success('Content saved');
     } catch (e) {
       const match = e.message?.match(/^portal\.(\w+)\.(\d+)\.(\w+): (.*)$/s);
       const collection = match && collections[match[1]];
