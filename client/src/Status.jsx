@@ -20,6 +20,8 @@ export function Status() {
     [draftToken, setDraftToken] = useState(""),
     [access, setAccess] = useState(""),
     [record, setRecord] = useState(null),
+    [allRecords, setAllRecords] = useState([]),
+    [showRefInput, setShowRefInput] = useState(false),
     [busy, setBusy] = useState(false);
   const running = useRef(false);
   const [resendAt, setResendAt] = useState(0);
@@ -30,7 +32,10 @@ export function Status() {
       const params = new URLSearchParams(window.location.search);
       const urlRef = params.get("ref") || params.get("app") || params.get("id");
       const urlPhone = params.get("phone") || params.get("mobile");
-      if (urlRef) setRef(urlRef.trim().toUpperCase());
+      if (urlRef) {
+        setRef(urlRef.trim().toUpperCase());
+        setShowRefInput(true);
+      }
       if (urlPhone) setPhone(urlPhone.trim());
     } catch {}
   }, []);
@@ -85,7 +90,23 @@ export function Status() {
       setAccess(r.data.accessToken);
       setDraftToken(r.data.draftToken || "");
       setRecord(r.data.registration);
+      if (Array.isArray(r.data.allRegistrations) && r.data.allRegistrations.length > 1) {
+        setAllRecords(r.data.allRegistrations);
+      }
       notify.success("WhatsApp mobile verified successfully.");
+    });
+  }
+  function switchStudent(studentId) {
+    run(async () => {
+      const r = await api.post(
+        `/status/switch/${studentId}`,
+        {},
+        { headers: { Authorization: `Bearer ${access}` } },
+      );
+      setAccess(r.data.accessToken);
+      setDraftToken(r.data.draftToken || "");
+      setRecord(r.data.registration);
+      notify.success(`Switched to ${r.data.registration.studentName}`);
     });
   }
   function refreshStatus() {
@@ -157,38 +178,49 @@ export function Status() {
               <div className="form-head">
                 <Search />
                 <div>
-                  <h2>Find your application</h2>
+                  <h2>Check Application Status</h2>
                   <p>
-                    Enter your application reference or confirmed registration
-                    number.
+                    Enter your registered 10-digit mobile number to verify and view your application status & admit card.
                   </p>
                 </div>
               </div>
               <label>
-                <span>Application reference / Registration number</span>
-                <input
-                  value={ref}
-                  onChange={(e) => setRef(e.target.value)}
-                  placeholder="APP-XXXXXXXXXX or SHREE26-000001"
-                />
-              </label>
-              <label>
-                <span>Guardian mobile number</span>
+                <span>Registered WhatsApp mobile number</span>
                 <input
                   type="tel"
                   inputMode="numeric"
                   value={phone}
                   maxLength="10"
                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                  placeholder="10-digit registered mobile"
+                  placeholder="Enter 10-digit mobile number"
+                  autoFocus
                 />
               </label>
+              {showRefInput ? (
+                <label style={{ marginTop: 4 }}>
+                  <span>Application reference / Registration number (Optional)</span>
+                  <input
+                    value={ref}
+                    onChange={(e) => setRef(e.target.value)}
+                    placeholder="e.g. APP-XXXXXXXXXX (Optional)"
+                  />
+                </label>
+              ) : (
+                <button
+                  type="button"
+                  className="link-button"
+                  style={{ fontSize: 13, alignSelf: "flex-start", marginTop: -2, marginBottom: 8 }}
+                  onClick={() => setShowRefInput(true)}
+                >
+                  + Have an Application ID / Ref? (Optional)
+                </button>
+              )}
               <button
                 className="btn primary wide"
-                disabled={busy || phone.length !== 10 || !ref}
+                disabled={busy || phone.length !== 10}
                 onClick={request}
               >
-                Send secure OTP
+                Send WhatsApp OTP
               </button>
             </>
           ) : !access ? (
@@ -246,6 +278,26 @@ export function Status() {
                   <p>Your WhatsApp mobile is verified.</p>
                 </div>
               </div>
+              {allRecords.length > 1 && (
+                <div style={{ marginBottom: 16, background: "var(--card-bg, rgba(0,0,0,0.03))", padding: 12, borderRadius: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--muted)" }}>
+                    Applications with this mobile ({allRecords.length}):
+                  </span>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                    {allRecords.map((s) => (
+                      <button
+                        key={s._id || s.id}
+                        type="button"
+                        onClick={() => switchStudent(s._id || s.id)}
+                        className={`btn small ${(record?._id === (s._id || s.id) || record?.id === (s._id || s.id)) ? "primary" : "light"}`}
+                        style={{ borderRadius: 20, padding: "4px 12px", fontSize: 13 }}
+                      >
+                        {s.studentName} (Class {s.studentClass})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="receipt-summary">
                 {[
                   ["Student", record.studentName],

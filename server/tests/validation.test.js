@@ -82,6 +82,19 @@ test("accepts current and legacy registration numbers or private application ref
   );
   assert.equal(
     lookupSchema.safeParse({
+      phone: "9876543210",
+    }).success,
+    true,
+  );
+  assert.equal(
+    lookupSchema.safeParse({
+      registrationNumber: "",
+      phone: "9876543210",
+    }).success,
+    true,
+  );
+  assert.equal(
+    lookupSchema.safeParse({
       registrationNumber: "SHREE27-0999",
       phone: "9876543210",
     }).success,

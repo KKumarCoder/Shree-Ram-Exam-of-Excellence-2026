@@ -991,20 +991,21 @@ r.post(
 );
 r.post("/status/request", async (req, res) => {
   const data = parse(lookupSchema, req.body);
-  const s = await Registration.findOne({
-    [data.registrationNumber.startsWith("APP-")
-      ? "applicationRef"
-      : "registrationNumber"]: data.registrationNumber,
-    guardianPhone: data.phone,
-  });
-  if (!s)
+  const query = { guardianPhone: data.phone };
+  if (data.registrationNumber && data.registrationNumber.trim()) {
+    const regTrim = data.registrationNumber.trim().toUpperCase();
+    query[regTrim.startsWith("APP-") ? "applicationRef" : "registrationNumber"] = regTrim;
+  }
+  const students = await Registration.find(query).sort({ createdAt: -1 });
+  if (!students.length)
     return res
       .status(404)
-      .json({ error: "No matching registration. Check number and mobile." });
+      .json({ error: "No registration found with this mobile number. Please check your number." });
 
+  const s = students[0];
   // Dispatches OTP directly to registered guardian WhatsApp mobile
   const otpResult = await sendWhatsAppOtp({
-    mobile: s.guardianPhone,
+    mobile: data.phone,
     ipAddress: req.ip || req.headers["x-forwarded-for"] || "",
   });
   const cooldown = otpResult.resendAvailableIn || 60;
@@ -1012,7 +1013,7 @@ r.post("/status/request", async (req, res) => {
 
   res.json({
     lookupToken: issueToken(
-      { sub: String(s._id), scope: "lookup-pending" },
+      { sub: String(s._id), phone: data.phone, scope: "lookup-pending" },
       "15m",
     ),
     message: otpResult.message || "OTP has been sent to your WhatsApp number.",
@@ -1024,19 +1025,33 @@ r.post("/status/request", async (req, res) => {
 r.post("/status/verify", authenticate("lookup-pending"), async (req, res) => {
   const { otp } = parse(otpSchema, req.body);
   const s = await getOwn(req);
-  await verifyWhatsAppOtp({ mobile: s.guardianPhone, otp });
+  const mobile = req.user?.phone || s.guardianPhone;
+  await verifyWhatsAppOtp({ mobile, otp });
+
+  // Find all registrations associated with this guardian phone
+  const allRegistrations = await Registration.find({ guardianPhone: mobile }).sort({ createdAt: -1 });
+  const target = s || allRegistrations[0];
 
   // Issue student token for status viewing and admit card download
-  const accessToken = issueToken({ sub: String(s._id), scope: "student" }, "30m");
+  const accessToken = issueToken({ sub: String(target._id), scope: "student" }, "30m");
 
   // Issue draft token so parent can seamlessly continue payment if not yet confirmed
-  const draftToken = issueToken({ sub: String(s._id), scope: "draft" }, "3h");
+  const draftToken = issueToken({ sub: String(target._id), scope: "draft" }, "3h");
 
   res.json({
     accessToken,
     draftToken,
-    registration: safeRegistration(s),
+    registration: safeRegistration(target),
+    allRegistrations: allRegistrations.length > 1 ? allRegistrations.map(safeRegistration) : undefined,
   });
+});
+r.post("/status/switch/:id", authenticate("student"), async (req, res) => {
+  const current = await getOwn(req);
+  const next = await Registration.findOne({ _id: req.params.id, guardianPhone: current.guardianPhone });
+  if (!next) return res.status(404).json({ error: "Student registration not found." });
+  const accessToken = issueToken({ sub: String(next._id), scope: "student" }, "30m");
+  const draftToken = issueToken({ sub: String(next._id), scope: "draft" }, "3h");
+  res.json({ accessToken, draftToken, registration: safeRegistration(next) });
 });
 r.get("/status/me", authenticate("student"), async (req, res) => {
   const s = await getOwn(req);

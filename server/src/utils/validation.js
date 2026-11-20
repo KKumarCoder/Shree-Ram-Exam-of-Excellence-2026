@@ -139,7 +139,10 @@ export const manualSchema = z.object({
 export const lookupSchema = z.object({
   registrationNumber: z
     .string()
-    .regex(/^(?:SHREE26-[0-9]{6}|SHREE27-[1-9][0-9]{3,}|APP-[A-F0-9]{10})$/),
+    .regex(/^(?:SHREE26-[0-9]{6}|SHREE27-[1-9][0-9]{3,}|APP-[A-F0-9]{10})$/)
+    .optional()
+    .or(z.literal(""))
+    .default(""),
   phone,
 });
 export const resumeRequestSchema = z.object({
