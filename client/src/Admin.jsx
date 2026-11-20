@@ -33,7 +33,7 @@ const sectionTitles = {
   registrations: "Manage Registrations",
   payments: "Payment Review",
   recovery: "Incomplete Applications",
-  reminders: "Email Reminder Center",
+  reminders: "WhatsApp Reminder Center",
   admit_cards: "Admit Card Management",
   whatsapp: "WhatsApp Communication Center",
   checkin: "Exam Check-in",

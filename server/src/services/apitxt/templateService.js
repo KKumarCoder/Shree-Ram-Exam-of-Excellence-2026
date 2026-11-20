@@ -61,6 +61,17 @@ export const TEMPLATES = {
     hasAuthButton: false,
     variableLabels: ['Student Name', 'Exam Date', 'Reporting Time', 'Venue', 'Registration Number'],
   },
+  PAYMENT_REMINDER: {
+    key: 'PAYMENT_REMINDER',
+    envVar: 'APITXT_PAYMENT_REMINDER_TEMPLATE',
+    defaultName: 'shree_payment_reminder',
+    category: 'UTILITY',
+    language: 'hi',
+    description: 'Payment and registration completion reminder with status resume link.',
+    hasMedia: false,
+    hasAuthButton: false,
+    variableLabels: ['Parent Name', 'Student Name', 'Class', 'Application Reference'],
+  },
   PARTICIPATION_CERTIFICATE: {
     key: 'PARTICIPATION_CERTIFICATE',
     envVar: 'APITXT_CERTIFICATE_TEMPLATE',
@@ -219,6 +230,26 @@ export function resolveExamReminderParams(registration, settings) {
     templateName: getTemplateName('EXAM_REMINDER'),
     bodyParams: [studentName, examDate, reportingTime, venue, regNo],
     language: getTemplateLanguage('EXAM_REMINDER'),
+  };
+}
+
+/**
+ * Parameter resolver for Payment Reminder Template.
+ * {{1}} = Guardian / Parent Name
+ * {{2}} = Student Name
+ * {{3}} = Class
+ * {{4}} = Application Reference ID
+ */
+export function resolvePaymentReminderParams(registration, settings) {
+  const parentName = registration.guardianName || 'अभिभावक';
+  const studentName = registration.studentName || 'Student';
+  const rawClass = String(registration.studentClass || '').trim();
+  const studentClass = rawClass.replace(/^class\s*/i, '').trim() || 'N/A';
+  const appRef = registration.applicationRef || registration.registrationNumber || 'N/A';
+  return {
+    templateName: getTemplateName('PAYMENT_REMINDER'),
+    bodyParams: [parentName, studentName, studentClass, appRef],
+    language: getTemplateLanguage('PAYMENT_REMINDER'),
   };
 }
 

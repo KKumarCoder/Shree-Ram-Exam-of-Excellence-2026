@@ -676,7 +676,7 @@ r.post("/registrations/:id/remind", verifier, async (req, res) => {
     const updated = await Registration.findById(req.params.id);
     res.json({
       success: true,
-      message: "Reminder email dispatched successfully.",
+      message: "WhatsApp payment reminder dispatched successfully.",
       messageId: result.messageId,
       registration: safeRegistration(updated),
     });

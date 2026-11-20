@@ -47,13 +47,14 @@ test('sanitizeData redacts auth keys, secrets, tokens and passwords', () => {
 
 test('getAllTemplatesConfig returns all approved system templates', () => {
   const configs = getAllTemplatesConfig();
-  assert.equal(configs.length, 7);
+  assert.equal(configs.length, 8);
   const keys = configs.map((c) => c.key);
   assert.ok(keys.includes('OTP'));
   assert.ok(keys.includes('PAYMENT_RECEIVED'));
   assert.ok(keys.includes('PAYMENT_VERIFIED'));
   assert.ok(keys.includes('ADMIT_CARD'));
   assert.ok(keys.includes('EXAM_REMINDER'));
+  assert.ok(keys.includes('PAYMENT_REMINDER'));
   assert.ok(keys.includes('PARTICIPATION_CERTIFICATE'));
   assert.ok(keys.includes('TOPPER_CERTIFICATE'));
 });

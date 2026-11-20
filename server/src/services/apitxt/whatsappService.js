@@ -9,6 +9,7 @@ import {
   resolveAdmitCardParams,
   resolveCertificateParams,
   resolveExamReminderParams,
+  resolvePaymentReminderParams,
 } from './templateService.js';
 import {
   getAdmitCardPdfUrl,
@@ -258,8 +259,27 @@ export async function sendExamReminderWhatsApp(registration, settings) {
 }
 
 /**
- * Retries a previously failed WhatsApp message.
+ * Dispatch Payment Reminder WhatsApp Notification
  */
+export async function sendPaymentReminderWhatsApp(registration, settings) {
+  const phone = registration.guardianPhone;
+  if (!phone) return { success: false, error: 'No phone number' };
+  const { templateName, bodyParams, language } = resolvePaymentReminderParams(registration, settings);
+
+  return dispatchAndLogWhatsApp({
+    recipientPhone: phone,
+    studentId: registration._id,
+    registrationId: registration._id,
+    registrationNumber: registration.registrationNumber || registration.applicationRef || '',
+    studentName: registration.studentName,
+    studentClass: registration.studentClass,
+    templateName,
+    language,
+    messageType: 'payment_reminder',
+    documentType: 'none',
+    bodyParams,
+  });
+}
 export async function retryWhatsAppMessage(messageId) {
   const msg = await WhatsAppMessage.findById(messageId);
   if (!msg) throw new Error('WhatsApp message record not found');

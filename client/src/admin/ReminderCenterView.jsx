@@ -142,7 +142,7 @@ export function ReminderCenterView({ canSet, onNavigateToRecovery, refreshKey })
             <small style={{ color: "#64748b", fontSize: "0.8rem" }}>
               {settingsData?.enabled
                 ? "Background cron evaluates inactive applications at 2h, 24h, and 72h intervals (Strict maximum: 3 attempts per student)."
-                : "Automatic bulk emails are paused. Administrators can send targeted reminders manually from the Incomplete Applications tab."}
+                : "Automatic bulk WhatsApp reminders are paused. Administrators can send targeted reminders manually from the Incomplete Applications tab."}
             </small>
           </div>
         </div>
@@ -208,7 +208,7 @@ export function ReminderCenterView({ canSet, onNavigateToRecovery, refreshKey })
           <div className="erp-stat-value">{settingsData?.failedCount ?? 0}</div>
           <div className="erp-stat-note">
             <span className="erp-stat-dot" style={{ background: "var(--erp-orange)" }} />
-            <span>Provider rejects or invalid emails</span>
+            <span>Provider rejects or delivery issues</span>
           </div>
         </div>
 
@@ -279,7 +279,7 @@ export function ReminderCenterView({ canSet, onNavigateToRecovery, refreshKey })
               ) : data.logs.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: "center", padding: "32px", color: "var(--erp-text-muted)" }}>
-                    No reminder emails logged in database yet.
+                    No WhatsApp reminders logged in database yet.
                   </td>
                 </tr>
               ) : (

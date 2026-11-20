@@ -271,17 +271,17 @@ export function AdminRecords({
   async function sendReminder(id, name) {
     if (
       !window.confirm(
-        `Send registration reminder email to the guardian of ${name || "this student"}?`,
+        `Send WhatsApp payment reminder to the guardian of ${name || "this student"}?`,
       )
     )
       return;
     setActions((prev) => ({ ...prev, [`remind:${id}`]: true }));
     try {
       const { data } = await api.post(`/admin/registrations/${id}/remind`);
-      notify.success(data.message || "Reminder email sent successfully.");
+      notify.success(data.message || "WhatsApp reminder sent successfully.");
       setRevision((r) => r + 1);
     } catch (err) {
-      notify.error(err.message || "Failed to send reminder email.");
+      notify.error(err.message || "Failed to send WhatsApp reminder.");
     } finally {
       setActions((prev) => ({ ...prev, [`remind:${id}`]: false }));
     }
@@ -1458,7 +1458,7 @@ export function AdminRecords({
                   </div>
                 ) : (
                   <p className="no-history-text" style={{ margin: "8px 0" }}>
-                    No reminder emails dispatched yet for this application.
+                    No WhatsApp reminders dispatched yet for this application.
                     (Scheduled attempts will appear here).
                   </p>
                 )}

@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { Registration, Payment, Settings, ReminderLog } from '../models/index.js';
-import { sendExamReminderWhatsApp } from './apitxt/index.js';
+import { sendPaymentReminderWhatsApp } from './apitxt/index.js';
 import { buildReminderEmail } from './reminderEmail.js';
 import {
   generateRecoveryToken,
@@ -231,7 +231,7 @@ export async function sendRegistrationReminder(
     });
 
     // 4. Send WhatsApp notification through APITxT
-    const sendResult = await sendExamReminderWhatsApp(claimed, settings);
+    const sendResult = await sendPaymentReminderWhatsApp(claimed, settings);
     const providerMessageId = sendResult?.requestId || sendResult?.messageId || '';
 
     // 5. Success state transition & schedule next reminder if attemptNumber < 3

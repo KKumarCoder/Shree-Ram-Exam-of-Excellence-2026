@@ -24,6 +24,16 @@ export function Status() {
   const running = useRef(false);
   const [resendAt, setResendAt] = useState(0);
   const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlRef = params.get("ref") || params.get("app") || params.get("id");
+      const urlPhone = params.get("phone") || params.get("mobile");
+      if (urlRef) setRef(urlRef.trim().toUpperCase());
+      if (urlPhone) setPhone(urlPhone.trim());
+    } catch {}
+  }, []);
   useEffect(() => {
     const tick = () =>
       setSeconds(Math.max(0, Math.ceil((resendAt - Date.now()) / 1000)));
