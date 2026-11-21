@@ -310,6 +310,7 @@ export const WhatsAppMessage = model(
           "admit_card",
           "certificate",
           "exam_reminder",
+          "payment_reminder",
           "result",
           "bulk",
           "custom",
