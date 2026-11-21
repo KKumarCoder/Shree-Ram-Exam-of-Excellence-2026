@@ -1818,11 +1818,11 @@ export function AdminRecords({
                 </label>
 
                 <label className="crud-form-field">
-                  <span>Guardian Email *</span>
+                  <span>Guardian Email (Optional)</span>
                   <input
                     type="email"
-                    required
                     value={editRegistrationForm.email}
+                    placeholder="e.g. guardian@gmail.com (Optional)"
                     onChange={(e) =>
                       setEditRegistrationForm((prev) => ({
                         ...prev,
