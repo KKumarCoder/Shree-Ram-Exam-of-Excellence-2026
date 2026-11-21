@@ -126,7 +126,7 @@ export async function sendRegistrationReminder(
       _id: regId,
       reminderCount: { $lt: 3 },
       reminderOptOut: { $ne: true },
-      applicationStatus: { $in: ['draft', 'awaiting_payment_proof'] },
+      applicationStatus: { $nin: ['approved', 'submitted', 'cancelled', 'superseded', 'rejected'] },
       status: { $in: ['DRAFT', 'OTP_VERIFIED', 'PAYMENT_PENDING'] },
       $or: [
         { reminderLease: null },
@@ -357,8 +357,8 @@ export async function processReminderQueue(limit = 10, deliver = null) {
 
   const candidates = await Registration.find({
     status: { $in: ['DRAFT', 'OTP_VERIFIED', 'PAYMENT_PENDING'] },
-    applicationStatus: { $in: ['draft', 'awaiting_payment_proof'] },
-    paymentStatus: { $in: ['not_submitted', 'pending'] },
+    applicationStatus: { $nin: ['approved', 'submitted', 'cancelled', 'superseded', 'rejected'] },
+    paymentStatus: { $in: ['not_submitted', 'pending', '', null] },
     reminderOptOut: { $ne: true },
     reminderCount: { $lt: 3 },
     $or: [

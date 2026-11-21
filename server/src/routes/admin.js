@@ -703,7 +703,7 @@ r.get("/settings/reminders", async (req, res) => {
     ReminderLog.countDocuments({ status: "FAILED" }),
     Registration.countDocuments({
       status: { $in: ["DRAFT", "OTP_VERIFIED", "PAYMENT_PENDING"] },
-      applicationStatus: { $in: ["draft", "awaiting_payment_proof"] },
+      applicationStatus: { $nin: ["approved", "submitted", "cancelled", "superseded", "rejected"] },
       reminderOptOut: { $ne: true },
       reminderCount: { $lt: 3 },
     }),
