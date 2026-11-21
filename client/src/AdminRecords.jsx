@@ -18,6 +18,7 @@ import {
   Trash2,
   AlertTriangle,
   Save,
+  Mail,
 } from "lucide-react";
 import { api, downloadBlob } from "./api.js";
 import { notify } from "./notifications.js";
@@ -102,7 +103,7 @@ export function AdminRecords({
   const [rejectTarget, setRejectTarget] = useState(null);
   const [reason, setReason] = useState("");
   const [selectedStudentDetail, setSelectedStudentDetail] = useState(null);
-  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(null);
   const locks = useRef(new Set());
   const exportLock = useRef(false);
   const requestVersion = useRef(0);
@@ -257,14 +258,14 @@ export function AdminRecords({
   }
 
   async function viewStudentDetail(id) {
-    setDetailLoading(true);
+    setDetailLoading(id);
     try {
       const { data: detail } = await api.get(`/admin/registrations/${id}/history`);
       setSelectedStudentDetail(detail);
     } catch (err) {
       notify.error(err.message || "Failed to load student history.");
     } finally {
-      setDetailLoading(false);
+      setDetailLoading(null);
     }
   }
 
@@ -906,11 +907,16 @@ export function AdminRecords({
                           <button
                             type="button"
                             className="admin-action-btn view-btn"
+                            disabled={detailLoading === record.id}
                             onClick={() => viewStudentDetail(record.id)}
                             title="View student history & audit timeline"
                             aria-label="View history"
                           >
-                            <Eye size={15} />
+                            {detailLoading === record.id ? (
+                              <Loader2 size={15} className="spin" />
+                            ) : (
+                              <Eye size={15} />
+                            )}
                           </button>
                           {canPay &&
                             ["DRAFT", "OTP_VERIFIED", "PAYMENT_PENDING"].includes(
@@ -1349,7 +1355,7 @@ export function AdminRecords({
                           );
                         }}
                       >
-                        <Mail size={13} /> Send Manual Reminder Now
+                        <Bell size={13} /> Send WhatsApp Reminder Now
                       </button>
                     )}
                 </div>

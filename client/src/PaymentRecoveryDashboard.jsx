@@ -60,11 +60,7 @@ export function PaymentRecoveryDashboard({ canPay, onViewDetail, refreshKey }) {
       const { data } = await api.get(`/admin/registrations/${id}/history`);
       setSelectedStudentDetail(data);
     } catch (err) {
-      notify({
-        type: "error",
-        title: "Load Failed",
-        message: err.response?.data?.error || "Failed to load student history.",
-      });
+      notify.error("Failed to load student history");
     } finally {
       setDetailLoading(false);
     }
@@ -163,20 +159,10 @@ export function PaymentRecoveryDashboard({ canPay, onViewDetail, refreshKey }) {
     try {
       const { data } = await api.post("/admin/settings/reminders/toggle", { enabled: targetState });
       setSchedulerStatus(data);
-      notify({
-        type: "success",
-        title: targetState ? "Scheduler Activated" : "Scheduler Paused",
-        message: targetState
-          ? "Automated background WhatsApp reminders are now ACTIVE."
-          : "Automated reminder delivery is now PAUSED.",
-      });
+      notify.success(targetState ? "Scheduler activated" : "Scheduler paused");
       setRevision((r) => r + 1);
     } catch (err) {
-      notify({
-        type: "error",
-        title: "Toggle Failed",
-        message: err.response?.data?.error || "Unable to update scheduler setting.",
-      });
+      notify.error("Unable to update scheduler");
     } finally {
       setSchedulerLoading(false);
     }
@@ -189,18 +175,10 @@ export function PaymentRecoveryDashboard({ canPay, onViewDetail, refreshKey }) {
 
     try {
       const { data } = await api.post(`/admin/registrations/${id}/remind`);
-      notify({
-        type: "success",
-        title: "Reminder Sent Successfully",
-        message: `Official WhatsApp reminder with secure resume link delivered to guardian of ${studentName}. (Message ID: ${data.messageId || "N/A"})`,
-      });
+      notify.success("WhatsApp reminder sent");
       setRevision((r) => r + 1);
     } catch (err) {
-      notify({
-        type: "error",
-        title: "Delivery Failed",
-        message: err.response?.data?.error || "Failed to deliver reminder via WhatsApp.",
-      });
+      notify.error("WhatsApp reminder failed");
     } finally {
       setActions((prev) => ({ ...prev, [`remind:${id}`]: false }));
     }

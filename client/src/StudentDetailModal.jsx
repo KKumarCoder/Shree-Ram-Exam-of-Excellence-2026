@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Mail, Loader2 } from "lucide-react";
+import { X, Mail, Bell, Loader2 } from "lucide-react";
 import { api } from "./api.js";
 import { notify } from "./notifications.js";
 
@@ -62,18 +62,10 @@ export function StudentDetailModal({
     setReminding(true);
     try {
       const { data } = await api.post(`/admin/registrations/${student._id}/remind`);
-      notify({
-        type: "success",
-        title: "Reminder Sent",
-        message: data.message || "Manual WhatsApp reminder dispatched via APITxT.",
-      });
+      notify.success("WhatsApp reminder sent");
       if (onRefresh) onRefresh(student._id);
     } catch (err) {
-      notify({
-        type: "error",
-        title: "Failed",
-        message: err.response?.data?.error || "Failed to deliver reminder via WhatsApp.",
-      });
+      notify.error("WhatsApp reminder failed");
     } finally {
       setReminding(false);
     }
@@ -286,9 +278,9 @@ export function StudentDetailModal({
                     {reminding ? (
                       <Loader2 size={13} className="admin-spin" />
                     ) : (
-                      <Mail size={13} />
+                      <Bell size={13} />
                     )}
-                    Send Manual Reminder Now
+                    Send WhatsApp Reminder Now
                   </button>
                 )}
             </div>
