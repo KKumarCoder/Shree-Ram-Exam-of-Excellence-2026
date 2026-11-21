@@ -11,6 +11,7 @@ import {
   resolvePaymentVerifiedParams,
   resolveAdmitCardParams,
   resolveCertificateParams,
+  resolvePaymentReminderParams,
 } from '../src/services/apitxt/index.js';
 
 test('formatWhatsAppPhone normalizes 10-digit Indian numbers to 91XXXXXXXXXX', () => {
@@ -152,6 +153,24 @@ test('resolveCertificateParams attaches PDF document header URL and maps approve
     'AARAV KUMAR',
     '5',
     'SHREE27-1001',
+  ]);
+});
+
+test('resolvePaymentReminderParams maps parent, student, class and appRef for payment_reminder_template', () => {
+  const reg = {
+    guardianName: 'MR DIWAN',
+    studentName: 'DEEPAK',
+    studentClass: 'Class 10',
+    applicationRef: 'APP-3CB5BDA4D3',
+  };
+  const resolved = resolvePaymentReminderParams(reg);
+  assert.equal(resolved.templateName, 'payment_reminder_template');
+  assert.equal(resolved.language, 'hi');
+  assert.deepEqual(resolved.bodyParams, [
+    'MR DIWAN',
+    'DEEPAK',
+    '10',
+    'APP-3CB5BDA4D3',
   ]);
 });
 

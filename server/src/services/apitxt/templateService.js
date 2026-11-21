@@ -64,8 +64,8 @@ export const TEMPLATES = {
   PAYMENT_REMINDER: {
     key: 'PAYMENT_REMINDER',
     envVar: 'APITXT_PAYMENT_REMINDER_TEMPLATE',
-    defaultName: 'shree_payment_reminder',
-    category: 'UTILITY',
+    defaultName: 'payment_reminder_template',
+    category: 'MARKETING',
     language: 'hi',
     description: 'Payment and registration completion reminder with status resume link.',
     hasMedia: false,

@@ -232,6 +232,9 @@ export async function sendRegistrationReminder(
 
     // 4. Send WhatsApp notification through APITxT
     const sendResult = await sendPaymentReminderWhatsApp(claimed, settings);
+    if (!sendResult?.success) {
+      throw new Error(sendResult?.error || 'WhatsApp payment reminder dispatch failed');
+    }
     const providerMessageId = sendResult?.requestId || sendResult?.messageId || '';
 
     // 5. Success state transition & schedule next reminder if attemptNumber < 3
@@ -291,7 +294,7 @@ export async function sendRegistrationReminder(
       channel: 'whatsapp',
       recipientEmail: claimed.guardianPhone || claimed.email,
       status: 'FAILED',
-      errorDetail: err.message || 'Email delivery failed',
+      errorDetail: err.message || 'WhatsApp reminder delivery failed',
       triggerType,
       triggeredBy: actor,
       sentAt: new Date(),
