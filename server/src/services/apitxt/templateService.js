@@ -75,11 +75,12 @@ export const TEMPLATES = {
   PARTICIPATION_CERTIFICATE: {
     key: 'PARTICIPATION_CERTIFICATE',
     envVar: 'APITXT_CERTIFICATE_TEMPLATE',
-    defaultName: 'shree_student_certificates_flow',
+    defaultName: 'shree_olympiad_cert_2027_pdf',
     category: 'UTILITY',
     language: 'en_US',
-    description: 'Official Participation Certificate delivery with student details, registration ID and download button.',
-    hasMedia: false,
+    description: 'Official Participation Certificate PDF delivery attached directly in WhatsApp.',
+    hasMedia: true,
+    mediaType: 'DOCUMENT',
     hasAuthButton: false,
     variableLabels: ['Parent Name', 'Student Name', 'Class', 'Registration ID'],
   },
@@ -283,9 +284,9 @@ export function resolveCertificateParams(registration, mediaUrl, isTopper = fals
   return {
     templateName: getTemplateName('PARTICIPATION_CERTIFICATE'),
     bodyParams: [parentName, studentName, studentClass, regNo],
-    buttonParams: [regNo],
+    buttonParams: [],
     mediaUrl,
-    filename: 'Certificate.pdf',
+    filename: `${regNo}-Certificate.pdf`,
     language: getTemplateLanguage('PARTICIPATION_CERTIFICATE'),
   };
 }

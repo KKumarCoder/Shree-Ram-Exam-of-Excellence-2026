@@ -146,7 +146,7 @@ test('resolveCertificateParams attaches PDF document header URL and maps approve
   assert.equal(resolved.templateName, getTemplateName('PARTICIPATION_CERTIFICATE'));
   assert.equal(resolved.language, 'en_US');
   assert.equal(resolved.mediaUrl, mediaUrl);
-  assert.equal(resolved.filename, 'Certificate.pdf');
+  assert.equal(resolved.filename, 'SHREE27-1001-Certificate.pdf');
   assert.equal(resolved.bodyParams.length, 4);
   assert.deepEqual(resolved.bodyParams, [
     'RAJESH KUMAR',
